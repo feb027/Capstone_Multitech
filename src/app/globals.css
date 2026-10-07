@@ -42,3 +42,32 @@
 .tap-bounce:active {
   transform: scale(0.96);
 }
+
+/* Apple iOS Sheet Keyframe Animations */
+@keyframes appleSheetSlideUp {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes appleBackdropFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-sheet-in {
+  animation: appleSheetSlideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.animate-backdrop-in {
+  animation: appleBackdropFadeIn 0.25s ease-out forwards;
+}

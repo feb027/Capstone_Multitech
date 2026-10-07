@@ -11,8 +11,8 @@ interface CheckCodeModalProps {
 }
 
 export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeModalProps) {
-  const [isMounted, setIsMounted] = useState(false);
-  const [isAnimateIn, setIsAnimateIn] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   const [code, setCode] = useState(initialCode);
   const [phoneLast4, setPhoneLast4] = useState('');
@@ -22,38 +22,52 @@ export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeM
   const codeInputRef = useRef<HTMLInputElement>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
 
-  // Smooth entrance & exit lifecycle
+  useEffect(() => {
+    if (initialCode) {
+      setCode(initialCode);
+    }
+  }, [initialCode]);
+
+  // Two-stage mount/visibility for 100% reliable CSS slide-in and slide-out transitions
   useEffect(() => {
     if (isOpen) {
-      setIsMounted(true);
+      setMounted(true);
       setError(null);
-      // Trigger animation on next frame
-      const timer = requestAnimationFrame(() => {
-        setIsAnimateIn(true);
+      // Double rAF ensures browser paints initial state before triggering CSS transition
+      const frame1 = requestAnimationFrame(() => {
+        const frame2 = requestAnimationFrame(() => {
+          setVisible(true);
+        });
+        return () => cancelAnimationFrame(frame2);
       });
-      // Focus input smoothly
-      setTimeout(() => {
+
+      const focusTimer = setTimeout(() => {
         if (!initialCode) {
           codeInputRef.current?.focus();
         } else {
           phoneInputRef.current?.focus();
         }
-      }, 200);
-      return () => cancelAnimationFrame(timer);
+      }, 160);
+
+      return () => {
+        cancelAnimationFrame(frame1);
+        clearTimeout(focusTimer);
+      };
     } else {
-      setIsAnimateIn(false);
+      setVisible(false);
       const timer = setTimeout(() => {
-        setIsMounted(false);
+        setMounted(false);
       }, 280);
       return () => clearTimeout(timer);
     }
   }, [isOpen, initialCode]);
 
   const handleSmoothClose = () => {
-    setIsAnimateIn(false);
+    setVisible(false);
     setTimeout(() => {
+      setMounted(false);
       onClose();
-    }, 250);
+    }, 280);
   };
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,30 +117,30 @@ export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeM
     });
   };
 
-  if (!isMounted) return null;
+  if (!mounted) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      {/* Smooth Apple Backdrop with fade transition */}
+      {/* Smooth Apple Backdrop */}
       <div
         className={`fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300 ease-out ${
-          isAnimateIn ? 'opacity-100' : 'opacity-0'
+          visible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={handleSmoothClose}
       />
 
-      {/* Smooth Apple Bottom Sheet / Modal with spring slide-up transition */}
+      {/* Smooth Apple Bottom Sheet with guaranteed entrance and exit transitions */}
       <div
         className={`relative z-10 w-full max-w-lg overflow-hidden rounded-t-[36px] border-t border-white/20 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] dark:border-white/10 dark:bg-[#161618]/95 sm:rounded-[36px] sm:border sm:p-8 ${
-          isAnimateIn
-            ? 'translate-y-0 sm:scale-100 sm:opacity-100'
-            : 'translate-y-full sm:scale-95 sm:opacity-0'
+          visible
+            ? 'translate-y-0 opacity-100 sm:scale-100'
+            : 'translate-y-full opacity-0 sm:translate-y-8 sm:scale-95'
         }`}
       >
         {/* iOS Drag Handle Pill */}
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-700 sm:hidden" />
 
-        {/* Clean Modal Header (No fluff) */}
+        {/* Clean Modal Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white sm:text-2xl">
             Cek Status
@@ -140,7 +154,7 @@ export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeM
           </button>
         </div>
 
-        {/* Unified Single-Row Form */}
+        {/* Form with Combined Single-Row Input */}
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           {error && (
             <div className="rounded-2xl border border-red-200/80 bg-red-50/80 p-3 text-xs font-semibold text-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
@@ -148,7 +162,7 @@ export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeM
             </div>
           )}
 
-          {/* Unified Input Container (Satu Baris Dipisah Strip) */}
+          {/* Unified Input Container */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-inner transition-all focus-within:border-slate-800 focus-within:ring-2 focus-within:ring-slate-800/10 dark:border-white/10 dark:bg-black/50 dark:focus-within:border-white dark:focus-within:ring-white/15">
             <div className="grid grid-cols-2 text-center text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-slate-500">
               <span>Kode Servis</span>

@@ -10,6 +10,7 @@
 /.next/
 /out/
 /build
+*.tsbuildinfo
 
 # Production
 dist
