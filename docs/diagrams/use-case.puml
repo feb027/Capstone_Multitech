@@ -1,0 +1,67 @@
+@startuml use-case
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Pengunjung" as V
+actor "Pelanggan\n(Perorangan / Mitra)" as C
+actor "Admin" as A
+C -|> V
+
+rectangle "Web Pelanggan" {
+  usecase "UC-01 Melihat papan antrean" as UC01
+  usecase "UC-02 Mencari/filter papan" as UC02
+  usecase "UC-03 Verifikasi kode servis" as UC03
+  usecase "UC-04 Melihat detail progres" as UC04
+  usecase "UC-05 Mengunduh nota/invoice" as UC05
+  usecase "UC-06 Melihat garansi" as UC06
+}
+
+rectangle "Web Internal" {
+  usecase "UC-10 Login/Logout" as UC10
+  usecase "UC-11 Kelola pelanggan" as UC11
+  usecase "UC-12 Kelola kendaraan" as UC12
+  usecase "UC-13 Kelola jenis modul" as UC13
+  usecase "UC-14 Penerimaan servis" as UC14
+  usecase "UC-15 Update status modul" as UC15
+  usecase "UC-16 Tambah catatan & media" as UC16
+  usecase "UC-17 Kelola biaya" as UC17
+  usecase "UC-18 Catat pembayaran" as UC18
+  usecase "UC-19 Tetapkan garansi" as UC19
+  usecase "UC-20 Klaim garansi" as UC20
+  usecase "UC-21 Batalkan modul" as UC21
+  usecase "UC-22 Cetak nota/invoice PDF" as UC22
+  usecase "UC-23 Kirim via WhatsApp" as UC23
+  usecase "UC-24 Lihat dashboard" as UC24
+  usecase "UC-25 Lihat laporan" as UC25
+  usecase "UC-26 Kelola akun admin" as UC26
+}
+
+V --> UC01
+V --> UC02
+V --> UC03
+C --> UC04
+C --> UC05
+C --> UC06
+UC04 .> UC03 : <<include>>
+
+A --> UC11
+A --> UC12
+A --> UC13
+A --> UC14
+A --> UC15
+A --> UC16
+A --> UC17
+A --> UC18
+A --> UC20
+A --> UC22
+A --> UC23
+A --> UC24
+A --> UC25
+A --> UC26
+UC11 .> UC10 : <<include>>
+UC14 .> UC22 : <<include>>
+UC20 .> UC14 : <<include>>
+UC19 .> UC15 : <<extend>>
+UC21 .> UC15 : <<extend>>
+@enduml
