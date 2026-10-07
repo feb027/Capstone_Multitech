@@ -1,0 +1,227 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum CustomerType {
+  PERORANGAN
+  MITRA
+}
+
+enum IntakeType {
+  MOBIL_UTUH
+  MODUL_SAJA
+}
+
+enum EntryMethod {
+  DATANG
+  EKSPEDISI
+}
+
+enum ItemStatus {
+  DITERIMA
+  DIAGNOSA
+  MENUNGGU_PERSETUJUAN
+  MENUNGGU_SPAREPART
+  PERBAIKAN
+  UJI_QC
+  SIAP_DIAMBIL
+  SELESAI
+  BATAL
+}
+
+enum LogKind {
+  STATUS
+  NOTE
+  ESTIMATE
+}
+
+enum MediaKind {
+  FOTO
+  VIDEO
+}
+
+enum ChargeKind {
+  JASA
+  SPAREPART
+  DIAGNOSA
+}
+
+enum PaymentMethod {
+  TUNAI
+  TRANSFER
+  QRIS
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("admins")
+}
+
+model Customer {
+  id           String        @id @default(uuid())
+  name         String
+  phone        String        @unique // Format 62xxx
+  type         CustomerType  @default(PERORANGAN)
+  workshopName String?       @map("workshop_name")
+  address      String?
+  notes        String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  vehicles      Vehicle[]
+  serviceOrders ServiceOrder[]
+
+  @@map("customers")
+}
+
+model Vehicle {
+  id          String   @id @default(uuid())
+  customerId  String   @map("customer_id")
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  brand       String   // e.g. Toyota
+  model       String   // e.g. Avanza
+  year        Int?
+  plateNumber String?  @map("plate_number") // PRIVAT - tidak dirender di publik
+  vin         String?
+
+  serviceOrders ServiceOrder[]
+
+  @@map("vehicles")
+}
+
+model ModuleType {
+  id                     String   @id @default(uuid())
+  name                   String   @unique // ECU, BCM, EPS, Speedometer, dll.
+  description            String?
+  defaultWarrantyMonths  Int?     @default(1) @map("default_warranty_months")
+  isActive               Boolean  @default(true) @map("is_active")
+
+  serviceItems ServiceItem[]
+
+  @@map("module_types")
+}
+
+model ServiceOrder {
+  id                   String       @id @default(uuid())
+  publicId             String       @unique @map("public_id") // ID acak untuk url publik
+  code                 String       @unique @db.Char(4)       // 4 digit acak permanen
+  customerId           String       @map("customer_id")
+  customer             Customer     @relation(fields: [customerId], references: [id])
+  vehicleId            String?      @map("vehicle_id")
+  vehicle              Vehicle?     @relation(fields: [vehicleId], references: [id])
+  intakeType           IntakeType   @default(MOBIL_UTUH) @map("intake_type")
+  entryMethod          EntryMethod  @default(DATANG) @map("entry_method")
+  trackingNumber       String?      @map("tracking_number")
+  conditionNotes       String?      @map("condition_notes")
+  receivedAt           DateTime     @default(now()) @map("received_at")
+  estimatedDoneAt      DateTime?    @map("estimated_done_at")
+  handedOverAt         DateTime?    @map("handed_over_at")
+  isWarrantyClaim      Boolean      @default(false) @map("is_warranty_claim")
+  warrantySourceItemId String?      @map("warranty_source_item_id")
+  createdBy            String?      @map("created_by")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+
+  items    ServiceItem[]
+  charges  ChargeLine[]
+  payments Payment[]
+
+  @@index([code])
+  @@index([publicId])
+  @@map("service_orders")
+}
+
+model ServiceItem {
+  id             String      @id @default(uuid())
+  orderId        String      @map("order_id")
+  order          ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  moduleTypeId   String      @map("module_type_id")
+  moduleType     ModuleType  @relation(fields: [moduleTypeId], references: [id])
+  moduleDetail   String?     @map("module_detail") // e.g. Denso 89661-0K...
+  complaint      String
+  status         ItemStatus  @default(DITERIMA)
+  warrantyMonths Int?        @map("warranty_months")
+  warrantyUntil  DateTime?   @map("warranty_until")
+  cancelReason   String?     @map("cancel_reason")
+  overrideReason String?     @map("override_reason")
+  finishedAt     DateTime?   @map("finished_at")
+
+  progressLogs ProgressLog[]
+  charges      ChargeLine[]
+
+  @@index([status])
+  @@index([orderId])
+  @@map("service_items")
+}
+
+model ProgressLog {
+  id         String      @id @default(uuid())
+  itemId     String      @map("item_id")
+  item       ServiceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  kind       LogKind     @default(STATUS)
+  fromStatus ItemStatus? @map("from_status")
+  toStatus   ItemStatus? @map("to_status")
+  note       String?
+  isPublic   Boolean     @default(true) @map("is_public")
+  createdBy  String?     @map("created_by")
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  media Media[]
+
+  @@index([itemId, createdAt])
+  @@map("progress_logs")
+}
+
+model Media {
+  id        String    @id @default(uuid())
+  logId     String    @map("log_id")
+  log       ProgressLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+  filePath  String    @map("file_path")
+  mimeType  String    @map("mime_type")
+  kind      MediaKind @default(FOTO)
+  sizeBytes Int       @map("size_bytes")
+  isPublic  Boolean   @default(false) @map("is_public")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("media")
+}
+
+model ChargeLine {
+  id          String      @id @default(uuid())
+  orderId     String      @map("order_id")
+  order       ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId      String?     @map("item_id")
+  item        ServiceItem? @relation(fields: [itemId], references: [id])
+  kind        ChargeKind  @default(JASA)
+  description String
+  qty         Int         @default(1)
+  unitPrice   Float       @map("unit_price") // numeric rupiah
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([orderId])
+  @@map("charge_lines")
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  orderId   String        @map("order_id")
+  order     ServiceOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount    Float
+  method    PaymentMethod @default(TUNAI)
+  paidAt    DateTime      @default(now()) @map("paid_at")
+  note      String?
+  createdBy String?       @map("created_by")
+
+  @@index([orderId])
+  @@map("payments")
+}
