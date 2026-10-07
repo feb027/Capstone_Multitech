@@ -11,23 +11,31 @@ export default function CekProgresPage() {
   );
 
   return (
-    <div className="mx-auto flex min-h-[75vh] max-w-md items-center justify-center px-4 pt-4">
-      <div className="w-full rounded-3xl border border-slate-200/80 bg-white p-6 shadow-card transition-colors dark:border-slate-800 dark:bg-slate-900 sm:p-8">
-        <div className="text-center">
-          <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            Akses Pelacakan Unit
-          </span>
-          <h1 className="mt-3 text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
-            Verifikasi Kode Servis
+    <div className="flex flex-col justify-center pt-2">
+      {/* Back button */}
+      <div className="mb-4">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+        >
+          <span>&larr;</span>
+          <span>Kembali</span>
+        </Link>
+      </div>
+
+      <div className="rounded-[32px] border border-black/[0.04] bg-white p-6 shadow-sm transition-colors dark:border-white/[0.06] dark:bg-[#1C1C1E] sm:p-8">
+        <div>
+          <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white sm:text-2xl">
+            Cek Status Unit
           </h1>
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Masukkan 4 digit kode servis yang tertera pada nota tanda terima dan 4 digit terakhir nomor HP Anda.
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+            Kombinasi kode nota dan 4 digit nomor HP Anda
           </p>
         </div>
 
         <form action={formAction} className="mt-6 space-y-4">
           {state?.error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300">
+            <div className="rounded-2xl bg-red-500/10 p-3 text-xs font-semibold text-red-600 dark:text-red-400">
               {state.error}
             </div>
           )}
@@ -35,7 +43,7 @@ export default function CekProgresPage() {
           <div>
             <label
               htmlFor="code"
-              className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300"
+              className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500"
             >
               Kode Servis (4 Digit)
             </label>
@@ -47,16 +55,16 @@ export default function CekProgresPage() {
               maxLength={4}
               placeholder="Contoh: 4821"
               required
-              className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-center font-mono text-xl font-bold tracking-widest text-slate-900 transition-colors focus:border-navy focus:bg-white focus:outline-none focus:ring-2 focus:ring-navy/20 dark:border-slate-800 dark:bg-slate-800/50 dark:text-white dark:focus:border-crimson dark:focus:bg-slate-900 dark:focus:ring-crimson/20"
+              className="mt-1.5 block w-full rounded-2xl border-0 bg-[#F2F2F7] px-4 py-3 text-center font-mono text-2xl font-bold tracking-widest text-slate-900 placeholder-slate-300 transition-colors focus:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-600 dark:focus:ring-white"
             />
           </div>
 
           <div>
             <label
               htmlFor="phoneLast4"
-              className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300"
+              className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500"
             >
-              4 Digit Terakhir No. HP
+              4 Digit Akhir No. HP
             </label>
             <input
               id="phoneLast4"
@@ -66,27 +74,18 @@ export default function CekProgresPage() {
               maxLength={4}
               placeholder="Contoh: 5678"
               required
-              className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-center font-mono text-xl font-bold tracking-widest text-slate-900 transition-colors focus:border-navy focus:bg-white focus:outline-none focus:ring-2 focus:ring-navy/20 dark:border-slate-800 dark:bg-slate-800/50 dark:text-white dark:focus:border-crimson dark:focus:bg-slate-900 dark:focus:ring-crimson/20"
+              className="mt-1.5 block w-full rounded-2xl border-0 bg-[#F2F2F7] px-4 py-3 text-center font-mono text-2xl font-bold tracking-widest text-slate-900 placeholder-slate-300 transition-colors focus:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-600 dark:focus:ring-white"
             />
           </div>
 
           <button
             type="submit"
             disabled={isPending}
-            className="mt-6 flex w-full items-center justify-center rounded-xl bg-navy py-3 text-sm font-semibold text-white transition-all hover:bg-navy-light active:scale-[0.98] disabled:opacity-60 dark:bg-crimson dark:hover:bg-crimson-hover"
+            className="mt-6 flex w-full items-center justify-center rounded-2xl bg-slate-900 py-3.5 text-xs font-bold text-white transition-all tap-bounce disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            {isPending ? 'Memeriksa...' : 'Lihat Status Progres'}
+            {isPending ? 'Memeriksa...' : 'Buka Progres'}
           </button>
         </form>
-
-        <div className="mt-6 text-center">
-          <Link
-            href="/"
-            className="text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-          >
-            &larr; Kembali ke Papan Antrean
-          </Link>
-        </div>
       </div>
     </div>
   );

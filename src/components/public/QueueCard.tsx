@@ -1,6 +1,11 @@
 import Link from 'next/link';
-import { formatDate } from '@/lib/utils';
 import { ItemStatus } from '@prisma/client';
+
+export interface QueueItem {
+  id: string;
+  moduleName: string;
+  status: ItemStatus;
+}
 
 export interface QueueCardProps {
   publicId: string;
@@ -9,61 +14,70 @@ export interface QueueCardProps {
   vehicleYear?: number | null;
   intakeType: 'MOBIL_UTUH' | 'MODUL_SAJA';
   receivedAt: Date | string;
-  items: {
-    id: string;
-    moduleName: string;
-    status: ItemStatus;
-  }[];
+  items: QueueItem[];
 }
 
-function getStatusBadge(status: ItemStatus) {
+function getStatusStyle(status: ItemStatus) {
   switch (status) {
     case 'DITERIMA':
       return {
         label: 'Diterima',
-        className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+        bg: 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300',
+        dot: 'bg-slate-400',
       };
     case 'DIAGNOSA':
       return {
         label: 'Diagnosa',
-        className: 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-900',
+        bg: 'bg-amber-500/10 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400',
+        dot: 'bg-amber-500',
       };
     case 'MENUNGGU_PERSETUJUAN':
       return {
-        label: 'Menunggu Persetujuan',
-        className: 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-900',
+        label: 'Konfirmasi',
+        bg: 'bg-amber-500/10 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400',
+        dot: 'bg-amber-500',
       };
     case 'MENUNGGU_SPAREPART':
       return {
         label: 'Tunggu Komponen',
-        className: 'bg-orange-50 text-orange-800 border border-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-900',
+        bg: 'bg-orange-500/10 text-orange-700 dark:bg-orange-400/10 dark:text-orange-400',
+        dot: 'bg-orange-500',
       };
     case 'PERBAIKAN':
       return {
-        label: 'Perbaikan / Solder',
-        className: 'bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-900',
+        label: 'Perbaikan',
+        bg: 'bg-blue-500/10 text-blue-700 dark:bg-blue-400/10 dark:text-blue-400',
+        dot: 'bg-blue-500 animate-pulse',
       };
     case 'UJI_QC':
       return {
-        label: 'Uji & Kalibrasi',
-        className: 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-900',
+        label: 'Uji Kalibrasi',
+        bg: 'bg-purple-500/10 text-purple-700 dark:bg-purple-400/10 dark:text-purple-400',
+        dot: 'bg-purple-500',
       };
     case 'SIAP_DIAMBIL':
       return {
         label: 'Siap Diambil',
-        className: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-900',
-      };
-    case 'BATAL':
-      return {
-        label: 'Dibatalkan',
-        className: 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300',
+        bg: 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400',
+        dot: 'bg-emerald-500',
       };
     default:
       return {
         label: status,
-        className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+        bg: 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300',
+        dot: 'bg-slate-400',
       };
   }
+}
+
+function formatRelativeTime(date: Date | string) {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays <= 0) return 'Masuk hari ini';
+  if (diffDays === 1) return 'Masuk kemarin';
+  return `${diffDays} hari lalu`;
 }
 
 export function QueueCard({
@@ -77,59 +91,54 @@ export function QueueCard({
 }: QueueCardProps) {
   const title =
     vehicleBrand && vehicleModel
-      ? `${vehicleBrand} ${vehicleModel} ${vehicleYear ? `(${vehicleYear})` : ''}`
-      : 'Modul Servis (Tanpa Data Mobil)';
+      ? `${vehicleBrand} ${vehicleModel}`
+      : 'Modul Lepasan';
+
+  const sub = vehicleYear ? `${vehicleYear}` : intakeType === 'MOBIL_UTUH' ? 'Unit Mobil' : 'Kirim Ekspedisi';
 
   return (
-    <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-subtle transition-all duration-200 hover:border-slate-300 hover:shadow-card dark:border-slate-800/80 dark:bg-slate-900 dark:hover:border-slate-700">
-      <div>
-        {/* Header Kartu: Tanggal & Tipe */}
-        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-medium tracking-wide">
-            Masuk: {formatDate(receivedAt)}
-          </span>
-          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            {intakeType === 'MOBIL_UTUH' ? 'Mobil Utuh' : 'Modul Saja'}
-          </span>
+    <Link
+      href={`/cek?p=${publicId}`}
+      className="group block rounded-[24px] border border-black/[0.04] bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.98] dark:border-white/[0.06] dark:bg-[#1C1C1E]"
+    >
+      {/* Card Header: Vehicle & Time */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
+            {title}
+          </h3>
+          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+            {sub} • {formatRelativeTime(receivedAt)}
+          </p>
         </div>
 
-        {/* Judul Kendaraan */}
-        <h3 className="mt-3 text-base font-bold tracking-tight text-slate-900 dark:text-white">
-          {title}
-        </h3>
+        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">
+          {items.length} Modul
+        </span>
+      </div>
 
-        {/* Daftar Modul & Status */}
-        <div className="mt-3 space-y-2">
-          {items.map((item) => {
-            const badge = getStatusBadge(item.status);
-            return (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-2 rounded-xl bg-slate-50/80 px-3 py-2 text-xs dark:bg-slate-800/50"
+      {/* Module Chips with Apple status dots */}
+      <div className="mt-3.5 space-y-1.5">
+        {items.map((item) => {
+          const style = getStatusStyle(item.status);
+          return (
+            <div
+              key={item.id}
+              className="flex items-center justify-between rounded-xl bg-[#F2F2F7] px-3 py-2 text-xs transition-colors dark:bg-white/[0.04]"
+            >
+              <span className="font-medium text-slate-800 dark:text-slate-200 truncate pr-2">
+                {item.moduleName}
+              </span>
+              <span
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${style.bg}`}
               >
-                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                  {item.moduleName}
-                </span>
-                <span
-                  className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.className}`}
-                >
-                  {badge.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+                {style.label}
+              </span>
+            </div>
+          );
+        })}
       </div>
-
-      {/* Tombol Aksi Akses Cek Progres */}
-      <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/60">
-        <Link
-          href={`/cek?p=${publicId}`}
-          className="inline-flex w-full items-center justify-center rounded-xl bg-navy py-2.5 text-center text-xs font-semibold text-white transition-all hover:bg-navy-light active:scale-[0.98] dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
-        >
-          Cek Progres Detail
-        </Link>
-      </div>
-    </div>
+    </Link>
   );
 }

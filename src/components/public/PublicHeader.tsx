@@ -5,29 +5,24 @@ import { ThemeToggle } from '@/components/shared/ThemeToggle';
 
 export function PublicHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-md transition-colors dark:border-slate-800 dark:bg-slate-950/90">
-      {/* Top Brand Accent Line */}
-      <div className="h-1 w-full bg-crimson" />
-
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex flex-col">
-            <span className="text-xl font-extrabold tracking-tight text-navy dark:text-white">
-              MULTI<span className="text-crimson">TECH</span>
-            </span>
-            <span className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-              Auto Electronics Tasikmalaya
-            </span>
+    <header className="sticky top-0 z-40 w-full border-b border-black/[0.04] bg-[#F2F2F7]/80 backdrop-blur-xl transition-colors dark:border-white/[0.06] dark:bg-black/80">
+      <div className="mx-auto flex h-14 max-w-lg items-center justify-between px-5">
+        {/* Brand Logo */}
+        <Link href="/" className="flex items-center gap-2 tap-bounce">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0B2545] text-white dark:bg-white dark:text-black">
+            <span className="text-xs font-black tracking-tight">M</span>
           </div>
+          <span className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white">
+            MULTI<span className="text-[#E63946]">TECH</span>
+          </span>
         </Link>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/cek"
-            className="inline-flex items-center justify-center rounded-full bg-navy px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-navy-light dark:bg-crimson dark:hover:bg-crimson-hover"
-          >
-            Cek Kode Servis
-          </Link>
+        {/* Right Action: Status Pill & Theme Toggle */}
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Aktif</span>
+          </div>
           <ThemeToggle />
         </div>
       </div>

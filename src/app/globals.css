@@ -2,44 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+@layer base {
+  :root {
+    --bg-system: #f2f2f7;
+    --card-surface: #ffffff;
+    --text-primary: #1c1c1e;
+    --text-secondary: #8e8e93;
+  }
+
+  .dark {
+    --bg-system: #000000;
+    --card-surface: #1c1c1e;
+    --text-primary: #ffffff;
+    --text-secondary: #8e8e93;
+  }
+
+  body {
+    background-color: var(--bg-system);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.015em;
+  }
 }
 
-.dark {
-  --background: #0a0e17;
-  --foreground: #f9fafb;
+/* Hide scrollbar for clean horizontal pill scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Apple style subtle spring tap active feedback */
+.tap-bounce {
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
-/* Custom scrollbar clean */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
-}
-
-/* Touch targets mobile safe area */
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 1rem);
+.tap-bounce:active {
+  transform: scale(0.96);
 }
