@@ -17,12 +17,8 @@ export function PublicHeader() {
           </span>
         </Link>
 
-        {/* Right Action: Status Pill & Theme Toggle */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Aktif</span>
-          </div>
+        {/* Right Action: Clean Theme Toggle Only */}
+        <div className="flex items-center">
           <ThemeToggle />
         </div>
       </div>

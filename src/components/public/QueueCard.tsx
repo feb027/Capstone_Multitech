@@ -40,7 +40,7 @@ function getStatusBadge(status: ItemStatus) {
       };
     case 'MENUNGGU_SPAREPART':
       return {
-        label: 'Tunggu IC',
+        label: 'Tunggu Komponen',
         bg: 'bg-orange-500/10 text-orange-700 dark:bg-orange-400/15 dark:text-orange-400',
         dot: 'bg-orange-500',
       };
@@ -48,7 +48,7 @@ function getStatusBadge(status: ItemStatus) {
       return {
         label: 'Perbaikan',
         bg: 'bg-blue-500/10 text-blue-700 dark:bg-blue-400/15 dark:text-blue-400',
-        dot: 'bg-blue-500 animate-pulse',
+        dot: 'bg-blue-500',
       };
     case 'UJI_QC':
       return {
@@ -76,20 +76,19 @@ export function QueueCard({
   vehicleModel,
   vehicleYear,
   intakeType,
-  receivedAt,
   items,
   onSelect,
 }: QueueCardProps) {
   const brandTitle =
     vehicleBrand && vehicleModel
       ? `${vehicleBrand} ${vehicleModel}`
-      : 'Modul Servis Lepasan';
+      : 'Modul Lepasan';
 
   const subInfo = vehicleYear
-    ? `Tahun ${vehicleYear} • ${intakeType === 'MOBIL_UTUH' ? 'Unit Mobil' : 'Modul Saja'}`
+    ? `${vehicleYear}`
     : intakeType === 'MOBIL_UTUH'
-    ? 'Unit Mobil di Bengkel'
-    : 'Kirim via Ekspedisi';
+    ? 'Mobil'
+    : 'Modul';
 
   return (
     <div
@@ -98,8 +97,8 @@ export function QueueCard({
     >
       {/* Top Header: Car Title & Arrow Action */}
       <div className="flex items-start justify-between">
-        <div className="pr-2">
-          <div className="flex items-center gap-2">
+        <div>
+          <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-black uppercase tracking-wider text-[#E63946]">
               {vehicleBrand || 'MODUL'}
             </span>
@@ -114,7 +113,7 @@ export function QueueCard({
           </h3>
         </div>
 
-        {/* Small Apple-style action button */}
+        {/* Apple-style action button */}
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors group-hover:bg-[#0B2545] group-hover:text-white dark:bg-white/10 dark:text-slate-300 dark:group-hover:bg-white dark:group-hover:text-black">
           <ArrowUpRight className="h-3.5 w-3.5" />
         </div>
@@ -145,12 +144,6 @@ export function QueueCard({
             </div>
           );
         })}
-      </div>
-
-      {/* Bottom Hint */}
-      <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
-        <span>Ketuk untuk cek progres</span>
-        <span className="font-mono text-[10px] opacity-70">Verifikasi &rarr;</span>
       </div>
     </div>
   );
