@@ -26,6 +26,13 @@ const SHOP_GALLERY: MagazineSlide[] = [
     title: 'Workshop CV Multitech Tasikmalaya',
     subtitle: WORKSHOP_PROFILE.address,
   },
+  {
+    src: '/images/shop/multitech-genset-units.jpg',
+    alt: 'Unit genset FIRMAN dalam penanganan servis CV Multitech Tasikmalaya',
+    tag: 'SERVIS GENSET',
+    title: 'Penanganan & Perbaikan Unit Genset',
+    subtitle: 'Servis AVR, panel AMF, modul kontrol & kelistrikan genset',
+  },
 ];
 
 const LOOPED_SLIDES = [...SHOP_GALLERY, ...SHOP_GALLERY, ...SHOP_GALLERY];
