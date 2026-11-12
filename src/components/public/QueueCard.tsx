@@ -1,6 +1,6 @@
 import { ItemStatus } from '@prisma/client';
 import { ArrowUpRight, Cpu } from 'lucide-react';
-import { getStatusMeta } from '@/lib/status';
+import { getStatusMeta, getVehicleHeroImage } from '@/lib/status';
 
 export interface QueueItem {
   id: string;
@@ -45,30 +45,42 @@ export function QueueCard({
       ? 'Mobil'
       : 'Modul';
 
+  const heroImage = getVehicleHeroImage(vehicleBrand, vehicleModel, unitCategory);
+
   return (
     <button
       type="button"
       onClick={onSelect}
       className="ios-glass-card group relative w-full cursor-pointer overflow-hidden rounded-[26px] p-4 text-left transition-all duration-200 hover:shadow-lg active:scale-[0.98]"
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[#C9182B] dark:text-[#F87171]">
-              {vehicleBrand || 'MODUL'}
-            </span>
-            <span className="h-1 w-1 rounded-full bg-slate-400 dark:bg-slate-600" aria-hidden="true" />
-            <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">
-              {subInfo}
-            </span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded-2xl border border-black/[0.06] bg-black/20 dark:border-white/[0.14]">
+            <img
+              src={heroImage.src}
+              alt={brandTitle}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
           </div>
 
-          <h3 className="mt-1 text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
-            {brandTitle}
-          </h3>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#C9182B] dark:text-[#F87171]">
+                {vehicleBrand || 'MODUL'}
+              </span>
+              <span className="h-1 w-1 rounded-full bg-slate-400 dark:bg-slate-600" aria-hidden="true" />
+              <span className="truncate text-[10px] font-semibold text-slate-600 dark:text-slate-400">
+                {subInfo}
+              </span>
+            </div>
+
+            <h3 className="mt-0.5 truncate text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
+              {brandTitle}
+            </h3>
+          </div>
         </div>
 
-        <div className="ios-glass-inner flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors group-hover:bg-[#0B2545] group-hover:text-white dark:text-slate-200 dark:group-hover:bg-white dark:group-hover:text-black">
+        <div className="ios-glass-inner flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors group-hover:bg-slate-900 group-hover:text-white dark:text-slate-200 dark:group-hover:bg-white dark:group-hover:text-black">
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
         </div>
       </div>
