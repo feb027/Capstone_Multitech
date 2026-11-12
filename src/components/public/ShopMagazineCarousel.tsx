@@ -52,6 +52,7 @@ export function ShopMagazineCarousel() {
   const [index, setIndex] = useState(1);
   const [dragX, setDragX] = useState(0);
   const [isAnimated, setIsAnimated] = useState(true);
+  const [isInteracting, setIsInteracting] = useState(false);
 
   const startXRef = useRef(0);
   const startYRef = useRef(0);
@@ -59,11 +60,31 @@ export function ShopMagazineCarousel() {
   const isPointerDownRef = useRef(false);
   const isTransitionLockedRef = useRef(false);
   const dragXRef = useRef(0);
+  const unlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function normalizeEdgeIfNeeded(currentIndex: number): number {
     if (currentIndex <= 0) return SLIDE_COUNT;
     if (currentIndex >= SLIDE_COUNT + 1) return 1;
     return currentIndex;
+  }
+
+  function finishTransitionCleanup(currentIdx: number) {
+    isTransitionLockedRef.current = false;
+    if (unlockTimerRef.current) {
+      clearTimeout(unlockTimerRef.current);
+      unlockTimerRef.current = null;
+    }
+
+    if (currentIdx === 0 || currentIdx === SLIDE_COUNT + 1) {
+      const target = currentIdx === 0 ? SLIDE_COUNT : 1;
+      setIsAnimated(false);
+      setIndex(target);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsAnimated(true);
+        });
+      });
+    }
   }
 
   function stepSlide(delta: -1 | 0 | 1) {
@@ -77,26 +98,42 @@ export function ShopMagazineCarousel() {
 
     isTransitionLockedRef.current = true;
     setIsAnimated(true);
+    let nextIdx = 1;
     setIndex((prev) => {
       const normalized = normalizeEdgeIfNeeded(prev);
-      return normalized + delta;
+      nextIdx = normalized + delta;
+      return nextIdx;
     });
+
+    if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+    unlockTimerRef.current = setTimeout(() => {
+      finishTransitionCleanup(nextIdx);
+    }, 380);
   }
 
   function handleTransitionEnd() {
-    isTransitionLockedRef.current = false;
-
-    if (index === 0 || index === SLIDE_COUNT + 1) {
-      const target = index === 0 ? SLIDE_COUNT : 1;
-      setIsAnimated(false);
-      setIndex(target);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIsAnimated(true);
-        });
-      });
-    }
+    finishTransitionCleanup(index);
   }
+
+  useEffect(() => {
+    if (isInteracting) return;
+    if (index === 0 || index === SLIDE_COUNT + 1) return;
+
+    const timer = setInterval(() => {
+      if (document.hidden || isPointerDownRef.current || isTransitionLockedRef.current) {
+        return;
+      }
+      stepSlide(1);
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [index, isInteracting]);
+
+  useEffect(() => {
+    return () => {
+      if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     function handleWindowMouseMove(e: MouseEvent) {
@@ -111,6 +148,7 @@ export function ShopMagazineCarousel() {
     function handleWindowMouseUp() {
       if (!isPointerDownRef.current) return;
       isPointerDownRef.current = false;
+      setIsInteracting(false);
       const dx = dragXRef.current;
       if (dx <= -38) {
         stepSlide(1);
@@ -137,6 +175,7 @@ export function ShopMagazineCarousel() {
       setIndex(normalized);
     }
     isPointerDownRef.current = true;
+    setIsInteracting(true);
     startXRef.current = e.clientX;
     dragXRef.current = 0;
     setIsAnimated(false);
@@ -150,6 +189,7 @@ export function ShopMagazineCarousel() {
       setIsAnimated(false);
       setIndex(normalized);
     }
+    setIsInteracting(true);
     startXRef.current = e.touches[0].clientX;
     startYRef.current = e.touches[0].clientY;
     axisLockedRef.current = 'none';
@@ -181,6 +221,7 @@ export function ShopMagazineCarousel() {
   }
 
   function handleTouchEnd() {
+    setIsInteracting(false);
     if (axisLockedRef.current !== 'horizontal') {
       axisLockedRef.current = 'none';
       return;
