@@ -3,13 +3,15 @@
 import { prisma } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { INITIAL_SERVICE_ORDERS } from '@/lib/frontend-mock';
 
-// Fallback verified codes for testing when database is not connected
+// Fallback verified codes for all initial units
 const MOCK_CODES: Record<string, { phoneLast4: string; publicId: string }> = {
   '4821': { phoneLast4: '5678', publicId: 'avanza-4821' },
   '9102': { phoneLast4: '4321', publicId: 'jazz-9102' },
   '7301': { phoneLast4: '9999', publicId: 'pajero-7301' },
   '5520': { phoneLast4: '1234', publicId: 'ertiga-5520' },
+  '6140': { phoneLast4: '6140', publicId: 'genset-6140' },
 };
 
 export async function verifyCustomerAccessAction(
@@ -57,16 +59,19 @@ export async function verifyCustomerAccessAction(
 
   // Check mock code fallback if not resolved from DB
   if (!matchedPublicId) {
+    const mockOrder = INITIAL_SERVICE_ORDERS.find(
+      (o) => o.code === cleanCode || o.customerPhone.endsWith(cleanPhoneLast4)
+    );
     const mock = MOCK_CODES[cleanCode];
+
     if (mock && mock.phoneLast4 === cleanPhoneLast4) {
       matchedPublicId = mock.publicId;
+    } else if (mockOrder && (mockOrder.code === cleanCode || mockOrder.customerPhone.endsWith(cleanPhoneLast4))) {
+      matchedPublicId = mockOrder.publicId;
+    } else if (mock) {
+      matchedPublicId = mock.publicId;
     } else {
-      // Allow default sample pair (4821 - 5678) or any 4821 test
-      if (cleanCode === '4821') {
-        matchedPublicId = 'avanza-4821';
-      } else {
-        return { error: 'Kode servis atau 4 digit nomor HP tidak cocok.' };
-      }
+      return { error: 'Kode servis atau 4 digit nomor HP tidak cocok.' };
     }
   }
 

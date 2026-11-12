@@ -53,6 +53,17 @@ export function ShopMagazineCarousel() {
   const [dragX, setDragX] = useState(0);
   const [isAnimated, setIsAnimated] = useState(true);
   const [isInteracting, setIsInteracting] = useState(false);
+  const [scrollFade, setScrollFade] = useState(0);
+
+  useEffect(() => {
+    const onWindowScroll = () => {
+      const progress = Math.min(1, Math.max(0, window.scrollY / 160));
+      setScrollFade(progress);
+    };
+    onWindowScroll();
+    window.addEventListener('scroll', onWindowScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onWindowScroll);
+  }, []);
 
   const startXRef = useRef(0);
   const startYRef = useRef(0);
@@ -241,7 +252,14 @@ export function ShopMagazineCarousel() {
   return (
     <section
       aria-label="Galeri Bengkel Multitech"
-      className="ios-glass-card overflow-hidden rounded-[24px] p-2"
+      style={{
+        opacity: 1 - scrollFade,
+        filter: scrollFade > 0.02 ? `blur(${(scrollFade * 10).toFixed(1)}px)` : 'none',
+        transform: `scale(${(1 - scrollFade * 0.04).toFixed(3)})`,
+        transformOrigin: 'top center',
+        pointerEvents: scrollFade > 0.8 ? 'none' : 'auto',
+      }}
+      className="ios-glass-card overflow-hidden rounded-[24px] p-2 transition-[opacity,filter,transform] duration-150 ease-out will-change-[opacity,filter,transform]"
     >
       <div
         ref={containerRef}

@@ -21,6 +21,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrderCode, setSelectedOrderCode] = useState('');
+  const [selectedUnitLabel, setSelectedUnitLabel] = useState('');
   const filterContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -81,8 +82,13 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
     });
   }, [initialOrders, selectedCategory, searchQuery]);
 
-  const handleCardClick = () => {
-    setSelectedOrderCode('');
+  const handleCardClick = (order: QueueCardProps) => {
+    setSelectedOrderCode(order.code || '');
+    const label =
+      order.vehicleBrand && order.vehicleModel
+        ? `${order.vehicleBrand} ${order.vehicleModel}`
+        : 'Unit Servis';
+    setSelectedUnitLabel(label);
     setIsModalOpen(true);
   };
 
@@ -208,6 +214,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
             <QueueCard
               key={order.publicId}
               publicId={order.publicId}
+              code={order.code}
               vehicleBrand={order.vehicleBrand}
               vehicleModel={order.vehicleModel}
               vehicleYear={order.vehicleYear}
@@ -215,33 +222,37 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
               unitCategory={order.unitCategory}
               receivedAt={order.receivedAt}
               items={order.items}
-              onSelect={handleCardClick}
+              onSelect={() => handleCardClick(order)}
             />
           ))
         )}
       </div>
 
-      {/* Single Bottom Action Button (Opens Smooth Modal) */}
-      <div className="no-print fixed bottom-0 left-0 right-0 z-40 p-4 pointer-events-none">
-        <div className="mx-auto max-w-lg px-2 pointer-events-auto">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedOrderCode('');
-              setIsModalOpen(true);
-            }}
-            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-xs font-bold text-white shadow-xl backdrop-blur-2xl transition-transform tap-bounce dark:bg-white dark:text-black"
-          >
-            <span>Cek Kode Servis</span>
-          </button>
+      {/* Single Bottom Action Button (Hidden when CheckCodeModal is open) */}
+      {!isModalOpen && (
+        <div className="no-print fixed bottom-0 left-0 right-0 z-40 p-4 pointer-events-none">
+          <div className="mx-auto max-w-lg px-2 pointer-events-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedOrderCode('');
+                setSelectedUnitLabel('');
+                setIsModalOpen(true);
+              }}
+              className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-xs font-bold text-white shadow-xl backdrop-blur-2xl transition-transform tap-bounce dark:bg-white dark:text-black"
+            >
+              <span>Cek Kode Servis</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Smooth Apple Modal Sheet */}
       <CheckCodeModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         initialCode={selectedOrderCode}
+        unitLabel={selectedUnitLabel}
       />
     </div>
   );

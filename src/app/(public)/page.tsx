@@ -8,6 +8,7 @@ export const revalidate = 30;
 
 const FALLBACK_ORDERS: QueueCardProps[] = INITIAL_SERVICE_ORDERS.map((o) => ({
   publicId: o.publicId,
+  code: o.code,
   vehicleBrand: o.vehicleBrand,
   vehicleModel: o.vehicleModel,
   vehicleYear: o.vehicleYear,
@@ -35,6 +36,7 @@ async function getActiveOrders(): Promise<QueueCardProps[]> {
       },
       select: {
         publicId: true,
+        code: true,
         intakeType: true,
         receivedAt: true,
         vehicle: {
@@ -68,6 +70,7 @@ async function getActiveOrders(): Promise<QueueCardProps[]> {
 
     return orders.map((o) => ({
       publicId: o.publicId,
+      code: o.code,
       intakeType: o.intakeType,
       unitCategory: o.items.some((i) => i.moduleType.name.toLowerCase().includes('genset'))
         ? 'GENSET_INDUSTRI'
