@@ -183,7 +183,7 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
       </div>
 
       {/* Vehicle Overview Card */}
-      <div className="rounded-[28px] border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]">
+      <div className="ios-glass-card rounded-[28px] p-5">
         <button
           type="button"
           onClick={() => {
@@ -266,7 +266,7 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
           return (
             <div
               key={item.id}
-              className="space-y-4 rounded-[28px] border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]"
+              className="ios-glass-card space-y-4 rounded-[28px] p-5"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3">
@@ -399,7 +399,7 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
 
       {/* Transparent Cost Breakdown */}
       {order.charges && order.charges.length > 0 && (
-        <div className="space-y-3 rounded-[28px] border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]">
+        <div className="ios-glass-card space-y-3 rounded-[28px] p-5">
           <h2 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
             Rincian Biaya
           </h2>

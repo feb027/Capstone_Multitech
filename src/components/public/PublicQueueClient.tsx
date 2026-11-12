@@ -92,8 +92,8 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
 
   return (
     <div className="space-y-4">
-      {/* Tagline Spesialisasi Bengkel (Bersih & Minimalis di Atas Majalah) */}
-      <div className="flex items-center gap-2.5 rounded-2xl border border-black/[0.04] bg-white px-4 py-3 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]">
+      {/* Tagline Spesialisasi Bengkel (iPhone Glass) */}
+      <div className="ios-glass-card flex items-center gap-2.5 rounded-2xl px-4 py-3">
         <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 dark:bg-emerald-400" aria-hidden="true" />
         <p className="text-xs font-bold tracking-tight text-slate-900 dark:text-white">
           Bengkel Spesialis Perbaikan Elektronik Otomotif
@@ -103,7 +103,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
       {/* Kartu Majalah Landscape (Swipe / Geser Langsung Tanpa Panah & Counter) */}
       <section
         aria-label="Galeri Bengkel Multitech"
-        className="overflow-hidden rounded-[24px] border border-black/[0.04] bg-white p-2 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]"
+        className="ios-glass-card overflow-hidden rounded-[24px] p-2"
       >
         <div
           ref={magazineScroll.scrollRef}
@@ -165,7 +165,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
               className={`min-h-[40px] shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-semibold transition-all tap-bounce ${
                 isActive
                   ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-black'
-                  : 'border border-black/[0.04] bg-white text-slate-600 hover:bg-slate-50 dark:border-white/[0.06] dark:bg-[#1C1C1E] dark:text-slate-300 dark:hover:bg-white/10'
+                  : 'ios-glass-card text-slate-700 hover:bg-white/80 dark:text-slate-200 dark:hover:bg-white/15'
               }`}
             >
               {cat.label}
@@ -186,7 +186,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Cari mobil, genset, atau modul..."
           aria-label="Cari mobil, genset, atau modul"
-          className="h-11 w-full rounded-2xl border border-black/[0.04] bg-white pl-10 pr-10 text-xs text-slate-900 placeholder-slate-600 shadow-sm transition-all dark:border-white/[0.06] dark:bg-[#1C1C1E] dark:text-white dark:placeholder-slate-400"
+          className="ios-glass-card h-11 w-full rounded-2xl pl-10 pr-10 text-xs text-slate-900 placeholder-slate-600 transition-all dark:text-white dark:placeholder-slate-400"
         />
         {searchQuery && (
           <button
@@ -203,7 +203,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
       {/* Cards Feed */}
       <div className="space-y-2.5 pt-1">
         {filteredOrders.length === 0 ? (
-          <div className="rounded-[28px] border border-black/[0.04] bg-white p-8 text-center dark:border-white/[0.06] dark:bg-[#1C1C1E]">
+          <div className="ios-glass-card rounded-[28px] p-8 text-center">
             <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
               Tidak ada antrean yang cocok dengan filter saat ini.
             </p>

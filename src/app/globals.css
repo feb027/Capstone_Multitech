@@ -99,6 +99,54 @@
   }
 }
 
+.ios-ambient-backdrop {
+  background-color: #eef1f7;
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(59, 130, 246, 0.14) 0%, transparent 45%),
+    radial-gradient(circle at 88% 28%, rgba(148, 163, 184, 0.22) 0%, transparent 48%),
+    radial-gradient(circle at 22% 76%, rgba(201, 24, 43, 0.08) 0%, transparent 45%);
+}
+
+.dark .ios-ambient-backdrop {
+  background-color: #050507;
+  background-image:
+    radial-gradient(circle at 14% 10%, rgba(37, 99, 235, 0.22) 0%, transparent 46%),
+    radial-gradient(circle at 86% 34%, rgba(71, 85, 105, 0.24) 0%, transparent 50%),
+    radial-gradient(circle at 20% 78%, rgba(201, 24, 43, 0.14) 0%, transparent 46%);
+}
+
+.ios-glass-card {
+  background-color: rgba(255, 255, 255, 0.68);
+  -webkit-backdrop-filter: blur(26px) saturate(185%);
+  backdrop-filter: blur(26px) saturate(185%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 8px 28px -8px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+}
+
+.dark .ios-glass-card {
+  background-color: rgba(34, 34, 38, 0.56);
+  -webkit-backdrop-filter: blur(26px) saturate(185%);
+  backdrop-filter: blur(26px) saturate(185%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 12px 34px -8px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+.ios-glass-inner {
+  background-color: rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.7);
+}
+
+.dark .ios-glass-inner {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
 @media print {
   body {
     background: #ffffff !important;

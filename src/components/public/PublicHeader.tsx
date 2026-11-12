@@ -7,7 +7,7 @@ import { WORKSHOP_PROFILE } from '@/lib/status';
 
 export function PublicHeader() {
   return (
-    <header className="no-print sticky top-0 z-40 w-full border-b border-black/[0.04] bg-[#F2F2F7]/80 backdrop-blur-xl transition-colors dark:border-white/[0.06] dark:bg-black/80">
+    <header className="no-print sticky top-0 z-40 w-full border-b border-white/60 bg-white/65 backdrop-blur-2xl backdrop-saturate-150 transition-colors dark:border-white/[0.1] dark:bg-[#161618]/65">
       <div className="mx-auto flex h-14 max-w-lg items-center justify-between gap-3 px-4 sm:px-5">
         <Link
           href="/"

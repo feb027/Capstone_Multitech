@@ -49,7 +49,7 @@ export function QueueCard({
     <button
       type="button"
       onClick={onSelect}
-      className="group relative w-full cursor-pointer overflow-hidden rounded-[26px] border border-black/[0.05] bg-white p-4 text-left shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md active:scale-[0.98] dark:border-white/[0.08] dark:bg-[#1C1C1E] dark:hover:border-white/20"
+      className="ios-glass-card group relative w-full cursor-pointer overflow-hidden rounded-[26px] p-4 text-left transition-all duration-200 hover:shadow-lg active:scale-[0.98]"
     >
       <div className="flex items-start justify-between">
         <div>
@@ -68,7 +68,7 @@ export function QueueCard({
           </h3>
         </div>
 
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors group-hover:bg-[#0B2545] group-hover:text-white dark:bg-white/10 dark:text-slate-300 dark:group-hover:bg-white dark:group-hover:text-black">
+        <div className="ios-glass-inner flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors group-hover:bg-[#0B2545] group-hover:text-white dark:text-slate-200 dark:group-hover:bg-white dark:group-hover:text-black">
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
         </div>
       </div>
@@ -79,7 +79,7 @@ export function QueueCard({
           return (
             <div
               key={item.id}
-              className="flex items-center justify-between gap-2 rounded-xl bg-[#F2F2F7] px-3 py-2 text-xs transition-colors dark:bg-white/[0.04]"
+              className="ios-glass-inner flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs transition-colors"
             >
               <div className="flex min-w-0 items-center gap-2 pr-2">
                 <Cpu className="h-3.5 w-3.5 shrink-0 text-slate-600 dark:text-slate-400" aria-hidden="true" />

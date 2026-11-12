@@ -140,7 +140,7 @@ export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeM
       />
 
       <div
-        className={`relative z-10 w-full max-w-lg overflow-hidden rounded-t-[36px] border-t border-white/20 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] dark:border-white/10 dark:bg-[#161618]/95 sm:rounded-[36px] sm:border sm:p-8 ${
+        className={`ios-glass-card relative z-10 w-full max-w-lg overflow-hidden rounded-t-[36px] p-6 shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] sm:rounded-[36px] sm:p-8 ${
           visible
             ? 'translate-y-0 opacity-100 sm:scale-100'
             : 'translate-y-full opacity-0 sm:translate-y-8 sm:scale-95'
