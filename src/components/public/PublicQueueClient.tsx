@@ -3,8 +3,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { QueueCard, QueueCardProps } from './QueueCard';
 import { CheckCodeModal } from './CheckCodeModal';
-import { FilterScrollRow } from '@/components/shared/FilterScrollRow';
-import { Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FilterScrollRow, useHorizontalDragScroll } from '@/components/shared/FilterScrollRow';
+import { Search, X } from 'lucide-react';
 import { WORKSHOP_PROFILE } from '@/lib/status';
 
 const CATEGORIES = [
@@ -38,8 +38,8 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrderCode, setSelectedOrderCode] = useState('');
-  const [slideIndex, setSlideIndex] = useState(0);
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
+  const magazineScroll = useHorizontalDragScroll();
 
   useEffect(() => {
     if (!lightboxImage) return;
@@ -85,8 +85,6 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
     });
   }, [initialOrders, selectedCategory, searchQuery]);
 
-  const currentSlide = SHOP_GALLERY[slideIndex] || SHOP_GALLERY[0];
-
   const handleCardClick = () => {
     setSelectedOrderCode('');
     setIsModalOpen(true);
@@ -102,77 +100,44 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
         </p>
       </div>
 
-      {/* Kartu Majalah Landscape (Foto + Alamat Lengkap Resmi) */}
+      {/* Kartu Majalah Landscape (Swipe / Geser Langsung Tanpa Panah & Counter) */}
       <section
         aria-label="Galeri Bengkel Multitech"
-        className="overflow-hidden rounded-[24px] border border-black/[0.04] bg-white p-2.5 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]"
+        className="overflow-hidden rounded-[24px] border border-black/[0.04] bg-white p-2 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]"
       >
-        <button
-          type="button"
-          onClick={() => setLightboxImage({ src: currentSlide.src, alt: currentSlide.alt })}
-          aria-label={`Perbesar foto: ${currentSlide.title}`}
-          className="group relative block aspect-[16/9] w-full overflow-hidden rounded-[18px] bg-slate-100 text-left dark:bg-white/5"
+        <div
+          ref={magazineScroll.scrollRef}
+          {...magazineScroll.handlers}
+          className="flex snap-x snap-mandatory gap-2 overflow-x-auto select-none touch-pan-x no-scrollbar cursor-grab active:cursor-grabbing"
         >
-          <img
-            src={currentSlide.src}
-            alt={currentSlide.alt}
-            className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-          <div className="absolute bottom-3 left-3.5 right-3.5">
-            <span className="inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-white backdrop-blur-md">
-              {currentSlide.tag}
-            </span>
-            <p className="mt-1 truncate text-sm font-bold text-white">
-              {currentSlide.title}
-            </p>
-            <p className="line-clamp-2 text-[11px] leading-snug text-slate-200">
-              {currentSlide.subtitle}
-            </p>
-          </div>
-        </button>
-
-        {/* Kontrol Slide di Bawah Foto Majalah */}
-        <div className="mt-2.5 flex items-center justify-between px-1">
-          <div className="flex items-center gap-1.5">
-            {SHOP_GALLERY.map((item, idx) => (
-              <button
-                key={item.src}
-                type="button"
-                onClick={() => setSlideIndex(idx)}
-                aria-label={`Tampilkan foto ${idx + 1}: ${item.title}`}
-                className={`h-2 rounded-full transition-all ${
-                  idx === slideIndex
-                    ? 'w-5 bg-slate-900 dark:bg-white'
-                    : 'w-2 bg-slate-300 hover:bg-slate-400 dark:bg-white/25'
-                }`}
+          {SHOP_GALLERY.map((slide) => (
+            <button
+              key={slide.src}
+              type="button"
+              onClick={() => setLightboxImage({ src: slide.src, alt: slide.alt })}
+              aria-label={`Perbesar foto: ${slide.title}`}
+              className="group relative aspect-[16/9] w-full shrink-0 snap-center overflow-hidden rounded-[18px] bg-slate-100 text-left dark:bg-white/5"
+            >
+              <img
+                src={slide.src}
+                alt={slide.alt}
+                draggable={false}
+                className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
               />
-            ))}
-            <span className="ml-1 font-mono text-[10px] font-semibold text-slate-600 dark:text-slate-400">
-              {slideIndex + 1}/{SHOP_GALLERY.length}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() =>
-                setSlideIndex((prev) => (prev - 1 + SHOP_GALLERY.length) % SHOP_GALLERY.length)
-              }
-              aria-label="Foto bengkel sebelumnya"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F2F2F7] text-slate-700 hover:bg-slate-200 tap-bounce dark:bg-white/10 dark:text-slate-200"
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+              <div className="absolute bottom-3 left-3.5 right-3.5">
+                <span className="inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-white backdrop-blur-md">
+                  {slide.tag}
+                </span>
+                <p className="mt-1 truncate text-sm font-bold text-white">
+                  {slide.title}
+                </p>
+                <p className="line-clamp-2 text-[11px] leading-snug text-slate-200">
+                  {slide.subtitle}
+                </p>
+              </div>
             </button>
-            <button
-              type="button"
-              onClick={() => setSlideIndex((prev) => (prev + 1) % SHOP_GALLERY.length)}
-              aria-label="Foto bengkel berikutnya"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F2F2F7] text-slate-700 hover:bg-slate-200 tap-bounce dark:bg-white/10 dark:text-slate-200"
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
+          ))}
         </div>
       </section>
 
@@ -186,7 +151,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
         </span>
       </div>
 
-      {/* Capsule Filter Tabs (1 Baris Horizontal, Tidak Menumpuk) */}
+      {/* Capsule Filter Tabs (Geser Halus Tanpa Panah) */}
       <FilterScrollRow ariaLabel="Filter kategori modul">
         {CATEGORIES.map((cat) => {
           const isActive = selectedCategory === cat.id;

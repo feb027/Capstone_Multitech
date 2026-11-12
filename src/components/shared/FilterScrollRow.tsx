@@ -1,44 +1,17 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback, ReactNode } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRef, ReactNode } from 'react';
 
-interface FilterScrollRowProps {
-  children: ReactNode;
-  ariaLabel: string;
-}
-
-export function FilterScrollRow({ children, ariaLabel }: FilterScrollRowProps) {
+/**
+ * Enables sideways mouse-wheel and drag scrolling on horizontal scroll containers
+ * while ignoring button/card clicks triggered at the end of a drag gesture.
+ */
+export function useHorizontalDragScroll() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const startScrollLeftRef = useRef(0);
   const didDragRef = useRef(false);
-
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const updateScrollButtons = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    updateScrollButtons();
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const resizeObserver = new ResizeObserver(updateScrollButtons);
-    resizeObserver.observe(el);
-    window.addEventListener('resize', updateScrollButtons);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateScrollButtons);
-    };
-  }, [updateScrollButtons, children]);
 
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     const el = scrollRef.current;
@@ -80,49 +53,36 @@ export function FilterScrollRow({ children, ariaLabel }: FilterScrollRowProps) {
     }
   }
 
-  function scrollByAmount(delta: number) {
-    scrollRef.current?.scrollBy({ left: delta, behavior: 'smooth' });
-  }
+  return {
+    scrollRef,
+    handlers: {
+      onWheel: handleWheel,
+      onMouseDown: handleMouseDown,
+      onMouseMove: handleMouseMove,
+      onMouseUp: stopDragging,
+      onMouseLeave: stopDragging,
+      onClickCapture: handleClickCapture,
+    },
+  };
+}
+
+interface FilterScrollRowProps {
+  children: ReactNode;
+  ariaLabel: string;
+}
+
+export function FilterScrollRow({ children, ariaLabel }: FilterScrollRowProps) {
+  const { scrollRef, handlers } = useHorizontalDragScroll();
 
   return (
-    <div className="relative z-10 flex w-full min-w-0 items-center gap-1.5">
-      {canScrollLeft && (
-        <button
-          type="button"
-          onClick={() => scrollByAmount(-160)}
-          aria-label="Geser filter ke kiri"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/[0.06] bg-white text-slate-700 shadow-sm hover:bg-slate-50 tap-bounce dark:border-white/[0.08] dark:bg-[#1C1C1E] dark:text-slate-200"
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-        </button>
-      )}
-
-      <div
-        ref={scrollRef}
-        role="tablist"
-        aria-label={ariaLabel}
-        onScroll={updateScrollButtons}
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={stopDragging}
-        onMouseLeave={stopDragging}
-        onClickCapture={handleClickCapture}
-        className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-x-auto py-1 touch-pan-x no-scrollbar cursor-grab active:cursor-grabbing"
-      >
-        {children}
-      </div>
-
-      {canScrollRight && (
-        <button
-          type="button"
-          onClick={() => scrollByAmount(160)}
-          aria-label="Geser filter ke kanan"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/[0.06] bg-white text-slate-700 shadow-sm hover:bg-slate-50 tap-bounce dark:border-white/[0.08] dark:bg-[#1C1C1E] dark:text-slate-200"
-        >
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
-        </button>
-      )}
+    <div
+      ref={scrollRef}
+      role="tablist"
+      aria-label={ariaLabel}
+      {...handlers}
+      className="relative z-10 flex w-full min-w-0 flex-nowrap select-none items-center gap-2 overflow-x-auto py-1 touch-pan-x no-scrollbar cursor-grab active:cursor-grabbing"
+    >
+      {children}
     </div>
   );
 }
