@@ -7,11 +7,11 @@ interface BrandLogoProps {
 
 export function BrandLogo({ href = '/', compact = false }: BrandLogoProps) {
   const logoImg = (
-    <div className="inline-flex items-center overflow-hidden rounded-lg border border-black/[0.08] bg-white shadow-sm dark:border-white/[0.15]">
+    <div className="inline-flex items-center justify-center rounded-xl border border-black/[0.08] bg-white p-1 shadow-sm dark:border-white/[0.15]">
       <img
         src="/images/multitech-logo.png"
         alt="Logo CV Multitech"
-        className={compact ? 'h-7 w-auto object-contain' : 'h-8 w-auto object-contain'}
+        className={compact ? 'h-6 w-auto object-contain' : 'h-7 w-auto object-contain'}
       />
     </div>
   );

@@ -12,37 +12,28 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#F2F2F7] px-5 py-10 transition-colors dark:bg-black">
-      <div className="absolute left-5 top-5">
-        <Link
-          href="/"
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-white px-4 text-xs font-semibold text-slate-700 shadow-sm hover:text-slate-900 tap-bounce dark:bg-[#1C1C1E] dark:text-slate-300 dark:hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          <span>Portal Publik</span>
-        </Link>
-      </div>
-
-      <div className="absolute right-5 top-5">
-        <ThemeToggle />
-      </div>
-
-      <div className="w-full max-w-sm rounded-[32px] border border-black/[0.04] bg-white p-7 shadow-xl dark:border-white/[0.06] dark:bg-[#1C1C1E]">
-        <div className="flex flex-col items-center text-center">
+    <div className="ios-ambient-backdrop flex min-h-screen items-center justify-center p-4 transition-colors">
+      <div className="ios-glass-card relative w-full max-w-sm overflow-hidden rounded-[32px] p-6 shadow-2xl sm:p-7">
+        {/* Header di dalam kotak login: Logo & Pengubah Mode */}
+        <div className="flex items-center justify-between gap-3">
           <BrandLogo href="/" />
-          <h1 className="mt-5 text-[22px] font-bold tracking-tight text-slate-900 dark:text-white">
+          <ThemeToggle />
+        </div>
+
+        <div className="mt-5 text-center">
+          <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white sm:text-2xl">
             Portal Internal
           </h1>
-          <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-            Masuk untuk mengelola penerimaan unit, rekam medis modul, stok suku cadang, dan laporan.
+          <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+            Masuk untuk mengelola antrean servis, data pelanggan, dan konfirmasi unit.
           </p>
         </div>
 
-        <form action={formAction} className="mt-6 space-y-4">
+        <form action={formAction} className="mt-5 space-y-3.5">
           {state?.error && (
             <div
               role="alert"
-              className="rounded-2xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-300"
+              className="rounded-2xl border border-red-200/80 bg-red-50/80 p-3 text-xs font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
             >
               {state.error}
             </div>
@@ -51,7 +42,7 @@ export default function AdminLoginPage() {
           <div>
             <label
               htmlFor="email"
-              className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
+              className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
             >
               Email Staf / Admin
             </label>
@@ -62,14 +53,14 @@ export default function AdminLoginPage() {
               autoComplete="email"
               placeholder="nama@multitech.com"
               required
-              className="mt-1.5 h-12 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-4 text-sm text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400 dark:focus:border-white/40"
+              className="mt-1.5 h-11 w-full rounded-xl border border-black/[0.08] bg-white px-3.5 text-xs text-slate-900 placeholder-slate-400 shadow-inner focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:border-white/10 dark:bg-black/50 dark:text-white dark:focus:ring-white/20"
             />
           </div>
 
           <div>
             <label
               htmlFor="password"
-              className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
+              className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
             >
               Password
             </label>
@@ -81,13 +72,13 @@ export default function AdminLoginPage() {
                 autoComplete="current-password"
                 required
                 placeholder="Masukkan password"
-                className="h-12 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] pl-4 pr-12 text-sm text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400 dark:focus:border-white/40"
+                className="h-11 w-full rounded-xl border border-black/[0.08] bg-white pl-3.5 pr-11 text-xs text-slate-900 placeholder-slate-400 shadow-inner focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:border-white/10 dark:bg-black/50 dark:text-white dark:focus:ring-white/20"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
                 aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
-                className="absolute right-0.5 top-0.5 inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                className="absolute right-0.5 top-0.5 inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -101,11 +92,21 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={isPending}
-            className="flex min-h-[48px] w-full items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-800 tap-bounce disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+            className="flex min-h-[46px] w-full items-center justify-center rounded-2xl bg-slate-900 text-xs font-bold text-white shadow-lg transition-transform tap-bounce disabled:opacity-50 dark:bg-white dark:text-black sm:min-h-[48px]"
           >
             {isPending ? 'Memverifikasi...' : 'Masuk'}
           </button>
         </form>
+
+        <div className="mt-5 border-t border-black/[0.06] pt-4 text-center dark:border-white/[0.08]">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Kembali ke Portal Publik</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useTransition, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { verifyCustomerAccessAction } from '@/app/(public)/cek/actions';
 import { X, ArrowRight } from 'lucide-react';
 
@@ -40,7 +41,7 @@ export function CheckCodeModal({
     setTimeout(() => {
       setMounted(false);
       onClose();
-    }, 250);
+    }, 200);
   }, [onClose]);
 
   useEffect(() => {
@@ -57,7 +58,7 @@ export function CheckCodeModal({
         } else {
           phoneInputRef.current?.focus({ preventScroll: true });
         }
-      }, 180);
+      }, 160);
 
       const onKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
@@ -75,7 +76,7 @@ export function CheckCodeModal({
       setVisible(false);
       const timer = setTimeout(() => {
         setMounted(false);
-      }, 250);
+      }, 200);
       return () => clearTimeout(timer);
     }
   }, [isOpen, initialCode, handleSmoothClose]);
@@ -129,25 +130,27 @@ export function CheckCodeModal({
     });
   };
 
-  if (!mounted) return null;
+  if (!mounted || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-cek-status-title"
     >
+      {/* Full-bleed Backdrop covering whole screen including navbar */}
       <div
-        className={`fixed inset-0 bg-black/65 backdrop-blur-md transition-opacity duration-250 ease-out ${
+        className={`fixed inset-0 bg-black/85 backdrop-blur-2xl transition-opacity duration-200 ease-out ${
           visible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={handleSmoothClose}
         aria-hidden="true"
       />
 
+      {/* Modal Sheet / Card */}
       <div
-        className={`ios-glass-card relative z-10 w-full max-w-md overflow-hidden rounded-t-[32px] p-5 shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] sm:rounded-[32px] sm:p-7 ${
+        className={`ios-glass-card relative z-10 w-full max-w-md overflow-hidden rounded-t-[32px] p-5 shadow-2xl transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] sm:rounded-[32px] sm:p-7 ${
           visible
             ? 'translate-y-0 sm:scale-100 sm:opacity-100'
             : 'translate-y-full sm:translate-y-4 sm:scale-95 sm:opacity-0'
@@ -241,6 +244,7 @@ export function CheckCodeModal({
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
