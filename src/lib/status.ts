@@ -197,7 +197,7 @@ export function getUnitModelImage(moduleName?: string, unitCategory?: string): {
   const name = (moduleName || '').toLowerCase();
   if (unitCategory === 'GENSET_INDUSTRI' || name.includes('genset') || name.includes('amf') || name.includes('dse')) {
     return {
-      src: '/images/units/genset-dse7320.jpg',
+      src: '/images/units/genset-dse7320.png',
       caption: 'Panel Kontrol Genset / AMF',
     };
   }
