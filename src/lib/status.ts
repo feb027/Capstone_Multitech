@@ -134,6 +134,62 @@ export const WORKSHOP_PROFILE = {
   whatsappNumber: '6281234567890',
 };
 
+export function getVehicleHeroImage(
+  brand?: string | null,
+  model?: string | null,
+  unitCategory?: string
+): {
+  src: string;
+  caption: string;
+  badge: string;
+} {
+  const fullName = `${brand || ''} ${model || ''}`.trim();
+  const normalized = fullName.toLowerCase();
+
+  if (
+    unitCategory === 'GENSET_INDUSTRI' ||
+    normalized.includes('genset') ||
+    normalized.includes('deep sea') ||
+    normalized.includes('dse')
+  ) {
+    return {
+      src: '/images/vehicles/genset-unit.jpg',
+      caption: fullName || 'Unit Genset / Panel AMF',
+      badge: 'Foto Unit Genset',
+    };
+  }
+
+  if (normalized.includes('pajero') || normalized.includes('fortuner') || normalized.includes('cr-v') || normalized.includes('rush') || normalized.includes('terios')) {
+    return {
+      src: '/images/vehicles/pajero-sport.jpg',
+      caption: fullName || 'Unit SUV / Mobil',
+      badge: 'Foto Kendaraan',
+    };
+  }
+
+  if (normalized.includes('jazz') || normalized.includes('brio') || normalized.includes('yaris') || normalized.includes('agya') || normalized.includes('ayla') || normalized.includes('swift')) {
+    return {
+      src: '/images/vehicles/honda-jazz.jpg',
+      caption: fullName || 'Unit Hatchback / Mobil',
+      badge: 'Foto Kendaraan',
+    };
+  }
+
+  if (normalized.includes('ertiga') || normalized.includes('xl7') || normalized.includes('suzuki') || normalized.includes('xpander') || normalized.includes('livina')) {
+    return {
+      src: '/images/vehicles/suzuki-ertiga.jpg',
+      caption: fullName || 'Unit MPV / Mobil',
+      badge: 'Foto Kendaraan',
+    };
+  }
+
+  return {
+    src: '/images/vehicles/toyota-avanza.jpg',
+    caption: fullName || 'Unit Kendaraan Servis',
+    badge: 'Foto Kendaraan',
+  };
+}
+
 export function getUnitModelImage(moduleName?: string, unitCategory?: string): {
   src: string;
   caption: string;

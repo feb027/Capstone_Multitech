@@ -19,6 +19,7 @@ import {
   getProgressStepIndex,
   getStatusMeta,
   getUnitModelImage,
+  getVehicleHeroImage,
 } from '@/lib/status';
 import { formatRupiah } from '@/lib/utils';
 
@@ -123,7 +124,11 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
 
   const primaryStatus = (order.items[0]?.status as ItemStatus) || ItemStatus.DITERIMA;
   const statusMeta = getStatusMeta(primaryStatus);
-  const primaryModelPhoto = getUnitModelImage(order.items[0]?.moduleType.name, order.unitCategory);
+  const heroVehiclePhoto = getVehicleHeroImage(
+    order.vehicle?.brand,
+    order.vehicle?.model,
+    order.unitCategory
+  );
 
   const intakeLabel =
     order.unitCategory === 'GENSET_INDUSTRI'
@@ -188,23 +193,23 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
           type="button"
           onClick={() => {
             setPhotoError(false);
-            setActivePhoto(primaryModelPhoto.src);
+            setActivePhoto(heroVehiclePhoto.src);
           }}
-          aria-label={`Perbesar foto unit ${order.vehicle?.brand || ''} ${order.vehicle?.model || ''}`}
+          aria-label={`Perbesar foto ${heroVehiclePhoto.caption}`}
           className="group relative mb-4 block w-full overflow-hidden rounded-2xl border border-black/[0.05] bg-slate-100 text-left tap-bounce dark:border-white/[0.08] dark:bg-black/30"
         >
           <img
-            src={primaryModelPhoto.src}
-            alt={`Foto model ${order.vehicle?.brand || ''} ${order.vehicle?.model || ''} (${primaryModelPhoto.caption})`}
+            src={heroVehiclePhoto.src}
+            alt={`Foto ${heroVehiclePhoto.caption}`}
             className="h-44 w-full object-cover transition-transform duration-300 group-hover:scale-105 sm:h-48"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
           <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between gap-2">
             <div>
               <span className="inline-block rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
-                Foto Unit / Model
+                {heroVehiclePhoto.badge}
               </span>
-              <p className="mt-1 text-xs font-bold text-white">{primaryModelPhoto.caption}</p>
+              <p className="mt-1 text-xs font-bold text-white">{heroVehiclePhoto.caption}</p>
             </div>
             <span className="rounded-full bg-black/50 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-md">
               Ketuk Perbesar
@@ -314,27 +319,29 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
                 <div className="pt-1">
                   <div className="grid grid-cols-5 gap-1.5">
                     {PROGRESS_STEPS.map((step, idx) => {
-                      const isPassed = idx < currentIndex;
-                      const isCurrent = idx === currentIndex;
+                      const isDone =
+                        itemStatus === ItemStatus.SELESAI || idx < currentIndex;
+                      const isCurrent =
+                        itemStatus !== ItemStatus.SELESAI && idx === currentIndex;
 
                       return (
                         <div key={step.key} className="space-y-1.5">
                           <div
                             className={`h-1.5 rounded-full transition-all duration-300 ${
-                              isPassed
-                                ? 'bg-slate-900 dark:bg-white'
+                              isDone
+                                ? 'bg-emerald-500 dark:bg-emerald-400'
                                 : isCurrent
-                                ? 'bg-blue-600 dark:bg-blue-400'
-                                : 'bg-slate-200 dark:bg-white/10'
+                                ? 'bg-blue-600 dark:bg-blue-500'
+                                : 'bg-slate-200 dark:bg-white/15'
                             }`}
                           />
                           <p
                             className={`text-center text-[10px] leading-tight ${
                               isCurrent
                                 ? 'font-bold text-blue-700 dark:text-blue-400'
-                                : isPassed
-                                ? 'font-semibold text-slate-800 dark:text-slate-200'
-                                : 'font-medium text-slate-600 dark:text-slate-400'
+                                : isDone
+                                ? 'font-semibold text-emerald-700 dark:text-emerald-400'
+                                : 'font-medium text-slate-500 dark:text-slate-400'
                             }`}
                           >
                             {step.label}

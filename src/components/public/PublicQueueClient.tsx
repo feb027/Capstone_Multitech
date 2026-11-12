@@ -19,9 +19,9 @@ const CATEGORIES = [
 const SHOP_GALLERY = [
   {
     src: '/images/shop/multitech-front-detail.jpg',
-    alt: 'Area ruang tunggu dan penerimaan unit CV Multitech Tasikmalaya',
+    alt: 'Bengkel Spesialis Perbaikan Elektronik Otomotif CV Multitech Tasikmalaya',
     tag: 'GALERI BENGKEL',
-    title: 'Ruang Penerimaan & Teknisi',
+    title: 'Bengkel Spesialis Perbaikan Elektronik Otomotif',
     subtitle: 'ECU, BCM, EPS, Digital Speedometer & Modul Genset',
   },
   {
@@ -92,14 +92,6 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
 
   return (
     <div className="space-y-4">
-      {/* Tagline Spesialisasi Bengkel (iPhone Glass) */}
-      <div className="ios-glass-card flex items-center gap-2.5 rounded-2xl px-4 py-3">
-        <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 dark:bg-emerald-400" aria-hidden="true" />
-        <p className="text-xs font-bold tracking-tight text-slate-900 dark:text-white">
-          Bengkel Spesialis Perbaikan Elektronik Otomotif
-        </p>
-      </div>
-
       {/* Kartu Majalah Landscape (Swipe / Geser Langsung Tanpa Panah & Counter) */}
       <section
         aria-label="Galeri Bengkel Multitech"
@@ -129,7 +121,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
                 <span className="inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-white backdrop-blur-md">
                   {slide.tag}
                 </span>
-                <p className="mt-1 truncate text-sm font-bold text-white">
+                <p className="mt-1 text-sm font-bold leading-snug text-white">
                   {slide.title}
                 </p>
                 <p className="line-clamp-2 text-[11px] leading-snug text-slate-200">
@@ -177,7 +169,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
       {/* Sleek Search Bar */}
       <div className="relative">
         <Search
-          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600 dark:text-slate-400"
+          className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-600 dark:text-slate-300"
           aria-hidden="true"
         />
         <input
@@ -193,7 +185,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
             type="button"
             onClick={() => setSearchQuery('')}
             aria-label="Hapus pencarian"
-            className="absolute right-0 top-0 inline-flex h-11 w-11 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+            className="absolute right-0 top-0 z-10 inline-flex h-11 w-11 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
