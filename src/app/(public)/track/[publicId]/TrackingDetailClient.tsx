@@ -130,13 +130,6 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
     order.unitCategory
   );
 
-  const intakeLabel =
-    order.unitCategory === 'GENSET_INDUSTRI'
-      ? 'Genset / Industri'
-      : order.intakeType === 'MOBIL_UTUH'
-      ? 'Mobil Utuh'
-      : 'Modul Saja';
-
   const waMessage = encodeURIComponent(
     `Halo CV Multitech Tasikmalaya, saya ingin konfirmasi progres servis unit *${order.vehicle?.brand || ''} ${order.vehicle?.model || ''}* (Kode Nota: *#${order.code}*).`
   );
@@ -217,19 +210,19 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
           </div>
         </button>
 
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
-              {order.vehicle?.brand} {order.vehicle?.model}
-            </h1>
-            <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+        <div>
+          <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+            {order.vehicle?.brand} {order.vehicle?.model}
+          </h1>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-xs text-slate-600 dark:text-slate-400">
               {order.vehicle?.year ? `Tahun ${order.vehicle.year}` : 'Unit Servis'}
               {order.customer.workshopName ? ` · ${order.customer.workshopName}` : ''}
             </p>
-          </div>
 
-          <div className="shrink-0 rounded-xl bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:bg-white/10 dark:text-slate-300">
-            {intakeLabel}
+            <div className="shrink-0 rounded-xl bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:bg-white/10 dark:text-slate-300">
+              {order.customer.name}
+            </div>
           </div>
         </div>
 
