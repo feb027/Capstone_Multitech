@@ -196,18 +196,9 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
             alt={`Foto ${heroVehiclePhoto.caption}`}
             className="h-44 w-full object-cover transition-transform duration-300 group-hover:scale-105 sm:h-48"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-          <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between gap-2">
-            <div>
-              <span className="inline-block rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
-                {heroVehiclePhoto.badge}
-              </span>
-              <p className="mt-1 text-xs font-bold text-white">{heroVehiclePhoto.caption}</p>
-            </div>
-            <span className="rounded-full bg-black/50 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-md">
-              Ketuk Perbesar
-            </span>
-          </div>
+          <span className="absolute bottom-2.5 right-3 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-md">
+            Ketuk Perbesar
+          </span>
         </button>
 
         <div>
