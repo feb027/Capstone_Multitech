@@ -16,7 +16,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
     return (
       <div
         aria-hidden="true"
-        className={`h-11 w-11 rounded-full bg-slate-100 dark:bg-slate-800 ${className}`}
+        className={`ios-glass-inner h-11 w-11 rounded-full ${className}`}
       />
     );
   }
@@ -27,13 +27,13 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
     <button
       type="button"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className={`relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 tap-bounce dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 ${className}`}
+      className={`ios-glass-inner relative inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-800 transition-all hover:bg-white/75 tap-bounce dark:text-zinc-100 dark:hover:bg-white/15 ${className}`}
       aria-label={isDark ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}
     >
       {isDark ? (
-        <Sun className="h-4 w-4 text-amber-400 transition-transform duration-200" aria-hidden="true" />
+        <Sun className="h-4 w-4 text-zinc-100 transition-transform duration-200" aria-hidden="true" />
       ) : (
-        <Moon className="h-4 w-4 text-slate-700 transition-transform duration-200" aria-hidden="true" />
+        <Moon className="h-4 w-4 text-slate-800 transition-transform duration-200" aria-hidden="true" />
       )}
     </button>
   );

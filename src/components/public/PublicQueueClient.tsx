@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { QueueCard, QueueCardProps } from './QueueCard';
 import { CheckCodeModal } from './CheckCodeModal';
 import { FilterScrollRow, useHorizontalDragScroll } from '@/components/shared/FilterScrollRow';
@@ -38,17 +38,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrderCode, setSelectedOrderCode] = useState('');
-  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
   const magazineScroll = useHorizontalDragScroll();
-
-  useEffect(() => {
-    if (!lightboxImage) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightboxImage(null);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [lightboxImage]);
 
   const filteredOrders = useMemo(() => {
     return initialOrders.filter((order) => {
@@ -103,21 +93,18 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
           className="flex snap-x snap-mandatory gap-2 overflow-x-auto select-none touch-pan-x no-scrollbar cursor-grab active:cursor-grabbing"
         >
           {SHOP_GALLERY.map((slide) => (
-            <button
+            <div
               key={slide.src}
-              type="button"
-              onClick={() => setLightboxImage({ src: slide.src, alt: slide.alt })}
-              aria-label={`Perbesar foto: ${slide.title}`}
-              className="group relative aspect-[16/9] w-full shrink-0 snap-center overflow-hidden rounded-[18px] bg-slate-100 text-left dark:bg-white/5"
+              className="relative aspect-[16/9] w-full shrink-0 snap-center overflow-hidden rounded-[18px] bg-slate-100 text-left dark:bg-white/5"
             >
               <img
                 src={slide.src}
                 alt={slide.alt}
                 draggable={false}
-                className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-              <div className="absolute bottom-3 left-3.5 right-3.5">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+              <div className="pointer-events-none absolute bottom-3 left-3.5 right-3.5">
                 <span className="inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-white backdrop-blur-md">
                   {slide.tag}
                 </span>
@@ -128,7 +115,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
                   {slide.subtitle}
                 </p>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       </section>
@@ -250,36 +237,6 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
         onClose={() => setIsModalOpen(false)}
         initialCode={selectedOrderCode}
       />
-
-      {/* Lightbox Galeri Bengkel */}
-      {lightboxImage && (
-        <div
-          className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-[appleBackdropFadeIn_0.2s_ease-out]"
-          role="dialog"
-          aria-modal="true"
-          aria-label={lightboxImage.alt}
-          onClick={() => setLightboxImage(null)}
-        >
-          <div
-            className="relative max-w-lg overflow-hidden rounded-[28px] bg-black shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setLightboxImage(null)}
-              aria-label="Tutup pratinjau foto"
-              className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80"
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
-            <img
-              src={lightboxImage.src}
-              alt={lightboxImage.alt}
-              className="max-h-[82vh] w-auto object-contain"
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
