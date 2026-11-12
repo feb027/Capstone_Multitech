@@ -50,49 +50,52 @@ export function AdminDashboardClient({
 
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/admin/reports"
-            className="ios-glass-inner inline-flex min-h-[44px] items-center rounded-full px-4 text-xs font-bold text-slate-900 shadow-sm transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
-          >
-            Rekap Laporan
-          </Link>
-          <Link
             href="/admin/services?new=1"
             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-900 px-4 text-xs font-bold text-white shadow-md transition-transform hover:bg-slate-800 tap-bounce dark:bg-white dark:text-black dark:hover:bg-slate-200"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
-            <span>Terima Unit Servis</span>
+            <span>Tambah Unit Servis</span>
           </Link>
         </div>
       </div>
 
       {/* KPI Cards (3 Cards) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="ios-glass-card rounded-[24px] p-4 shadow-sm">
+        <Link
+          href="/admin/services"
+          className="ios-glass-card rounded-[24px] p-4 shadow-sm transition-all hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+        >
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Antrean Aktif
           </p>
           <p className="mt-1.5 text-2xl font-black tabular-nums text-slate-900 dark:text-white sm:text-3xl">
             {totalActive}
           </p>
-        </div>
+        </Link>
 
-        <div className="ios-glass-card rounded-[24px] p-4 shadow-sm">
+        <Link
+          href="/admin/services?status=SIAP_DIAMBIL"
+          className="ios-glass-card rounded-[24px] p-4 shadow-sm transition-all hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+        >
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Siap Diambil
           </p>
           <p className="mt-1.5 text-2xl font-black tabular-nums text-emerald-700 dark:text-emerald-400 sm:text-3xl">
             {statusCounts[ItemStatus.SIAP_DIAMBIL] || 0}
           </p>
-        </div>
+        </Link>
 
-        <div className="ios-glass-card rounded-[24px] p-4 shadow-sm">
+        <Link
+          href="/admin/customers"
+          className="ios-glass-card rounded-[24px] p-4 shadow-sm transition-all hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+        >
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Total Pelanggan
           </p>
           <p className="mt-1.5 text-2xl font-black tabular-nums text-slate-900 dark:text-white sm:text-3xl">
             {totalCustomers}
           </p>
-        </div>
+        </Link>
       </div>
 
       {/* Pipeline Status */}

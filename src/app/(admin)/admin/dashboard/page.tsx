@@ -1,7 +1,12 @@
 import { prisma } from '@/lib/db';
 import { ItemStatus } from '@prisma/client';
 import { AdminDashboardClient } from '@/components/admin/AdminDashboardClient';
-import { INITIAL_SERVICE_ORDERS, INITIAL_SPAREPARTS, MockServiceOrder } from '@/lib/frontend-mock';
+import {
+  INITIAL_CUSTOMERS,
+  INITIAL_SERVICE_ORDERS,
+  INITIAL_SPAREPARTS,
+  MockServiceOrder,
+} from '@/lib/frontend-mock';
 
 async function getDashboardData() {
   try {
@@ -35,8 +40,8 @@ async function getDashboardData() {
     }
 
     return {
-      totalActive,
-      totalCustomers,
+      totalActive: totalActive || INITIAL_SERVICE_ORDERS.length,
+      totalCustomers: totalCustomers || INITIAL_CUSTOMERS.length,
       totalModules,
       statusCounts,
       recentOrders: INITIAL_SERVICE_ORDERS,
@@ -56,7 +61,7 @@ function getFallbackDashboardData() {
 
   return {
     totalActive: INITIAL_SERVICE_ORDERS.length,
-    totalCustomers: 6,
+    totalCustomers: INITIAL_CUSTOMERS.length,
     totalModules: 9,
     statusCounts,
     recentOrders: INITIAL_SERVICE_ORDERS as MockServiceOrder[],
