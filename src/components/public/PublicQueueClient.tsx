@@ -3,9 +3,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { QueueCard, QueueCardProps } from './QueueCard';
 import { CheckCodeModal } from './CheckCodeModal';
-import { useHorizontalDragScroll } from '@/components/shared/FilterScrollRow';
+import { ShopMagazineCarousel } from './ShopMagazineCarousel';
 import { Check, Search, SlidersHorizontal, X } from 'lucide-react';
-import { WORKSHOP_PROFILE } from '@/lib/status';
 
 const CATEGORIES = [
   { id: 'ALL', label: 'Semua' },
@@ -16,23 +15,6 @@ const CATEGORIES = [
   { id: 'READY', label: 'Siap Ambil' },
 ];
 
-const SHOP_GALLERY = [
-  {
-    src: '/images/shop/multitech-front-detail.jpg',
-    alt: 'Bengkel Spesialis Perbaikan Elektronik Otomotif CV Multitech Tasikmalaya',
-    tag: 'GALERI BENGKEL',
-    title: 'Bengkel Spesialis Perbaikan Elektronik Otomotif',
-    subtitle: 'ECU, BCM, EPS, Digital Speedometer & Modul Genset',
-  },
-  {
-    src: '/images/shop/multitech-front-wide.jpg',
-    alt: 'Tampak depan lokasi bengkel CV Multitech Tasikmalaya',
-    tag: 'LOKASI RESMI',
-    title: 'Workshop CV Multitech Tasikmalaya',
-    subtitle: WORKSHOP_PROFILE.address,
-  },
-];
-
 export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardProps[] }) {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,7 +22,6 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrderCode, setSelectedOrderCode] = useState('');
   const filterContainerRef = useRef<HTMLDivElement | null>(null);
-  const magazineScroll = useHorizontalDragScroll();
 
   useEffect(() => {
     if (!isFilterOpen) return;
@@ -107,43 +88,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
 
   return (
     <div className="space-y-4">
-      {/* Kartu Majalah Landscape (Swipe / Geser Langsung Tanpa Panah & Counter) */}
-      <section
-        aria-label="Galeri Bengkel Multitech"
-        className="ios-glass-card overflow-hidden rounded-[24px] p-2"
-      >
-        <div
-          ref={magazineScroll.scrollRef}
-          {...magazineScroll.handlers}
-          className="flex snap-x snap-mandatory gap-2 overflow-x-auto select-none touch-pan-x no-scrollbar cursor-grab active:cursor-grabbing"
-        >
-          {SHOP_GALLERY.map((slide) => (
-            <div
-              key={slide.src}
-              className="relative aspect-[16/9] w-full shrink-0 snap-center overflow-hidden rounded-[18px] bg-slate-100 text-left dark:bg-white/5"
-            >
-              <img
-                src={slide.src}
-                alt={slide.alt}
-                draggable={false}
-                className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
-              />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-              <div className="pointer-events-none absolute bottom-3 left-3.5 right-3.5">
-                <span className="inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-white backdrop-blur-md">
-                  {slide.tag}
-                </span>
-                <p className="mt-1 text-sm font-bold leading-snug text-white">
-                  {slide.title}
-                </p>
-                <p className="line-clamp-2 text-[11px] leading-snug text-slate-200">
-                  {slide.subtitle}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <ShopMagazineCarousel />
 
       {/* Header Antrean */}
       <div className="flex items-baseline justify-between pt-1">
