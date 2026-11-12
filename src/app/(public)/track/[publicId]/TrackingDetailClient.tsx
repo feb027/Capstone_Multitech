@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Check,
   Copy,
+  Maximize2,
   MessageSquare,
   FileDown,
   ShieldCheck,
@@ -196,8 +197,11 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
             alt={`Foto ${heroVehiclePhoto.caption}`}
             className="h-44 w-full object-cover transition-transform duration-300 group-hover:scale-105 sm:h-48"
           />
-          <span className="absolute bottom-2.5 right-3 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-md">
-            Ketuk Perbesar
+          <span
+            aria-hidden="true"
+            className="absolute bottom-2.5 right-2.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur-md"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
           </span>
         </button>
 
