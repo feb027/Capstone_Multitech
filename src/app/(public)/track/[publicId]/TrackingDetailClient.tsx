@@ -18,6 +18,7 @@ import {
   WORKSHOP_PROFILE,
   getProgressStepIndex,
   getStatusMeta,
+  getUnitModelImage,
 } from '@/lib/status';
 import { formatRupiah } from '@/lib/utils';
 
@@ -122,6 +123,7 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
 
   const primaryStatus = (order.items[0]?.status as ItemStatus) || ItemStatus.DITERIMA;
   const statusMeta = getStatusMeta(primaryStatus);
+  const primaryModelPhoto = getUnitModelImage(order.items[0]?.moduleType.name, order.unitCategory);
 
   const intakeLabel =
     order.unitCategory === 'GENSET_INDUSTRI'
@@ -182,6 +184,34 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
 
       {/* Vehicle Overview Card */}
       <div className="rounded-[28px] border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]">
+        <button
+          type="button"
+          onClick={() => {
+            setPhotoError(false);
+            setActivePhoto(primaryModelPhoto.src);
+          }}
+          aria-label={`Perbesar foto unit ${order.vehicle?.brand || ''} ${order.vehicle?.model || ''}`}
+          className="group relative mb-4 block w-full overflow-hidden rounded-2xl border border-black/[0.05] bg-slate-100 text-left tap-bounce dark:border-white/[0.08] dark:bg-black/30"
+        >
+          <img
+            src={primaryModelPhoto.src}
+            alt={`Foto model ${order.vehicle?.brand || ''} ${order.vehicle?.model || ''} (${primaryModelPhoto.caption})`}
+            className="h-44 w-full object-cover transition-transform duration-300 group-hover:scale-105 sm:h-48"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+          <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between gap-2">
+            <div>
+              <span className="inline-block rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
+                Foto Unit / Model
+              </span>
+              <p className="mt-1 text-xs font-bold text-white">{primaryModelPhoto.caption}</p>
+            </div>
+            <span className="rounded-full bg-black/50 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-md">
+              Ketuk Perbesar
+            </span>
+          </div>
+        </button>
+
         <div className="flex items-start justify-between gap-2">
           <div>
             <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
@@ -231,26 +261,45 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
           const itemStatus = item.status as ItemStatus;
           const currentIndex = getProgressStepIndex(itemStatus);
           const isCancelled = itemStatus === ItemStatus.BATAL;
+          const itemModelPhoto = getUnitModelImage(item.moduleType.name, order.unitCategory);
 
           return (
             <div
               key={item.id}
               className="space-y-4 rounded-[28px] border border-black/[0.04] bg-white p-5 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                    {item.moduleType.name}
-                  </h3>
-                  {item.moduleDetail && (
-                    <p className="font-mono text-xs text-slate-600 dark:text-slate-400">
-                      {item.moduleDetail}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoError(false);
+                      setActivePhoto(itemModelPhoto.src);
+                    }}
+                    aria-label={`Lihat foto model ${item.moduleType.name}`}
+                    className="h-14 w-16 shrink-0 overflow-hidden rounded-xl border border-black/[0.06] bg-slate-100 tap-bounce dark:border-white/[0.08] dark:bg-black/30"
+                  >
+                    <img
+                      src={itemModelPhoto.src}
+                      alt={item.moduleType.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      {item.moduleType.name}
+                    </h3>
+                    {item.moduleDetail && (
+                      <p className="font-mono text-xs text-slate-600 dark:text-slate-400">
+                        {item.moduleDetail}
+                      </p>
+                    )}
+                    <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
+                      <span className="font-medium text-slate-600 dark:text-slate-400">Keluhan: </span>
+                      {item.complaint}
                     </p>
-                  )}
-                  <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
-                    <span className="font-medium text-slate-600 dark:text-slate-400">Keluhan: </span>
-                    {item.complaint}
-                  </p>
+                  </div>
                 </div>
 
                 {item.warrantyMonths ? (

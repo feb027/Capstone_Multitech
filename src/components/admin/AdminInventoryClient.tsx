@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { INITIAL_SPAREPARTS, SparepartItem } from '@/lib/frontend-mock';
+import { FilterScrollRow } from '@/components/shared/FilterScrollRow';
 import { formatRupiah } from '@/lib/utils';
 import { Plus, Search, AlertTriangle, X, Package } from 'lucide-react';
 
@@ -168,13 +169,15 @@ export function AdminInventoryClient() {
           />
         </div>
 
-        <div className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1">
+        <FilterScrollRow ariaLabel="Filter kategori suku cadang">
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
               type="button"
+              role="tab"
+              aria-selected={categoryFilter === cat}
               onClick={() => setCategoryFilter(cat)}
-              className={`min-h-[40px] shrink-0 rounded-full px-4 text-xs font-semibold transition-all tap-bounce ${
+              className={`min-h-[40px] shrink-0 whitespace-nowrap rounded-full px-4 text-xs font-semibold transition-all tap-bounce ${
                 categoryFilter === cat
                   ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900'
                   : 'bg-white text-slate-600 shadow-sm hover:text-slate-900 dark:bg-[#1C1C1E] dark:text-slate-400 dark:hover:text-white'
@@ -183,7 +186,7 @@ export function AdminInventoryClient() {
               {cat}
             </button>
           ))}
-        </div>
+        </FilterScrollRow>
       </div>
 
       {/* Konten List: Mobile Cards & Desktop Table */}

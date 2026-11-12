@@ -133,3 +133,32 @@ export const WORKSHOP_PROFILE = {
     'Bengkel Spesialis Perbaikan Elektronik Otomotif (ECU, BCM, EPS, Digital Speedometer) & Modul Genset/Industri',
   whatsappNumber: '6281234567890',
 };
+
+export function getUnitModelImage(moduleName?: string, unitCategory?: string): {
+  src: string;
+  caption: string;
+} {
+  const name = (moduleName || '').toLowerCase();
+  if (unitCategory === 'GENSET_INDUSTRI' || name.includes('genset') || name.includes('amf') || name.includes('dse')) {
+    return {
+      src: '/images/units/genset-dse7320.jpg',
+      caption: 'Panel Kontrol Genset / AMF',
+    };
+  }
+  if (name.includes('speedo') || name.includes('cluster') || name.includes('odometer')) {
+    return {
+      src: '/images/units/speedometer-cluster.jpg',
+      caption: 'Unit Speedometer / Instrument Cluster',
+    };
+  }
+  if (name.includes('eps') || name.includes('bcm') || name.includes('steering') || name.includes('body')) {
+    return {
+      src: '/images/units/eps-bcm-module.jpg',
+      caption: 'Modul EPS / BCM Kelistrikan',
+    };
+  }
+  return {
+    src: '/images/units/ecu-module.jpg',
+    caption: 'Modul ECU (Engine Control Unit)',
+  };
+}

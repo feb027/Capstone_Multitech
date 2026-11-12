@@ -8,6 +8,7 @@ import {
   MockServiceOrder,
 } from '@/lib/frontend-mock';
 import { ITEM_STATUS_LIST, getStatusMeta, WORKSHOP_PROFILE } from '@/lib/status';
+import { FilterScrollRow } from '@/components/shared/FilterScrollRow';
 import { formatDateTime, formatRupiah, generate4DigitCode } from '@/lib/utils';
 import {
   Plus,
@@ -402,15 +403,17 @@ export function AdminServicesClient() {
           )}
         </div>
 
-        <div className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1">
+        <FilterScrollRow ariaLabel="Filter status servis">
           {STATUS_FILTER_PILLS.map((pill) => {
             const active = statusFilter === pill.value;
             return (
               <button
                 key={pill.value}
                 type="button"
+                role="tab"
+                aria-selected={active}
                 onClick={() => setStatusFilter(pill.value)}
-                className={`min-h-[40px] shrink-0 rounded-full px-4 text-xs font-semibold transition-all tap-bounce ${
+                className={`min-h-[40px] shrink-0 whitespace-nowrap rounded-full px-4 text-xs font-semibold transition-all tap-bounce ${
                   active
                     ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900'
                     : 'bg-white text-slate-600 shadow-sm hover:text-slate-900 dark:bg-[#1C1C1E] dark:text-slate-400 dark:hover:text-white'
@@ -420,7 +423,7 @@ export function AdminServicesClient() {
               </button>
             );
           })}
-        </div>
+        </FilterScrollRow>
       </div>
 
       {/* Daftar Order Servis */}
