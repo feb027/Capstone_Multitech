@@ -22,14 +22,14 @@ const SHOP_GALLERY = [
     alt: 'Area ruang tunggu dan penerimaan unit CV Multitech Tasikmalaya',
     tag: 'GALERI BENGKEL',
     title: 'Ruang Penerimaan & Teknisi',
-    subtitle: 'Servis ECU, Speedometer, EPS, BCM & Modul Genset',
+    subtitle: 'ECU, BCM, EPS, Digital Speedometer & Modul Genset',
   },
   {
     src: '/images/shop/multitech-front-wide.jpg',
     alt: 'Tampak depan lokasi bengkel CV Multitech Tasikmalaya',
     tag: 'LOKASI RESMI',
-    title: 'Workshop Tawang, Tasikmalaya',
-    subtitle: 'Jl. Noenoeng Tisnasaputra, Kahuripan',
+    title: 'Workshop CV Multitech Tasikmalaya',
+    subtitle: WORKSHOP_PROFILE.address,
   },
 ];
 
@@ -94,18 +94,15 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
 
   return (
     <div className="space-y-4">
-      {/* Identitas Alamat Bengkel di Bagian Atas */}
-      <section className="rounded-[22px] border border-black/[0.04] bg-white px-4 py-3.5 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]">
-        <p className="text-xs font-semibold text-slate-900 dark:text-white">
-          {WORKSHOP_PROFILE.focus}
+      {/* Tagline Spesialisasi Bengkel (Bersih & Minimalis di Atas Majalah) */}
+      <div className="flex items-center gap-2.5 rounded-2xl border border-black/[0.04] bg-white px-4 py-3 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]">
+        <span className="h-2 w-2 shrink-0 rounded-full bg-[#C9182B] dark:bg-[#F87171]" aria-hidden="true" />
+        <p className="text-xs font-bold tracking-tight text-slate-900 dark:text-white">
+          Bengkel Spesialis Perbaikan Elektronik Otomotif
         </p>
-        <p className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
-          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#C9182B] dark:text-[#F87171]" aria-hidden="true" />
-          <span>{WORKSHOP_PROFILE.address}</span>
-        </p>
-      </section>
+      </div>
 
-      {/* Kartu Majalah Landscape (Rapi, Terkunci aspect-[16/9]) */}
+      {/* Kartu Majalah Landscape (Foto + Alamat Lengkap Resmi) */}
       <section
         aria-label="Galeri Bengkel Multitech"
         className="overflow-hidden rounded-[24px] border border-black/[0.04] bg-white p-2.5 shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]"
@@ -121,7 +118,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
             alt={currentSlide.alt}
             className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
           <div className="absolute bottom-3 left-3.5 right-3.5">
             <span className="inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-white backdrop-blur-md">
               {currentSlide.tag}
@@ -129,53 +126,60 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
             <p className="mt-1 truncate text-sm font-bold text-white">
               {currentSlide.title}
             </p>
-            <p className="truncate text-[11px] text-slate-200">
+            <p className="line-clamp-2 text-[11px] leading-snug text-slate-200">
               {currentSlide.subtitle}
             </p>
           </div>
         </button>
 
-        {/* Navigasi Majalah Ringkas di Bawah Gambar */}
-        <div className="mt-2 flex items-center justify-between px-1">
-          <div className="flex items-center gap-1.5">
-            {SHOP_GALLERY.map((item, idx) => (
+        {/* Kontrol Slide & Alamat Lokasi Resmi di Bawah Foto Majalah */}
+        <div className="mt-2.5 px-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              {SHOP_GALLERY.map((item, idx) => (
+                <button
+                  key={item.src}
+                  type="button"
+                  onClick={() => setSlideIndex(idx)}
+                  aria-label={`Tampilkan foto ${idx + 1}: ${item.title}`}
+                  className={`h-2 rounded-full transition-all ${
+                    idx === slideIndex
+                      ? 'w-5 bg-slate-900 dark:bg-white'
+                      : 'w-2 bg-slate-300 hover:bg-slate-400 dark:bg-white/25'
+                  }`}
+                />
+              ))}
+              <span className="ml-1 font-mono text-[10px] font-semibold text-slate-600 dark:text-slate-400">
+                {slideIndex + 1}/{SHOP_GALLERY.length}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
               <button
-                key={item.src}
                 type="button"
-                onClick={() => setSlideIndex(idx)}
-                aria-label={`Tampilkan foto ${idx + 1}: ${item.title}`}
-                className={`h-2 rounded-full transition-all ${
-                  idx === slideIndex
-                    ? 'w-5 bg-slate-900 dark:bg-white'
-                    : 'w-2 bg-slate-300 hover:bg-slate-400 dark:bg-white/25'
-                }`}
-              />
-            ))}
-            <span className="ml-1 font-mono text-[10px] font-semibold text-slate-600 dark:text-slate-400">
-              {slideIndex + 1}/{SHOP_GALLERY.length}
-            </span>
+                onClick={() =>
+                  setSlideIndex((prev) => (prev - 1 + SHOP_GALLERY.length) % SHOP_GALLERY.length)
+                }
+                aria-label="Foto bengkel sebelumnya"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F2F2F7] text-slate-700 hover:bg-slate-200 tap-bounce dark:bg-white/10 dark:text-slate-200"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSlideIndex((prev) => (prev + 1) % SHOP_GALLERY.length)}
+                aria-label="Foto bengkel berikutnya"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F2F2F7] text-slate-700 hover:bg-slate-200 tap-bounce dark:bg-white/10 dark:text-slate-200"
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() =>
-                setSlideIndex((prev) => (prev - 1 + SHOP_GALLERY.length) % SHOP_GALLERY.length)
-              }
-              aria-label="Foto bengkel sebelumnya"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F2F2F7] text-slate-700 hover:bg-slate-200 tap-bounce dark:bg-white/10 dark:text-slate-200"
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setSlideIndex((prev) => (prev + 1) % SHOP_GALLERY.length)}
-              aria-label="Foto bengkel berikutnya"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F2F2F7] text-slate-700 hover:bg-slate-200 tap-bounce dark:bg-white/10 dark:text-slate-200"
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
+          <p className="mt-2 flex items-start gap-1.5 border-t border-black/[0.04] pt-2 text-[11px] leading-relaxed text-slate-600 dark:border-white/[0.06] dark:text-slate-400">
+            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#C9182B] dark:text-[#F87171]" aria-hidden="true" />
+            <span>{WORKSHOP_PROFILE.address}</span>
+          </p>
         </div>
       </section>
 
