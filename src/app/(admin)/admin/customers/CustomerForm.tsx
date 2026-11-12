@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createCustomerAction } from './actions';
 import { CustomerType } from '@prisma/client';
 import { Plus, X } from 'lucide-react';
@@ -10,6 +10,15 @@ export function CustomerForm() {
   const [type, setType] = useState<CustomerType>(CustomerType.PERORANGAN);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -32,61 +41,77 @@ export function CustomerForm() {
   if (!isOpen) {
     return (
       <button
+        type="button"
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-xl bg-navy px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-navy-light active:scale-[0.98] dark:bg-crimson dark:hover:bg-crimson-hover"
+        className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full bg-slate-900 px-5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-slate-800 tap-bounce dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
       >
-        <Plus className="h-4 w-4" />
-        Tambah Pelanggan Baru
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        <span>Tambah Pelanggan</span>
       </button>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-          <h2 className="text-base font-bold text-slate-900 dark:text-white">
-            Tambah Pelanggan & Kendaraan
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-md sm:items-center sm:p-4 animate-[appleBackdropFadeIn_0.2s_ease-out]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-customer-title"
+      onClick={() => setIsOpen(false)}
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-[36px] border border-black/[0.06] bg-white p-6 shadow-2xl sm:rounded-[32px] dark:border-white/[0.08] dark:bg-[#1C1C1E] animate-[appleSheetSlideUp_0.35s_cubic-bezier(0.32,0.72,0,1)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-slate-200 dark:bg-white/20 sm:hidden" />
+
+        <div className="flex items-center justify-between border-b border-black/[0.06] pb-3 dark:border-white/[0.08]">
+          <h2 id="add-customer-title" className="text-lg font-bold text-slate-900 dark:text-white">
+            Tambah Pelanggan & Unit
           </h2>
           <button
+            type="button"
             onClick={() => setIsOpen(false)}
-            className="rounded-full p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            aria-label="Tutup dialog"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#F2F2F7] text-slate-600 hover:text-slate-900 dark:bg-white/10 dark:text-slate-300 dark:hover:text-white"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300">
+            <div
+              role="alert"
+              className="rounded-2xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-300"
+            >
               {error}
             </div>
           )}
 
-          {/* Segmented Type Selector */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+            <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Tipe Pelanggan
-            </label>
-            <div className="mt-1.5 flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+            </span>
+            <div className="mt-1.5 flex rounded-2xl bg-[#F2F2F7] p-1 dark:bg-white/[0.05]">
               <button
                 type="button"
                 onClick={() => setType(CustomerType.PERORANGAN)}
-                className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${
+                className={`min-h-[40px] flex-1 rounded-xl text-xs font-bold transition-all ${
                   type === CustomerType.PERORANGAN
-                    ? 'bg-white text-navy shadow-sm dark:bg-slate-700 dark:text-white'
-                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'
+                    ? 'bg-white text-slate-900 shadow-sm dark:bg-[#2C2C2E] dark:text-white'
+                    : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
-                Perorangan (Pemilik Mobil)
+                Perorangan
               </button>
               <button
                 type="button"
                 onClick={() => setType(CustomerType.MITRA)}
-                className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${
+                className={`min-h-[40px] flex-1 rounded-xl text-xs font-bold transition-all ${
                   type === CustomerType.MITRA
-                    ? 'bg-white text-navy shadow-sm dark:bg-slate-700 dark:text-white'
-                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'
+                    ? 'bg-white text-slate-900 shadow-sm dark:bg-[#2C2C2E] dark:text-white'
+                    : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
                 Bengkel Mitra (B2B)
@@ -96,80 +121,87 @@ export function CustomerForm() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <label htmlFor="cust-name" className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Nama Lengkap / PIC *
               </label>
               <input
+                id="cust-name"
                 name="name"
                 required
-                placeholder="Contoh: Budi Santoso"
-                className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs text-slate-900 focus:border-navy focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-800/50 dark:text-white"
+                placeholder="Nama pelanggan"
+                className="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 text-sm text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                No. Handphone (WhatsApp) *
+              <label htmlFor="cust-phone" className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                No. Handphone (WA) *
               </label>
               <input
+                id="cust-phone"
                 name="phone"
                 required
-                placeholder="081234567890"
-                className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs text-slate-900 focus:border-navy focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-800/50 dark:text-white"
+                placeholder="0812xxxxxxxx"
+                className="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 font-mono text-sm text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400"
               />
             </div>
           </div>
 
           {type === CustomerType.MITRA && (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Nama Bengkel Mitra *
+              <label htmlFor="cust-workshop" className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Nama Bengkel / Instansi Mitra *
               </label>
               <input
+                id="cust-workshop"
                 name="workshopName"
                 required
-                placeholder="Contoh: Bengkel Maju Motor"
-                className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs text-slate-900 focus:border-navy focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-800/50 dark:text-white"
+                placeholder="Nama bengkel atau perusahaan"
+                className="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 text-sm text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+            <label htmlFor="cust-address" className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Alamat
             </label>
             <input
+              id="cust-address"
               name="address"
-              placeholder="Kota / Alamat singkat"
-              className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs text-slate-900 focus:border-navy focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-800/50 dark:text-white"
+              placeholder="Kota atau alamat singkat"
+              className="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 text-sm text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400"
             />
           </div>
 
-          {/* Optional Vehicle Details */}
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 dark:border-slate-800/60 dark:bg-slate-800/40">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              Data Kendaraan Awal (Opsional)
+          <div className="rounded-[22px] bg-[#F2F2F7] p-4 dark:bg-white/[0.04]">
+            <span className="text-xs font-bold text-slate-900 dark:text-white">
+              Data Kendaraan / Unit Awal (Opsional)
             </span>
             <div className="mt-2.5 grid grid-cols-2 gap-2.5">
               <input
                 name="brand"
-                placeholder="Merek (e.g. Toyota)"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                aria-label="Merek kendaraan"
+                placeholder="Merek (Toyota)"
+                className="h-10 rounded-xl border border-black/[0.06] bg-white px-3 text-xs text-slate-900 placeholder-slate-500 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-400"
               />
               <input
                 name="model"
-                placeholder="Model (e.g. Avanza)"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                aria-label="Model kendaraan"
+                placeholder="Model (Avanza)"
+                className="h-10 rounded-xl border border-black/[0.06] bg-white px-3 text-xs text-slate-900 placeholder-slate-500 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-400"
               />
               <input
                 name="year"
                 type="number"
-                placeholder="Tahun (e.g. 2015)"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                aria-label="Tahun kendaraan"
+                placeholder="Tahun (2018)"
+                className="h-10 rounded-xl border border-black/[0.06] bg-white px-3 font-mono text-xs text-slate-900 placeholder-slate-500 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-400"
               />
               <input
                 name="plateNumber"
+                aria-label="Plat nomor"
                 placeholder="Plat Polisi (Privat)"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                className="h-10 rounded-xl border border-black/[0.06] bg-white px-3 font-mono text-xs text-slate-900 placeholder-slate-500 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-400"
               />
             </div>
           </div>
@@ -178,14 +210,14 @@ export function CustomerForm() {
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
+              className="inline-flex min-h-[44px] items-center rounded-full bg-[#F2F2F7] px-5 text-xs font-semibold text-slate-700 hover:bg-slate-200/70 tap-bounce dark:bg-white/10 dark:text-slate-300"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="rounded-xl bg-navy px-4 py-2 text-xs font-semibold text-white hover:bg-navy-light disabled:opacity-50 dark:bg-crimson dark:hover:bg-crimson-hover"
+              className="inline-flex min-h-[44px] items-center rounded-full bg-slate-900 px-5 text-xs font-bold text-white shadow-sm hover:bg-slate-800 tap-bounce disabled:opacity-50 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
               {loading ? 'Menyimpan...' : 'Simpan Pelanggan'}
             </button>

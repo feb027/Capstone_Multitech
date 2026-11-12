@@ -2,57 +2,24 @@ import { prisma } from '@/lib/db';
 import { ItemStatus } from '@prisma/client';
 import { PublicQueueClient } from '@/components/public/PublicQueueClient';
 import { QueueCardProps } from '@/components/public/QueueCard';
+import { INITIAL_SERVICE_ORDERS } from '@/lib/frontend-mock';
 
 export const revalidate = 30;
 
-// Fallback high-fidelity sample data when database is empty or not yet seeded
-const FALLBACK_ORDERS: QueueCardProps[] = [
-  {
-    publicId: 'avanza-4821',
-    vehicleBrand: 'Toyota',
-    vehicleModel: 'Avanza 1.3 Veloz',
-    vehicleYear: 2018,
-    intakeType: 'MOBIL_UTUH',
-    receivedAt: new Date(Date.now() - 1000 * 60 * 60 * 4), // 4 hours ago
-    items: [
-      { id: '1', moduleName: 'ECU Mesin (Denso)', status: ItemStatus.PERBAIKAN },
-      { id: '2', moduleName: 'Speedometer Digital', status: ItemStatus.UJI_QC },
-    ],
-  },
-  {
-    publicId: 'jazz-9102',
-    vehicleBrand: 'Honda',
-    vehicleModel: 'Jazz RS GK5',
-    vehicleYear: 2019,
-    intakeType: 'MOBIL_UTUH',
-    receivedAt: new Date(Date.now() - 1000 * 60 * 60 * 18), // 18 hours ago
-    items: [
-      { id: '3', moduleName: 'EPS Module Steering', status: ItemStatus.DIAGNOSA },
-    ],
-  },
-  {
-    publicId: 'pajero-7301',
-    vehicleBrand: 'Mitsubishi',
-    vehicleModel: 'Pajero Sport Dakar',
-    vehicleYear: 2017,
-    intakeType: 'MODUL_SAJA',
-    receivedAt: new Date(Date.now() - 1000 * 60 * 60 * 36), // yesterday
-    items: [
-      { id: '4', moduleName: 'ECU 4N15 Diesel', status: ItemStatus.SIAP_DIAMBIL },
-    ],
-  },
-  {
-    publicId: 'ertiga-5520',
-    vehicleBrand: 'Suzuki',
-    vehicleModel: 'All New Ertiga',
-    vehicleYear: 2019,
-    intakeType: 'MOBIL_UTUH',
-    receivedAt: new Date(Date.now() - 1000 * 60 * 60 * 50), // 2 days ago
-    items: [
-      { id: '5', moduleName: 'BCM Modul Kelistrikan', status: ItemStatus.PERBAIKAN },
-    ],
-  },
-];
+const FALLBACK_ORDERS: QueueCardProps[] = INITIAL_SERVICE_ORDERS.map((o) => ({
+  publicId: o.publicId,
+  vehicleBrand: o.vehicleBrand,
+  vehicleModel: o.vehicleModel,
+  vehicleYear: o.vehicleYear,
+  intakeType: o.intakeType,
+  unitCategory: o.unitCategory,
+  receivedAt: o.receivedAt,
+  items: o.items.map((i) => ({
+    id: i.id,
+    moduleName: i.moduleName,
+    status: i.status,
+  })),
+}));
 
 async function getActiveOrders(): Promise<QueueCardProps[]> {
   try {
@@ -102,6 +69,9 @@ async function getActiveOrders(): Promise<QueueCardProps[]> {
     return orders.map((o) => ({
       publicId: o.publicId,
       intakeType: o.intakeType,
+      unitCategory: o.items.some((i) => i.moduleType.name.toLowerCase().includes('genset'))
+        ? 'GENSET_INDUSTRI'
+        : 'OTOMOTIF',
       receivedAt: o.receivedAt,
       vehicleBrand: o.vehicle?.brand || null,
       vehicleModel: o.vehicle?.model || null,
@@ -113,8 +83,6 @@ async function getActiveOrders(): Promise<QueueCardProps[]> {
       })),
     }));
   } catch {
-    // If PostgreSQL server is not connected or credentials mismatch in dev,
-    // gracefully show realistic preview cards instead of breaking
     return FALLBACK_ORDERS;
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition } from 'react';
+import { useState, useRef, useEffect, useTransition, useCallback } from 'react';
 import { verifyCustomerAccessAction } from '@/app/(public)/cek/actions';
 import { X, ArrowRight } from 'lucide-react';
 
@@ -28,17 +28,22 @@ export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeM
     }
   }, [initialCode]);
 
-  // Two-stage mount/visibility for 100% reliable CSS slide-in and slide-out transitions
+  const handleSmoothClose = useCallback(() => {
+    setVisible(false);
+    setTimeout(() => {
+      setMounted(false);
+      onClose();
+    }, 280);
+  }, [onClose]);
+
   useEffect(() => {
     if (isOpen) {
       setMounted(true);
       setError(null);
-      // Double rAF ensures browser paints initial state before triggering CSS transition
       const frame1 = requestAnimationFrame(() => {
-        const frame2 = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
           setVisible(true);
         });
-        return () => cancelAnimationFrame(frame2);
       });
 
       const focusTimer = setTimeout(() => {
@@ -49,9 +54,17 @@ export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeM
         }
       }, 160);
 
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          handleSmoothClose();
+        }
+      };
+      window.addEventListener('keydown', onKeyDown);
+
       return () => {
         cancelAnimationFrame(frame1);
         clearTimeout(focusTimer);
+        window.removeEventListener('keydown', onKeyDown);
       };
     } else {
       setVisible(false);
@@ -60,18 +73,10 @@ export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeM
       }, 280);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, initialCode]);
-
-  const handleSmoothClose = () => {
-    setVisible(false);
-    setTimeout(() => {
-      setMounted(false);
-      onClose();
-    }, 280);
-  };
+  }, [isOpen, initialCode, handleSmoothClose]);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+    const val = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4);
     setCode(val);
     setError(null);
     if (val.length === 4) {
@@ -120,16 +125,20 @@ export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeM
   if (!mounted) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      {/* Smooth Apple Backdrop */}
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-cek-status-title"
+    >
       <div
         className={`fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300 ease-out ${
           visible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={handleSmoothClose}
+        aria-hidden="true"
       />
 
-      {/* Smooth Apple Bottom Sheet with guaranteed entrance and exit transitions */}
       <div
         className={`relative z-10 w-full max-w-lg overflow-hidden rounded-t-[36px] border-t border-white/20 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] dark:border-white/10 dark:bg-[#161618]/95 sm:rounded-[36px] sm:border sm:p-8 ${
           visible
@@ -137,73 +146,81 @@ export function CheckCodeModal({ isOpen, onClose, initialCode = '' }: CheckCodeM
             : 'translate-y-full opacity-0 sm:translate-y-8 sm:scale-95'
         }`}
       >
-        {/* iOS Drag Handle Pill */}
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-700 sm:hidden" />
 
-        {/* Clean Modal Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white sm:text-2xl">
+          <h2
+            id="modal-cek-status-title"
+            className="text-xl font-black tracking-tight text-slate-900 dark:text-white sm:text-2xl"
+          >
             Cek Status
           </h2>
 
           <button
+            type="button"
             onClick={handleSmoothClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 dark:bg-white/10 dark:text-slate-400 dark:hover:bg-white/20"
+            aria-label="Tutup dialog"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/20"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
-        {/* Form with Combined Single-Row Input */}
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           {error && (
-            <div className="rounded-2xl border border-red-200/80 bg-red-50/80 p-3 text-xs font-semibold text-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
+            <div
+              role="alert"
+              className="rounded-2xl border border-red-200/80 bg-red-50/80 p-3 text-xs font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+            >
               {error}
             </div>
           )}
 
-          {/* Unified Input Container */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-inner transition-all focus-within:border-slate-800 focus-within:ring-2 focus-within:ring-slate-800/10 dark:border-white/10 dark:bg-black/50 dark:focus-within:border-white dark:focus-within:ring-white/15">
-            <div className="grid grid-cols-2 text-center text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-slate-500">
-              <span>Kode Servis</span>
-              <span>4 Digit HP</span>
+            <div className="grid grid-cols-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+              <label htmlFor="modal-code-input">Kode Servis</label>
+              <label htmlFor="modal-phone-input">4 Digit HP</label>
             </div>
 
             <div className="mt-1.5 flex items-center justify-center gap-2">
               <input
                 ref={codeInputRef}
+                id="modal-code-input"
                 type="text"
-                inputMode="numeric"
+                autoComplete="off"
                 maxLength={4}
                 value={code}
                 onChange={handleCodeChange}
                 placeholder="4821"
-                className="w-full rounded-xl bg-white py-3 text-center font-mono text-2xl font-black tracking-widest text-slate-900 shadow-sm transition-all focus:outline-none dark:bg-[#2C2C2E] dark:text-white"
+                className="w-full rounded-xl bg-white py-3 text-center font-mono text-2xl font-black tracking-widest text-slate-900 shadow-sm transition-all dark:bg-[#2C2C2E] dark:text-white"
               />
 
-              <span className="text-xl font-bold text-slate-300 dark:text-slate-600">—</span>
+              <span className="text-xl font-bold text-slate-400 dark:text-slate-600" aria-hidden="true">
+                /
+              </span>
 
               <input
                 ref={phoneInputRef}
+                id="modal-phone-input"
                 type="text"
                 inputMode="numeric"
+                autoComplete="off"
                 maxLength={4}
                 value={phoneLast4}
                 onChange={handlePhoneChange}
                 placeholder="5678"
-                className="w-full rounded-xl bg-white py-3 text-center font-mono text-2xl font-black tracking-widest text-slate-900 shadow-sm transition-all focus:outline-none dark:bg-[#2C2C2E] dark:text-white"
+                className="w-full rounded-xl bg-white py-3 text-center font-mono text-2xl font-black tracking-widest text-slate-900 shadow-sm transition-all dark:bg-[#2C2C2E] dark:text-white"
               />
             </div>
           </div>
 
-          {/* Single Apple CTA Button */}
           <button
             type="submit"
             disabled={isPending || code.length !== 4 || phoneLast4.length !== 4}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-xs font-bold text-white shadow-lg transition-transform tap-bounce disabled:opacity-40 dark:bg-white dark:text-black"
+            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-xs font-bold text-white shadow-lg transition-transform tap-bounce disabled:opacity-40 dark:bg-white dark:text-black"
           >
             <span>{isPending ? 'Memeriksa...' : 'Buka Progres'}</span>
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </button>
         </form>
       </div>
