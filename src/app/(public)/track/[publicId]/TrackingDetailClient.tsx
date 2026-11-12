@@ -216,14 +216,16 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
           <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
             {order.vehicle?.brand} {order.vehicle?.model}
           </h1>
-          <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-            {order.vehicle?.year ? `Tahun ${order.vehicle.year}` : 'Unit Servis'}
-            {order.customer.workshopName ? ` · ${order.customer.workshopName}` : ''}
-          </p>
 
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <div className="inline-block shrink-0 rounded-xl bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:bg-white/10 dark:text-slate-300">
-              {intakeLabel}
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <div className="space-y-0.5">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                {order.vehicle?.year ? `Tahun ${order.vehicle.year}` : 'Unit Servis'}
+                {order.customer.workshopName ? ` · ${order.customer.workshopName}` : ''}
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                {intakeLabel}
+              </p>
             </div>
 
             <div className="shrink-0 rounded-xl bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:bg-white/10 dark:text-slate-300">

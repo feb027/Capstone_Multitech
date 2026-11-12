@@ -292,15 +292,15 @@ export function ShopMagazineCarousel() {
                 draggable={false}
                 className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
               />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-              <div className="pointer-events-none absolute bottom-3 left-3.5 right-3.5">
-                <span className="inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-white backdrop-blur-md">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/95 via-black/55 to-black/10" />
+              <div className="pointer-events-none absolute bottom-3 left-3.5 right-3.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                <span className="inline-block rounded-full border border-white/30 bg-black/50 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-white backdrop-blur-md">
                   {slide.tag}
                 </span>
-                <p className="mt-1 text-sm font-bold leading-snug text-white">
+                <p className="mt-1 text-sm font-extrabold leading-snug text-white">
                   {slide.title}
                 </p>
-                <p className="line-clamp-2 text-[11px] leading-snug text-slate-200">
+                <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-snug text-zinc-100">
                   {slide.subtitle}
                 </p>
               </div>

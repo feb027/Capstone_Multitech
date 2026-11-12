@@ -109,13 +109,6 @@
   background-size: 22px 22px, 100% 100%, 100% 100%, 100% 100%;
 }
 
-body.hide-public-header header {
-  opacity: 0 !important;
-  transform: translateY(-100%) !important;
-  pointer-events: none !important;
-  transition: opacity 0.22s ease, transform 0.22s ease !important;
-}
-
 .dark .ios-ambient-backdrop {
   background-color: #000000;
   background-image:

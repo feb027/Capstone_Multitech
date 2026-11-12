@@ -102,9 +102,8 @@ export function QueueCard({
               </div>
 
               <span
-                className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-2.5 py-1 text-center text-[11px] font-bold leading-none ${badge.badgeClass}`}
+                className={`inline-flex min-w-[78px] shrink-0 items-center justify-center rounded-full border px-3 py-1 text-center text-[11px] font-bold leading-none ${badge.badgeClass}`}
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${badge.dotClass}`} aria-hidden="true" />
                 {badge.shortLabel}
               </span>
             </div>

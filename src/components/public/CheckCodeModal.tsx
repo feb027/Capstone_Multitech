@@ -19,7 +19,6 @@ export function CheckCodeModal({
 }: CheckCodeModalProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
-  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
 
   const [code, setCode] = useState(initialCode);
   const [phoneLast4, setPhoneLast4] = useState('');
@@ -41,51 +40,15 @@ export function CheckCodeModal({
     setTimeout(() => {
       setMounted(false);
       onClose();
-    }, 260);
+    }, 250);
   }, [onClose]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    document.body.classList.add('hide-public-header');
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    let resizeRaf = 0;
-    const syncViewport = () => {
-      cancelAnimationFrame(resizeRaf);
-      resizeRaf = requestAnimationFrame(() => {
-        const vv = window.visualViewport;
-        if (vv) {
-          setViewportHeight(vv.height);
-        } else {
-          setViewportHeight(null);
-        }
-      });
-    };
-
-    syncViewport();
-    window.visualViewport?.addEventListener('resize', syncViewport);
-
-    return () => {
-      cancelAnimationFrame(resizeRaf);
-      document.body.classList.remove('hide-public-header');
-      document.body.style.overflow = prevBodyOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      window.visualViewport?.removeEventListener('resize', syncViewport);
-    };
-  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
       setMounted(true);
       setError(null);
-      const frame1 = requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setVisible(true);
-        });
+      const frame = requestAnimationFrame(() => {
+        setVisible(true);
       });
 
       const focusTimer = setTimeout(() => {
@@ -104,7 +67,7 @@ export function CheckCodeModal({
       window.addEventListener('keydown', onKeyDown);
 
       return () => {
-        cancelAnimationFrame(frame1);
+        cancelAnimationFrame(frame);
         clearTimeout(focusTimer);
         window.removeEventListener('keydown', onKeyDown);
       };
@@ -112,7 +75,7 @@ export function CheckCodeModal({
       setVisible(false);
       const timer = setTimeout(() => {
         setMounted(false);
-      }, 260);
+      }, 250);
       return () => clearTimeout(timer);
     }
   }, [isOpen, initialCode, handleSmoothClose]);
@@ -170,14 +133,13 @@ export function CheckCodeModal({
 
   return (
     <div
-      style={viewportHeight ? { height: `${viewportHeight}px` } : undefined}
-      className="fixed inset-x-0 top-0 z-[999] flex h-dvh items-center justify-center overflow-hidden p-4 touch-none transition-[height] duration-150 ease-out"
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-cek-status-title"
     >
       <div
-        className={`fixed inset-0 bg-black/75 backdrop-blur-xl touch-none transition-opacity duration-250 ease-out ${
+        className={`fixed inset-0 bg-black/65 backdrop-blur-md transition-opacity duration-250 ease-out ${
           visible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={handleSmoothClose}
@@ -185,12 +147,14 @@ export function CheckCodeModal({
       />
 
       <div
-        className={`ios-glass-card relative z-10 w-full max-w-md overflow-hidden rounded-[30px] p-5 shadow-2xl transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] sm:p-7 ${
+        className={`ios-glass-card relative z-10 w-full max-w-md overflow-hidden rounded-t-[32px] p-5 shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] sm:rounded-[32px] sm:p-7 ${
           visible
-            ? 'translate-y-0 scale-100 opacity-100'
-            : 'translate-y-4 scale-95 opacity-0'
+            ? 'translate-y-0 sm:scale-100 sm:opacity-100'
+            : 'translate-y-full sm:translate-y-4 sm:scale-95 sm:opacity-0'
         }`}
       >
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-white/20 sm:hidden" aria-hidden="true" />
+
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2
@@ -210,13 +174,13 @@ export function CheckCodeModal({
             type="button"
             onClick={handleSmoothClose}
             aria-label="Tutup dialog"
-            className="ios-glass-inner flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-black/5 dark:text-zinc-200 dark:hover:bg-white/15"
+            className="ios-glass-inner flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-black/5 dark:text-zinc-200 dark:hover:bg-white/15"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-3.5 space-y-3">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
           {error && (
             <div
               role="alert"
@@ -226,7 +190,7 @@ export function CheckCodeModal({
             </div>
           )}
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5 shadow-inner focus-within:border-slate-800 dark:border-white/10 dark:bg-black/50 dark:focus-within:border-white sm:p-3">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5 shadow-inner dark:border-white/10 dark:bg-black/50 sm:p-3">
             <div className="grid grid-cols-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               <label htmlFor="modal-code-input">Kode Servis</label>
               <label htmlFor="modal-phone-input">4 Digit HP</label>
