@@ -85,13 +85,13 @@ export function FilterScrollRow({ children, ariaLabel }: FilterScrollRowProps) {
   }
 
   return (
-    <div className="relative flex min-w-0 items-center gap-1">
+    <div className="relative z-10 flex w-full min-w-0 items-center gap-1.5">
       {canScrollLeft && (
         <button
           type="button"
           onClick={() => scrollByAmount(-160)}
           aria-label="Geser filter ke kiri"
-          className="z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-black/[0.06] bg-white text-slate-700 shadow-sm hover:bg-slate-50 tap-bounce dark:border-white/[0.08] dark:bg-[#1C1C1E] dark:text-slate-200"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/[0.06] bg-white text-slate-700 shadow-sm hover:bg-slate-50 tap-bounce dark:border-white/[0.08] dark:bg-[#1C1C1E] dark:text-slate-200"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -108,7 +108,7 @@ export function FilterScrollRow({ children, ariaLabel }: FilterScrollRowProps) {
         onMouseUp={stopDragging}
         onMouseLeave={stopDragging}
         onClickCapture={handleClickCapture}
-        className="flex min-w-0 flex-1 select-none gap-1.5 overflow-x-auto py-0.5 touch-pan-x no-scrollbar cursor-grab active:cursor-grabbing"
+        className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-x-auto py-1 touch-pan-x no-scrollbar cursor-grab active:cursor-grabbing"
       >
         {children}
       </div>
@@ -118,7 +118,7 @@ export function FilterScrollRow({ children, ariaLabel }: FilterScrollRowProps) {
           type="button"
           onClick={() => scrollByAmount(160)}
           aria-label="Geser filter ke kanan"
-          className="z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-black/[0.06] bg-white text-slate-700 shadow-sm hover:bg-slate-50 tap-bounce dark:border-white/[0.08] dark:bg-[#1C1C1E] dark:text-slate-200"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/[0.06] bg-white text-slate-700 shadow-sm hover:bg-slate-50 tap-bounce dark:border-white/[0.08] dark:bg-[#1C1C1E] dark:text-slate-200"
         >
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </button>
