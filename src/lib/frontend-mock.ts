@@ -130,7 +130,7 @@ export const INITIAL_SERVICE_ORDERS: MockServiceOrder[] = [
           {
             id: 'log-3',
             createdAt: '2026-11-12T08:45:00.000Z',
-            note: 'Pengujian bench test 12V simulasi sinyal pulse RPM selama 3 jam, layar stabil dan terang merata.',
+            note: 'Pengujian bench test 12V simulasi sinyal pulse RPM, layar stabil dan terang merata.',
             isPublic: true,
             photoUrl: null,
           },
