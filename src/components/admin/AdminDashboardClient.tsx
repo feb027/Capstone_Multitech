@@ -194,11 +194,11 @@ export function AdminDashboardClient({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Header & Primary Action */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white sm:text-2xl">
+          <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-white sm:text-xl">
             Dashboard Operasional
           </h1>
           <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
@@ -209,7 +209,7 @@ export function AdminDashboardClient({
         <div className="flex shrink-0 items-center">
           <Link
             href="/admin/services?new=1"
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-900 px-4 text-xs font-bold text-white shadow-md transition-transform hover:bg-slate-800 tap-bounce dark:bg-white dark:text-black dark:hover:bg-slate-200"
+            className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full bg-slate-900 px-4 text-xs font-bold text-white shadow-md transition-transform hover:bg-slate-800 tap-bounce dark:bg-white dark:text-black dark:hover:bg-slate-200"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             <span>Tambah Unit Servis</span>
@@ -221,7 +221,7 @@ export function AdminDashboardClient({
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         <Link
           href="/admin/services"
-          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-3.5"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -231,17 +231,17 @@ export function AdminDashboardClient({
               {totalActiveModules} Modul
             </span>
           </div>
-          <p className="mt-1.5 text-xl font-black tabular-nums text-slate-900 dark:text-white sm:text-2xl">
+          <p className="mt-1 text-xl font-black tabular-nums text-slate-900 dark:text-white sm:text-2xl">
             {totalActive} Unit
           </p>
-          <p className="mt-1 truncate text-[11px] text-slate-600 dark:text-slate-400">
+          <p className="mt-0.5 truncate text-[11px] text-slate-600 dark:text-slate-400">
             {mobilUtuhCount} Mobil · {modulSajaCount} Modul · {gensetCount} Genset
           </p>
         </Link>
 
         <Link
           href="/admin/services?status=SIAP_DIAMBIL"
-          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-3.5"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -251,17 +251,17 @@ export function AdminDashboardClient({
               {qcCount} Uji &amp; QC
             </span>
           </div>
-          <p className="mt-1.5 text-xl font-black tabular-nums text-emerald-700 dark:text-emerald-400 sm:text-2xl">
+          <p className="mt-1 text-xl font-black tabular-nums text-emerald-700 dark:text-emerald-400 sm:text-2xl">
             {siapCount} Siap
           </p>
-          <p className="mt-1 truncate text-[11px] text-slate-600 dark:text-slate-400">
+          <p className="mt-0.5 truncate text-[11px] text-slate-600 dark:text-slate-400">
             {siapBengkelCount} Ambil Bengkel · {siapEkspedisiCount} Kirim Paket
           </p>
         </Link>
 
         <Link
           href="/admin/reports"
-          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-3.5"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -271,17 +271,17 @@ export function AdminDashboardClient({
               {paidPercentage}% Masuk
             </span>
           </div>
-          <p className="mt-1.5 truncate text-lg font-black tabular-nums text-slate-900 dark:text-white sm:text-xl">
+          <p className="mt-1 truncate text-lg font-black tabular-nums text-slate-900 dark:text-white sm:text-xl">
             {formatRupiah(totalEstimatedRevenue)}
           </p>
-          <p className="mt-1 truncate text-[11px] text-slate-600 dark:text-slate-400">
+          <p className="mt-0.5 truncate text-[11px] text-slate-600 dark:text-slate-400">
             {lunasCount} Lunas · {dpCount} DP · {belumBayarCount} Belum Bayar
           </p>
         </Link>
 
         <Link
           href="/admin/customers"
-          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-3.5"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -291,20 +291,20 @@ export function AdminDashboardClient({
               {mitraCount} Mitra
             </span>
           </div>
-          <p className="mt-1.5 text-xl font-black tabular-nums text-slate-900 dark:text-white sm:text-2xl">
+          <p className="mt-1 text-xl font-black tabular-nums text-slate-900 dark:text-white sm:text-2xl">
             {totalCustomers} Data
           </p>
-          <p className="mt-1 truncate text-[11px] text-slate-600 dark:text-slate-400">
+          <p className="mt-0.5 truncate text-[11px] text-slate-600 dark:text-slate-400">
             {peroranganCount} Perorangan · {mitraCount} Bengkel Mitra
           </p>
         </Link>
       </div>
 
       {/* Two-Column Operational Workspace */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-stretch">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:items-stretch">
         {/* Left: Compact Active Orders Table */}
-        <section className="ios-glass-card flex h-full flex-col rounded-[24px] p-4 shadow-sm sm:p-5 lg:col-span-7">
-          <div className="mb-3 flex items-center justify-between gap-2">
+        <section className="ios-glass-card flex h-full flex-col rounded-[24px] p-3.5 shadow-sm sm:p-4 lg:col-span-7">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                 Unit Dalam Penanganan
@@ -321,7 +321,7 @@ export function AdminDashboardClient({
             </Link>
           </div>
 
-          <div className="grid grid-cols-12 items-center gap-2 border-b border-black/[0.06] pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:border-white/[0.08] dark:text-slate-400">
+          <div className="grid grid-cols-12 items-center gap-2 border-b border-black/[0.06] pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:border-white/[0.08] dark:text-slate-400">
             <span className="col-span-5">Unit</span>
             <span className="col-span-3">Pelanggan</span>
             <span className="col-span-4 text-right">Modul &amp; Penanganan</span>
@@ -332,7 +332,7 @@ export function AdminDashboardClient({
               <Link
                 key={order.id}
                 href={`/admin/services?orderId=${order.id}`}
-                className="grid grid-cols-12 items-center gap-2 py-2.5 transition-colors first:pt-2 last:pb-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+                className="grid grid-cols-12 items-center gap-2 py-1.5 transition-colors first:pt-1.5 last:pb-0.5 hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
               >
                 {/* Col 1: Unit */}
                 <div className="col-span-5 min-w-0">
@@ -386,8 +386,8 @@ export function AdminDashboardClient({
         </section>
 
         {/* Right: Top 3 Prioritas Tindak Lanjut (Editable Reminder berdasarkan Estimasi Selesai) */}
-        <section className="ios-glass-card flex h-full flex-col rounded-[24px] p-4 shadow-sm sm:p-5 lg:col-span-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
+        <section className="ios-glass-card flex h-full flex-col rounded-[24px] p-3.5 shadow-sm sm:p-4 lg:col-span-5">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                 Prioritas Tindak Lanjut
@@ -406,7 +406,7 @@ export function AdminDashboardClient({
               Semua unit sudah selesai atau belum memiliki target estimasi.
             </p>
           ) : (
-            <div className="flex flex-1 flex-col justify-between gap-2.5">
+            <div className="flex flex-1 flex-col justify-between gap-2">
               {urgentPriorityOrders.map((order) => {
                 const primaryItem = order.items[0];
                 const defaultReminder =
@@ -419,7 +419,7 @@ export function AdminDashboardClient({
                 return (
                   <div
                     key={order.id}
-                    className="ios-glass-inner rounded-2xl p-3 transition-colors"
+                    className="ios-glass-inner rounded-2xl p-2.5 transition-colors"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -521,7 +521,7 @@ export function AdminDashboardClient({
       </div>
 
       {/* Full-Width Bar Chart Section: Diagram Kepadatan Pengunjung */}
-      <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-6">
+      <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:px-6 sm:py-4">
         <GroupedBarChart
           title="Diagram Kepadatan Pengunjung"
           yAxisLabel="Jumlah Pengunjung"
