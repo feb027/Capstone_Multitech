@@ -831,9 +831,9 @@ export function AdminServicesClient() {
                         </p>
                       </td>
 
-                      {/* Col 6: 2 Tombol Aksi Icon Only (Detail & Edit) */}
-                      <td className="whitespace-nowrap px-4 py-3.5 text-right align-middle">
-                        <div className="inline-flex items-center justify-end gap-1.5">
+                      {/* Col 6: 2 Tombol Aksi Icon Only Atas-Bawah (Detail & Edit) */}
+                      <td className="whitespace-nowrap px-4 py-3 text-right align-middle">
+                        <div className="inline-flex flex-col items-end justify-center gap-1.5">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -842,7 +842,7 @@ export function AdminServicesClient() {
                             }}
                             title="Lihat Detail"
                             aria-label={`Lihat detail #${order.code}`}
-                            className="ios-glass-inner inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
+                            className="ios-glass-inner inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
                           >
                             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
@@ -855,7 +855,7 @@ export function AdminServicesClient() {
                             }}
                             title="Edit Servis"
                             aria-label={`Edit servis #${order.code}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white shadow-xs transition-colors hover:bg-slate-800 tap-bounce dark:bg-white dark:text-black dark:hover:bg-slate-200"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white shadow-xs transition-colors hover:bg-slate-800 tap-bounce dark:bg-white dark:text-black dark:hover:bg-slate-200"
                           >
                             <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
@@ -939,7 +939,7 @@ export function AdminServicesClient() {
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-1.5">
+                    <div className="flex shrink-0 flex-col items-end justify-center gap-1.5">
                       <button
                         type="button"
                         onClick={(e) => {
@@ -948,7 +948,7 @@ export function AdminServicesClient() {
                         }}
                         title="Lihat Detail"
                         aria-label={`Lihat detail #${order.code}`}
-                        className="ios-glass-inner inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-800 dark:text-white"
+                        className="ios-glass-inner inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-800 dark:text-white"
                       >
                         <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
@@ -960,7 +960,7 @@ export function AdminServicesClient() {
                         }}
                         title="Edit Servis"
                         aria-label={`Edit servis #${order.code}`}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white dark:bg-white dark:text-black"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white dark:bg-white dark:text-black"
                       >
                         <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
