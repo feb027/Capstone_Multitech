@@ -855,7 +855,7 @@ export function AdminServicesClient() {
                             }}
                             title="Edit Servis"
                             aria-label={`Edit servis #${order.code}`}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white shadow-xs transition-colors hover:bg-slate-800 tap-bounce dark:bg-white dark:text-black dark:hover:bg-slate-200"
+                            className="ios-glass-inner inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
                           >
                             <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
@@ -960,7 +960,7 @@ export function AdminServicesClient() {
                         }}
                         title="Edit Servis"
                         aria-label={`Edit servis #${order.code}`}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white dark:bg-white dark:text-black"
+                        className="ios-glass-inner inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-800 dark:text-white"
                       >
                         <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
