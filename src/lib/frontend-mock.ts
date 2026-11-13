@@ -585,9 +585,11 @@ function makeVehicleKey(brand: string, model: string, plateNumber?: string | nul
 }
 
 function getCustomerKey(phone?: string | null, name?: string | null): string {
+  const cleanName = (name || '').trim().toLowerCase();
+  if (cleanName) return `name:${cleanName}`;
   const cleanPhone = normalizePhone(phone);
   if (cleanPhone) return `phone:${cleanPhone}`;
-  return `name:${(name || '').trim().toLowerCase()}`;
+  return 'unknown';
 }
 
 export function synchronizeDataset(
@@ -654,12 +656,12 @@ export function synchronizeDataset(
     const cleanName = incoming.name.trim();
     const cleanPhone = normalizePhone(incoming.phone);
     const nameKey = cleanName.toLowerCase();
-    const existingKeyByPhone = cleanPhone ? `phone:${cleanPhone}` : '';
-    const existingKeyByName = nameKey ? nameToKey.get(nameKey) : undefined;
-    const resolvedKey =
-      (existingKeyByPhone && customerMap.has(existingKeyByPhone) ? existingKeyByPhone : undefined) ||
-      existingKeyByName ||
-      getCustomerKey(cleanPhone, cleanName);
+    // Distinct customer name always maps to a separate customer record
+    const resolvedKey = nameKey
+      ? `name:${nameKey}`
+      : cleanPhone
+      ? `phone:${cleanPhone}`
+      : incoming.id;
 
     const existing = customerMap.get(resolvedKey);
     const normalizedType = incoming.type || existing?.type || CustomerType.PERORANGAN;

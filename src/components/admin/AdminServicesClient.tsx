@@ -2013,7 +2013,7 @@ export function AdminServicesClient() {
                         className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
                       >
                         <option value={CustomerType.PERORANGAN}>Perorangan</option>
-                        <option value={CustomerType.MITRA}>Mitra B2B</option>
+                        <option value={CustomerType.MITRA}>Bengkel Mitra</option>
                       </select>
                     </div>
 
@@ -2044,7 +2044,7 @@ export function AdminServicesClient() {
                     {editOrder.customerType === CustomerType.MITRA && (
                       <div className="sm:col-span-2">
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          Bengkel Mitra B2B
+                          Bengkel Mitra
                         </label>
                         <select
                           value={
@@ -2589,7 +2589,7 @@ export function AdminServicesClient() {
                             : 'border-black/[0.08] bg-white text-slate-700 hover:bg-black/[0.03] dark:border-white/10 dark:bg-black/40 dark:text-slate-300 dark:hover:bg-white/[0.06]'
                         }`}
                       >
-                        Bengkel Mitra B2B
+                        Bengkel Mitra
                       </button>
                     </div>
                   </div>
@@ -2597,7 +2597,7 @@ export function AdminServicesClient() {
                   {intakeCustomerType === CustomerType.MITRA && (
                     <div className="sm:col-span-2">
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                        Bengkel Mitra B2B (Dropdown)
+                        Bengkel Mitra (Dropdown)
                       </label>
                       <select
                         required

@@ -17,7 +17,7 @@ const PERIODS = [
   { id: 'ALL', label: 'Semua Periode' },
   { id: 'THIS_MONTH', label: 'Bulan Ini' },
   { id: 'LAST_3_MONTHS', label: '3 Bulan Terakhir' },
-  { id: 'MITRA_B2B', label: 'Mitra B2B' },
+  { id: 'MITRA_B2B', label: 'Bengkel Mitra' },
   { id: 'PERORANGAN', label: 'Perorangan' },
 ];
 

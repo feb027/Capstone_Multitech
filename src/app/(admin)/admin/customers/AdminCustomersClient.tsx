@@ -74,8 +74,88 @@ export function AdminCustomersClient({ customers: initialCustomers }: { customer
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedCustomer]);
 
+  // Pastikan setiap unit/pelanggan masuk dengan nama berbeda otomatis terdaftar di tabel pelanggan
+  const allCustomers = useMemo(() => {
+    const map = new Map<string, CustomerRow>();
+
+    for (const c of customers) {
+      const k = c.name.trim().toLowerCase() || c.id;
+      map.set(k, { ...c, vehicles: [...c.vehicles] });
+    }
+
+    for (const ord of orders) {
+      const cleanName = (ord.customerName || '').trim();
+      const nKey = cleanName.toLowerCase();
+      if (!nKey) continue;
+
+      const existing = map.get(nKey);
+      if (existing) {
+        if (ord.vehicleBrand || ord.vehicleModel) {
+          const hasVeh = existing.vehicles.some((v) => {
+            const samePlate =
+              ord.plateNumber &&
+              v.plateNumber &&
+              ord.plateNumber.trim().toUpperCase() === v.plateNumber.trim().toUpperCase();
+            const sameModel =
+              v.brand.toLowerCase() === ord.vehicleBrand.toLowerCase() &&
+              v.model.toLowerCase() === ord.vehicleModel.toLowerCase();
+            return samePlate || sameModel;
+          });
+          if (!hasVeh) {
+            existing.vehicles.push({
+              id: `veh-${ord.id}`,
+              brand: ord.vehicleBrand,
+              model: ord.vehicleModel,
+              year: ord.vehicleYear,
+              plateNumber: ord.plateNumber || null,
+            });
+          }
+        }
+      } else {
+        map.set(nKey, {
+          id: `cust-${ord.id}`,
+          name: cleanName,
+          phone: ord.customerPhone || '',
+          type: ord.customerType || CustomerType.PERORANGAN,
+          workshopName: ord.workshopName || null,
+          address: null,
+          vehicles:
+            ord.vehicleBrand || ord.vehicleModel
+              ? [
+                  {
+                    id: `veh-${ord.id}`,
+                    brand: ord.vehicleBrand,
+                    model: ord.vehicleModel,
+                    year: ord.vehicleYear,
+                    plateNumber: ord.plateNumber || null,
+                  },
+                ]
+              : [],
+          _count: { serviceOrders: 1 },
+        });
+      }
+    }
+
+    // Hitung riwayat servis real-time berdasarkan pesanan aktif
+    return Array.from(map.values()).map((cust) => {
+      const custName = cust.name.trim().toLowerCase();
+      const custPhone = normalizePhone(cust.phone);
+      const count = orders.filter((ord) => {
+        const ordName = (ord.customerName || '').trim().toLowerCase();
+        if (ordName === custName) return true;
+        const ordPhone = normalizePhone(ord.customerPhone);
+        return Boolean(custPhone && ordPhone && ordPhone === custPhone);
+      }).length;
+
+      return {
+        ...cust,
+        _count: { serviceOrders: Math.max(cust._count?.serviceOrders || 0, count) },
+      };
+    });
+  }, [customers, orders]);
+
   const filtered = useMemo(() => {
-    return customers.filter((c) => {
+    return allCustomers.filter((c) => {
       if (typeFilter !== 'ALL' && c.type !== typeFilter) return false;
       if (workshopFilter !== 'ALL' && c.workshopName !== workshopFilter) return false;
       if (search.trim()) {
@@ -93,7 +173,7 @@ export function AdminCustomersClient({ customers: initialCustomers }: { customer
       }
       return true;
     });
-  }, [customers, search, typeFilter, workshopFilter]);
+  }, [allCustomers, search, typeFilter, workshopFilter]);
 
   // Cari servis yang berelasi dengan pelanggan yang dipilih
   const customerOrders = useMemo(() => {
@@ -101,9 +181,10 @@ export function AdminCustomersClient({ customers: initialCustomers }: { customer
     const targetPhone = normalizePhone(selectedCustomer.phone);
     const targetName = selectedCustomer.name.trim().toLowerCase();
     return orders.filter((ord) => {
+      const ordName = (ord.customerName || '').trim().toLowerCase();
+      if (ordName === targetName) return true;
       const ordPhone = normalizePhone(ord.customerPhone);
-      if (targetPhone && ordPhone) return ordPhone === targetPhone;
-      return ord.customerName.trim().toLowerCase() === targetName;
+      return Boolean(targetPhone && ordPhone && ordPhone === targetPhone);
     });
   }, [orders, selectedCustomer]);
 
@@ -142,7 +223,7 @@ export function AdminCustomersClient({ customers: initialCustomers }: { customer
             Data Pelanggan & Unit
           </h1>
           <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-            Daftar pelanggan perorangan dan bengkel mitra B2B beserta unit terdaftar.
+            Daftar pelanggan dan unit kendaraan/modul terdaftar.
           </p>
         </div>
         <CustomerForm />
@@ -154,7 +235,7 @@ export function AdminCustomersClient({ customers: initialCustomers }: { customer
           {[
             { key: 'ALL', label: 'Semua' },
             { key: CustomerType.PERORANGAN, label: 'Perorangan' },
-            { key: CustomerType.MITRA, label: 'Mitra B2B' },
+            { key: CustomerType.MITRA, label: 'Bengkel Mitra' },
           ].map((tab) => {
             const active = typeFilter === tab.key;
             return (
@@ -235,61 +316,62 @@ export function AdminCustomersClient({ customers: initialCustomers }: { customer
         </div>
       ) : (
         /* Tabel Pelanggan (Desktop & Mobile) */
-        <div className="overflow-hidden rounded-[26px] border border-black/[0.04] bg-white shadow-sm dark:border-white/[0.06] dark:bg-[#1C1C1E]">
+        <div className="ios-glass-card overflow-hidden rounded-[26px] shadow-sm">
           {/* Mobile Card List */}
           <div className="divide-y divide-black/[0.05] md:hidden dark:divide-white/[0.06]">
             {filtered.map((c) => (
               <div
                 key={c.id}
                 onClick={() => openCustomerDetail(c)}
-                className="cursor-pointer space-y-2 p-4 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+                className="cursor-pointer space-y-2.5 p-4 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                        {c.name}
-                      </h2>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          c.type === CustomerType.MITRA
-                            ? 'bg-purple-500/15 text-purple-800 dark:text-purple-300'
-                            : 'bg-blue-500/15 text-blue-800 dark:text-blue-300'
-                        }`}
-                      >
-                        {c.type === CustomerType.MITRA ? 'Mitra B2B' : 'Perorangan'}
-                      </span>
-                    </div>
-                    {c.workshopName && (
-                      <p className="mt-0.5 text-xs font-semibold text-blue-700 dark:text-blue-400">
-                        {c.workshopName}
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                      {c.name}
+                    </h2>
+                    {c.workshopName ? (
+                      <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 dark:text-blue-400">
+                        <Building2 className="h-3 w-3" />
+                        <span>{c.workshopName}</span>
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        {c.address || 'Pelanggan Perorangan'}
                       </p>
                     )}
                   </div>
 
-                  <Link
-                    href={`/admin/services?search=${encodeURIComponent(c.name)}`}
-                    onClick={(e) => e.stopPropagation()}
-                    title="Lihat riwayat servis di halaman servis"
-                    className="inline-flex items-center gap-1 rounded-full bg-slate-900/10 px-2.5 py-1 font-mono text-[11px] font-bold text-slate-900 hover:bg-slate-900 hover:text-white dark:bg-white/10 dark:text-white dark:hover:bg-white dark:hover:text-black"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openCustomerDetail(c);
+                    }}
+                    title={`Lihat detail & riwayat ${c._count.serviceOrders} servis`}
+                    className="ios-glass-inner inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-bold text-slate-800 dark:text-white"
                   >
+                    <Eye className="h-3 w-3" aria-hidden="true" />
                     <span>{c._count.serviceOrders}x Servis</span>
-                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                  </Link>
+                  </button>
                 </div>
 
-                <p className="font-mono text-xs text-slate-600 dark:text-slate-400">
-                  +{c.phone}
-                </p>
+                {c.phone && (
+                  <p className="font-mono text-xs text-slate-600 dark:text-slate-400">
+                    +{normalizePhone(c.phone)}
+                  </p>
+                )}
 
                 {c.vehicles.length > 0 && (
-                  <div className="flex flex-wrap gap-1 pt-1">
+                  <div className="flex flex-wrap gap-1 pt-0.5">
                     {c.vehicles.map((v) => (
                       <span
                         key={v.id}
-                        className="rounded-lg bg-[#F2F2F7] px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:bg-white/[0.06] dark:text-slate-300"
+                        className="inline-flex items-center gap-1 rounded-lg bg-black/[0.04] px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:bg-white/[0.06] dark:text-slate-300"
                       >
-                        {v.brand} {v.model} {v.plateNumber ? `(${v.plateNumber})` : ''}
+                        <Car className="h-3 w-3 text-slate-400" />
+                        <span>{v.brand} {v.model}</span>
+                        {v.plateNumber && <span>({v.plateNumber})</span>}
                       </span>
                     ))}
                   </div>
@@ -302,13 +384,12 @@ export function AdminCustomersClient({ customers: initialCustomers }: { customer
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-black/[0.05] bg-[#F2F2F7]/70 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-slate-400">
+                <tr className="border-b border-black/[0.06] bg-black/[0.02] text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-slate-400">
                   <th className="px-5 py-3.5">Pelanggan</th>
                   <th className="px-5 py-3.5">Kontak</th>
                   <th className="px-5 py-3.5">Bengkel / Mitra</th>
                   <th className="px-5 py-3.5">Kendaraan Terdaftar</th>
-                  <th className="px-5 py-3.5 text-center">Riwayat Servis</th>
-                  <th className="px-5 py-3.5 text-right">Aksi</th>
+                  <th className="px-5 py-3.5 text-right">Riwayat Servis</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
@@ -316,100 +397,93 @@ export function AdminCustomersClient({ customers: initialCustomers }: { customer
                   <tr
                     key={c.id}
                     onClick={() => openCustomerDetail(c)}
-                    className="cursor-pointer transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+                    className="group cursor-pointer transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
                   >
                     {/* Pelanggan */}
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-white">
-                          {c.name}
-                        </span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                            c.type === CustomerType.MITRA
-                              ? 'bg-purple-500/15 text-purple-800 dark:text-purple-300'
-                              : 'bg-blue-500/15 text-blue-800 dark:text-blue-300'
-                          }`}
-                        >
-                          {c.type === CustomerType.MITRA ? 'Mitra B2B' : 'Perorangan'}
-                        </span>
-                      </div>
-                      {c.address && (
+                    <td className="px-5 py-3.5 align-middle">
+                      <p className="font-bold text-slate-900 dark:text-white">
+                        {c.name}
+                      </p>
+                      {c.address ? (
                         <p className="mt-0.5 max-w-xs truncate text-[11px] text-slate-500 dark:text-slate-400">
                           {c.address}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          {c.workshopName ? `Mitra ${c.workshopName}` : 'Pelanggan Terdaftar'}
                         </p>
                       )}
                     </td>
 
                     {/* Kontak */}
-                    <td className="px-5 py-3.5 font-mono text-slate-700 dark:text-slate-300">
-                      <a
-                        href={`https://wa.me/${c.phone}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1.5 hover:text-emerald-600 dark:hover:text-emerald-400"
-                        title="Chat via WhatsApp"
-                      >
-                        <MessageCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <span>+{c.phone}</span>
-                      </a>
-                    </td>
-
-                    {/* Bengkel / Mitra */}
-                    <td className="px-5 py-3.5 text-slate-700 dark:text-slate-300">
-                      {c.workshopName ? (
-                        <span className="font-semibold text-slate-900 dark:text-white">
-                          {c.workshopName}
-                        </span>
+                    <td className="whitespace-nowrap px-5 py-3.5 align-middle font-mono text-slate-700 dark:text-slate-300">
+                      {c.phone ? (
+                        <a
+                          href={`https://wa.me/${normalizePhone(c.phone)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 hover:text-emerald-600 dark:hover:text-emerald-400"
+                          title="Chat via WhatsApp"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <span>+{normalizePhone(c.phone)}</span>
+                        </a>
                       ) : (
                         <span className="text-slate-400">-</span>
                       )}
                     </td>
 
+                    {/* Bengkel / Mitra */}
+                    <td className="px-5 py-3.5 align-middle">
+                      {c.workshopName ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-bold text-blue-800 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
+                          <Building2 className="h-3 w-3" />
+                          <span>{c.workshopName}</span>
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400">-</span>
+                      )}
+                    </td>
+
                     {/* Unit Kendaraan */}
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 align-middle">
                       <div className="flex max-w-xs flex-wrap gap-1.5">
                         {c.vehicles.length > 0 ? (
                           c.vehicles.map((v) => (
                             <span
                               key={v.id}
-                              className="rounded-lg bg-[#F2F2F7] px-2 py-0.5 text-[11px] font-medium text-slate-800 dark:bg-white/[0.06] dark:text-slate-200"
+                              className="inline-flex items-center gap-1 rounded-lg bg-black/[0.04] px-2 py-0.5 text-[11px] font-semibold text-slate-800 dark:bg-white/[0.08] dark:text-slate-200"
                             >
-                              {v.brand} {v.model} {v.plateNumber ? `(${v.plateNumber})` : ''}
+                              <Car className="h-3 w-3 text-slate-400" />
+                              <span>{v.brand} {v.model}</span>
+                              {v.plateNumber && (
+                                <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">
+                                  ({v.plateNumber})
+                                </span>
+                              )}
                             </span>
                           ))
                         ) : (
-                          <span className="text-slate-400">-</span>
+                          <span className="text-xs text-slate-400">-</span>
                         )}
                       </div>
                     </td>
 
-                    {/* Riwayat Servis (Clickable to Services Page) */}
-                    <td className="px-5 py-3.5 text-center">
-                      <Link
-                        href={`/admin/services?search=${encodeURIComponent(c.name)}`}
-                        onClick={(e) => e.stopPropagation()}
-                        title={`Lihat detail ${c._count.serviceOrders} servis di halaman servis`}
-                        className="inline-flex items-center gap-1 rounded-full bg-slate-900/10 px-3 py-1 font-mono text-xs font-bold text-slate-900 transition-colors hover:bg-slate-900 hover:text-white dark:bg-white/10 dark:text-white dark:hover:bg-white dark:hover:text-black"
-                      >
-                        <span>{c._count.serviceOrders}x Masuk</span>
-                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                      </Link>
-                    </td>
-
-                    {/* Aksi */}
-                    <td className="px-5 py-3.5 text-right">
+                    {/* Riwayat Servis (Icon mata dengan angka servis, klik untuk buka detail) */}
+                    <td className="whitespace-nowrap px-5 py-3.5 text-right align-middle">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           openCustomerDetail(c);
                         }}
-                        className="inline-flex min-h-[36px] items-center gap-1 rounded-full bg-[#F2F2F7] px-3 text-xs font-semibold text-slate-800 hover:bg-slate-200/80 tap-bounce dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/20"
+                        title={`Buka detail riwayat servis ${c.name}`}
+                        aria-label={`Buka detail riwayat servis ${c.name}`}
+                        className="ios-glass-inner inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-bold text-slate-800 transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
                       >
-                        <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Detail</span>
+                        <Eye className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" aria-hidden="true" />
+                        <span>{c._count.serviceOrders}x Servis</span>
                       </button>
                     </td>
                   </tr>
@@ -453,7 +527,7 @@ export function AdminCustomersClient({ customers: initialCustomers }: { customer
                         : 'bg-blue-500/15 text-blue-800 dark:text-blue-300'
                     }`}
                   >
-                    {selectedCustomer.type === CustomerType.MITRA ? 'Mitra B2B' : 'Perorangan'}
+                    {selectedCustomer.type === CustomerType.MITRA ? 'Bengkel Mitra' : 'Perorangan'}
                   </span>
                 </div>
                 {selectedCustomer.workshopName && (
@@ -539,7 +613,7 @@ export function AdminCustomersClient({ customers: initialCustomers }: { customer
                       className="mt-1 h-9 w-full rounded-xl border border-black/[0.06] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
                     >
                       <option value={CustomerType.PERORANGAN}>Perorangan</option>
-                      <option value={CustomerType.MITRA}>Mitra B2B</option>
+                      <option value={CustomerType.MITRA}>Bengkel Mitra</option>
                     </select>
                   </div>
 

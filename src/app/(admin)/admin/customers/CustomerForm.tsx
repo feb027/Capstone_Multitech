@@ -145,7 +145,7 @@ export function CustomerForm() {
                     : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
-                Bengkel Mitra (B2B)
+                Bengkel Mitra
               </button>
             </div>
           </div>
