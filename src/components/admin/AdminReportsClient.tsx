@@ -9,12 +9,8 @@ import {
   Printer,
   TrendingUp,
   DollarSign,
-  Users,
-  Calendar,
-  Building2,
-  CheckCircle2,
-  ArrowUpRight,
 } from 'lucide-react';
+import { GroupedBarChart } from './GroupedBarChart';
 
 const PERIODS = [
   { id: 'ALL', label: 'Semua Periode' },
@@ -84,10 +80,8 @@ export function AdminReportsClient() {
     };
   }, [filteredOrders]);
 
-  // Data Bulanan untuk Grafik 1 (Pemasukan Kas per Bulan) & Grafik 3 (Kepadatan Pelanggan)
+  // Data Bulanan untuk Grafik 1 (Pemasukan & Tagihan) & Grafik 3 (Kepadatan Pelanggan)
   const monthlyData = useMemo(() => {
-    const monthNames = ['Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov'];
-    // Inisialisasi data 6 bulan terakhir
     const monthsMap: Record<
       string,
       { label: string; revenue: number; billed: number; count: number; mitraCount: number; peroranganCount: number }
@@ -118,36 +112,115 @@ export function AdminReportsClient() {
       }
     }
 
-    // Jika filter khusus B2B atau Perorangan aktif, sesuaikan angka
-    return Object.values(monthsMap).map((m) => {
+    const mapped = Object.entries(monthsMap).map(([key, m]) => {
       let filteredRevenue = m.revenue;
+      let filteredBilled = m.billed;
       let filteredCount = m.count;
+      let mitraVal = m.mitraCount;
+      let peroranganVal = m.peroranganCount;
 
       if (period === 'MITRA_B2B') {
         filteredRevenue = Math.round(m.revenue * 0.58);
+        filteredBilled = Math.round(m.billed * 0.58);
         filteredCount = m.mitraCount;
+        peroranganVal = 0;
       } else if (period === 'PERORANGAN') {
         filteredRevenue = Math.round(m.revenue * 0.42);
+        filteredBilled = Math.round(m.billed * 0.42);
         filteredCount = m.peroranganCount;
+        mitraVal = 0;
       }
 
       return {
+        key,
         ...m,
         revenue: filteredRevenue,
+        billed: filteredBilled,
+        outstanding: Math.max(0, filteredBilled - filteredRevenue),
         count: filteredCount,
+        mitraCount: mitraVal,
+        peroranganCount: peroranganVal,
       };
     });
+
+    if (period === 'THIS_MONTH') {
+      return mapped.filter((m) => m.key === '10');
+    }
+    if (period === 'LAST_3_MONTHS') {
+      return mapped.filter((m) => m.key === '8' || m.key === '9' || m.key === '10');
+    }
+    return mapped;
   }, [filteredOrders, period]);
 
-  const maxRevenue = useMemo(() => {
-    const vals = monthlyData.map((m) => m.revenue);
-    return Math.max(...vals, 1000000);
+  const financeTicks = useMemo(() => {
+    const maxValM = Math.max(
+      ...monthlyData.map((m) => Math.max(m.billed, m.revenue, m.outstanding) / 1_000_000),
+      15
+    );
+    const topTick = Math.ceil(maxValM / 5) * 5;
+    return [0, 1, 2, 3, 4, 5].map((i) => Math.round((topTick / 5) * i));
   }, [monthlyData]);
 
-  const maxTrafficCount = useMemo(() => {
-    const vals = monthlyData.map((m) => m.count);
-    return Math.max(...vals, 1);
+  const trafficTicks = useMemo(() => {
+    const maxCount = Math.max(...monthlyData.map((m) => m.count), 10);
+    const topTick = Math.ceil(maxCount / 5) * 5;
+    return [0, 1, 2, 3, 4, 5].map((i) => Math.round((topTick / 5) * i));
   }, [monthlyData]);
+
+  const categoryRevenueData = useMemo(() => {
+    const baseScale =
+      period === 'THIS_MONTH'
+        ? 0.22
+        : period === 'LAST_3_MONTHS'
+          ? 0.55
+          : period === 'MITRA_B2B'
+            ? 0.58
+            : period === 'PERORANGAN'
+              ? 0.42
+              : 1;
+
+    const buckets: Record<string, { jasa: number; part: number; diagnosa: number }> = {
+      ECU: { jasa: 3_400_000 * baseScale, part: 2_600_000 * baseScale, diagnosa: 900_000 * baseScale },
+      EPS: { jasa: 2_200_000 * baseScale, part: 1_500_000 * baseScale, diagnosa: 750_000 * baseScale },
+      Cluster: { jasa: 1_850_000 * baseScale, part: 950_000 * baseScale, diagnosa: 500_000 * baseScale },
+      Genset: { jasa: 2_500_000 * baseScale, part: 1_750_000 * baseScale, diagnosa: 800_000 * baseScale },
+    };
+
+    for (const order of filteredOrders) {
+      const mod = (order.items[0]?.moduleName || '').toLowerCase();
+      const target =
+        order.unitCategory === 'GENSET_INDUSTRI' || mod.includes('genset') || mod.includes('amf')
+          ? 'Genset'
+          : mod.includes('speedo') || mod.includes('cluster')
+            ? 'Cluster'
+            : mod.includes('eps') || mod.includes('bcm')
+              ? 'EPS'
+              : 'ECU';
+
+      for (const c of order.charges) {
+        const amt = c.qty * c.unitPrice;
+        if (c.kind === 'JASA') buckets[target].jasa += amt;
+        else if (c.kind === 'SPAREPART') buckets[target].part += amt;
+        else buckets[target].diagnosa += amt;
+      }
+    }
+
+    return [
+      { label: 'ECU Mesin', ...buckets.ECU },
+      { label: 'EPS & BCM', ...buckets.EPS },
+      { label: 'Cluster', ...buckets.Cluster },
+      { label: 'Genset', ...buckets.Genset },
+    ];
+  }, [filteredOrders, period]);
+
+  const categoryTicks = useMemo(() => {
+    const maxValM = Math.max(
+      ...categoryRevenueData.map((c) => Math.max(c.jasa, c.part, c.diagnosa) / 1_000_000),
+      5
+    );
+    const topTick = Math.ceil(maxValM);
+    return [0, 1, 2, 3, 4, 5].map((i) => Number(((topTick / 5) * i).toFixed(1)));
+  }, [categoryRevenueData]);
 
   return (
     <div className="space-y-6">
@@ -263,170 +336,106 @@ export function AdminReportsClient() {
       </div>
 
       {/* ============================================================== */}
-      {/* 3 GRAFIK UTAMA YANG MENGGANTIKAN DISTRIBUSI PER KATEGORI MODUL */}
+      {/* 3 GRAFIK BATANG BERKELOMPOK (TERHUBUNG DENGAN FILTER PERIODE)  */}
       {/* ============================================================== */}
       <div className="space-y-4">
-        {/* GRAFIK 1: Pemasukan ke Perusahaan Setiap Bulannya */}
-        <section className="ios-glass-card rounded-[28px] p-5 shadow-sm">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <h2 className="text-sm font-black text-slate-900 dark:text-white sm:text-base">
-                  Grafik Pemasukan Perusahaan Setiap Bulannya
-                </h2>
-              </div>
-              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-                Akumulasi kas masuk bersih (omset terealisasi) per bulan
-              </p>
-            </div>
-            <span className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
-              Tertinggi: {formatRupiah(maxRevenue)}
-            </span>
-          </div>
-
-          {/* Bar Chart Visual Pemasukan Bulanan */}
-          <div className="mt-5 grid grid-cols-6 items-end gap-2 sm:gap-4">
-            {monthlyData.map((item) => {
-              const heightPct = Math.min(100, Math.max(12, Math.round((item.revenue / maxRevenue) * 100)));
-              return (
-                <div key={item.label} className="group flex flex-col items-center">
-                  <span className="mb-1.5 font-mono text-[10px] font-bold text-slate-700 opacity-90 transition-opacity group-hover:opacity-100 dark:text-zinc-300">
-                    {item.revenue >= 1000000
-                      ? `${(item.revenue / 1000000).toFixed(1)}jt`
-                      : formatRupiah(item.revenue)}
-                  </span>
-
-                  <div className="relative flex h-36 w-full items-end justify-center rounded-2xl bg-black/[0.04] p-1.5 dark:bg-white/[0.06] sm:h-44">
-                    <div
-                      style={{ height: `${heightPct}%` }}
-                      className="w-full rounded-xl bg-gradient-to-t from-emerald-600 to-teal-400 shadow-md transition-all duration-500 group-hover:brightness-110 dark:from-emerald-500 dark:to-teal-300"
-                    />
-                  </div>
-
-                  <span className="mt-2 text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {item.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+        {/* GRAFIK 1: Pemasukan & Tagihan Bulanan */}
+        <section className="ios-glass-card rounded-[28px] p-5 shadow-sm sm:p-6">
+          <GroupedBarChart
+            title="Diagram Pemasukan & Tagihan Bulanan"
+            yAxisLabel="Juta Rupiah"
+            xAxisLabel="Periode Bulan"
+            ticks={financeTicks}
+            formatTick={(v) => (v === 0 ? '0' : `${v}jt`)}
+            heightClass="h-48 sm:h-56"
+            series={[
+              { key: 'billed', label: 'Total Tagihan', colorClass: 'bg-[#4285F4]' },
+              { key: 'revenue', label: 'Kas Masuk', colorClass: 'bg-[#EA4335]' },
+              { key: 'outstanding', label: 'Sisa Piutang', colorClass: 'bg-[#FBBC04]' },
+            ]}
+            categories={monthlyData.map((m) => ({
+              label: m.label,
+              values: [
+                Number((m.billed / 1_000_000).toFixed(2)),
+                Number((m.revenue / 1_000_000).toFixed(2)),
+                Number((m.outstanding / 1_000_000).toFixed(2)),
+              ],
+              tooltips: [
+                `${m.label} - Tagihan: ${formatRupiah(m.billed)}`,
+                `${m.label} - Kas Masuk: ${formatRupiah(m.revenue)}`,
+                `${m.label} - Sisa Piutang: ${formatRupiah(m.outstanding)}`,
+              ],
+            }))}
+          />
         </section>
 
-        {/* GRAFIK 2 & 3: GRID 2 KOLOM (Pendapatan & Kepadatan Pelanggan) */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {/* GRAFIK 2: Grafik Pendapatan & Rasio Realisasi Tagihan */}
-          <section className="ios-glass-card flex flex-col justify-between rounded-[28px] p-5 shadow-sm">
-            <div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <h2 className="text-sm font-black text-slate-900 dark:text-white">
-                  Grafik Pendapatan & Realisasi Kas
-                </h2>
-              </div>
-              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-                Perbandingan tagihan servis yang diterbitkan vs kas yang telah diterima
-              </p>
+        {/* GRAFIK 2 & 3: GRID 2 KOLOM (Pendapatan Kategori & Kepadatan Pelanggan) */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* GRAFIK 2: Pendapatan per Kategori Modul */}
+          <section className="ios-glass-card rounded-[28px] p-5 shadow-sm">
+            <GroupedBarChart
+              title="Diagram Pendapatan per Kategori"
+              yAxisLabel="Juta Rupiah"
+              xAxisLabel="Kategori Layanan"
+              ticks={categoryTicks}
+              formatTick={(v) => (v === 0 ? '0' : `${v}jt`)}
+              heightClass="h-44 sm:h-48"
+              series={[
+                { key: 'jasa', label: 'Jasa Servis', colorClass: 'bg-[#4285F4]' },
+                { key: 'part', label: 'Sparepart IC', colorClass: 'bg-[#EA4335]' },
+                { key: 'diagnosa', label: 'Diagnosa', colorClass: 'bg-[#FBBC04]' },
+              ]}
+              categories={categoryRevenueData.map((c) => ({
+                label: c.label,
+                values: [
+                  Number((c.jasa / 1_000_000).toFixed(2)),
+                  Number((c.part / 1_000_000).toFixed(2)),
+                  Number((c.diagnosa / 1_000_000).toFixed(2)),
+                ],
+                tooltips: [
+                  `${c.label} - Jasa Servis: ${formatRupiah(c.jasa)}`,
+                  `${c.label} - Sparepart IC: ${formatRupiah(c.part)}`,
+                  `${c.label} - Diagnosa: ${formatRupiah(c.diagnosa)}`,
+                ],
+              }))}
+            />
 
-              {/* Progress Breakdown */}
-              <div className="mt-5 space-y-4">
-                <div>
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-700 dark:text-slate-300">Total Nilai Tagihan Servis</span>
-                    <span className="font-mono text-slate-900 dark:text-white">
-                      {formatRupiah(summary.totalBilling)}
-                    </span>
-                  </div>
-                  <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-                    <div className="h-full w-full rounded-full bg-blue-600 dark:bg-blue-500" />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-emerald-700 dark:text-emerald-400">Kas Masuk Berhasil Diterima</span>
-                    <span className="font-mono text-emerald-700 dark:text-emerald-400">
-                      {formatRupiah(summary.totalPaid)} ({summary.realizationPct}%)
-                    </span>
-                  </div>
-                  <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-                    <div
-                      style={{ width: `${summary.realizationPct}%` }}
-                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-amber-700 dark:text-amber-300">Sisa Belum Dibayar / Piutang</span>
-                    <span className="font-mono text-amber-700 dark:text-amber-300">
-                      {formatRupiah(summary.outstanding)}
-                    </span>
-                  </div>
-                  <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-                    <div
-                      style={{
-                        width: `${summary.totalBilling > 0 ? (summary.outstanding / summary.totalBilling) * 100 : 0}%`,
-                      }}
-                      className="h-full rounded-full bg-amber-500 transition-all duration-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-2xl bg-black/[0.03] p-3 text-xs dark:bg-white/[0.04]">
-              <span className="font-bold text-slate-900 dark:text-white">Kesimpulan Keuangan: </span>
+            <div className="mt-4 rounded-2xl bg-black/[0.03] p-3 text-xs dark:bg-white/[0.04]">
+              <span className="font-bold text-slate-900 dark:text-white">Ringkasan Kas: </span>
               <span className="text-slate-600 dark:text-slate-300">
-                {summary.realizationPct >= 85
-                  ? 'Arus kas berada pada kondisi sangat sehat dengan rasio pelunasan di atas 85%.'
-                  : 'Terdapat tagihan berjalan yang menunggu pelunasan saat pengambilan unit servis.'}
+                Realisasi pembayaran mencapai {summary.realizationPct}% ({formatRupiah(summary.totalPaid)} dari {formatRupiah(summary.totalBilling)}).
               </span>
             </div>
           </section>
 
-          {/* GRAFIK 3: Grafik Padatnya Pelanggan (Customer Density / Traffic) */}
-          <section className="ios-glass-card flex flex-col justify-between rounded-[28px] p-5 shadow-sm">
-            <div>
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                <h2 className="text-sm font-black text-slate-900 dark:text-white">
-                  Grafik Padatnya Pelanggan & Kunjungan
-                </h2>
-              </div>
-              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-                Tingkat kepadatan penerimaan unit servis per bulan
-              </p>
+          {/* GRAFIK 3: Kepadatan Pelanggan Bulanan */}
+          <section className="ios-glass-card rounded-[28px] p-5 shadow-sm">
+            <GroupedBarChart
+              title="Diagram Kepadatan Pelanggan"
+              yAxisLabel="Jumlah Unit"
+              xAxisLabel="Bulan Kunjungan"
+              ticks={trafficTicks}
+              heightClass="h-44 sm:h-48"
+              series={[
+                { key: 'perorangan', label: 'Perorangan', colorClass: 'bg-[#4285F4]' },
+                { key: 'mitra', label: 'Bengkel Mitra', colorClass: 'bg-[#EA4335]' },
+                { key: 'total', label: 'Total Unit', colorClass: 'bg-[#FBBC04]' },
+              ]}
+              categories={monthlyData.map((m) => ({
+                label: m.label,
+                values: [m.peroranganCount, m.mitraCount, m.count],
+                tooltips: [
+                  `${m.label} - Perorangan: ${m.peroranganCount} unit`,
+                  `${m.label} - Bengkel Mitra: ${m.mitraCount} unit`,
+                  `${m.label} - Total Unit: ${m.count} unit`,
+                ],
+              }))}
+            />
 
-              {/* Bar Horizontal Kepadatan Pelanggan */}
-              <div className="mt-4 space-y-3">
-                {monthlyData.map((item) => {
-                  const barWidth = Math.min(100, Math.max(8, Math.round((item.count / maxTrafficCount) * 100)));
-                  return (
-                    <div key={item.label} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs font-semibold">
-                        <span className="text-slate-800 dark:text-slate-200">{item.label}</span>
-                        <span className="font-mono font-bold text-purple-700 dark:text-purple-300">
-                          {item.count} unit servis
-                        </span>
-                      </div>
-                      <div className="h-2.5 w-full overflow-hidden rounded-full bg-black/[0.04] dark:bg-white/[0.06]">
-                        <div
-                          style={{ width: `${barWidth}%` }}
-                          className="h-full rounded-full bg-gradient-to-r from-purple-600 to-indigo-500 transition-all duration-500"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-2xl bg-black/[0.03] p-3 text-xs dark:bg-white/[0.04]">
-              <span className="font-bold text-slate-900 dark:text-white">Tren Kepadatan: </span>
+            <div className="mt-4 rounded-2xl bg-black/[0.03] p-3 text-xs dark:bg-white/[0.04]">
+              <span className="font-bold text-slate-900 dark:text-white">Tren Kunjungan: </span>
               <span className="text-slate-600 dark:text-slate-300">
-                Puncak kepadatan unit terjadi pada bulan Oktober dan November dengan rata-rata di atas 8 unit per bulan.
+                Menampilkan distribusi kunjungan pelanggan Perorangan, Bengkel Mitra, dan total unit masuk per bulan.
               </span>
             </div>
           </section>

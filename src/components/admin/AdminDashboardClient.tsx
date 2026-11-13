@@ -11,9 +11,9 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
-  BarChart3,
   Package,
 } from 'lucide-react';
+import { GroupedBarChart } from './GroupedBarChart';
 
 interface AdminDashboardClientProps {
   totalActive: number;
@@ -144,7 +144,9 @@ export function AdminDashboardClient({
       mitra: mitraCount,
     },
   ];
-  const maxVisitors = Math.max(...monthlyVisitors.map((m) => m.visitors), 1);
+  const maxVisitors = Math.max(...monthlyVisitors.map((m) => m.visitors), 10);
+  const visitorTopTick = Math.ceil(maxVisitors / 5) * 5;
+  const visitorTicks = [0, 1, 2, 3, 4, 5].map((i) => Math.round((visitorTopTick / 5) * i));
   const totalSixMonthVisitors = monthlyVisitors.reduce((sum, m) => sum + m.visitors, 0);
   const avgMonthlyVisitors = Math.round(totalSixMonthVisitors / monthlyVisitors.length);
   const peakMonth = monthlyVisitors.reduce(
@@ -397,9 +399,54 @@ export function AdminDashboardClient({
           </div>
         </section>
 
-        {/* Right: Priority Action Queue & Technician Log Feed */}
+        {/* Right: Monthly Visitor Chart (Top) & Priority Action Queue (Bottom) */}
         <div className="space-y-4 lg:col-span-5">
-          {/* Panel A: Prioritas Tindak Lanjut */}
+          {/* Panel A (Top): Diagram Batang Kepadatan Pengunjung */}
+          <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-5">
+            <GroupedBarChart
+              title="Diagram Kepadatan Pengunjung"
+              yAxisLabel="Jumlah Unit"
+              xAxisLabel="Bulan Kunjungan"
+              ticks={visitorTicks}
+              series={[
+                { key: 'perorangan', label: 'Perorangan', colorClass: 'bg-[#4285F4]' },
+                { key: 'mitra', label: 'Bengkel Mitra', colorClass: 'bg-[#EA4335]' },
+                { key: 'total', label: 'Total Unit', colorClass: 'bg-[#FBBC04]' },
+              ]}
+              categories={monthlyVisitors.map((m) => ({
+                label: m.label,
+                values: [m.perorangan, m.mitra, m.visitors],
+                tooltips: [
+                  `${m.label} - Perorangan: ${m.perorangan} unit`,
+                  `${m.label} - Bengkel Mitra: ${m.mitra} unit`,
+                  `${m.label} - Total Unit: ${m.visitors} unit`,
+                ],
+              }))}
+            />
+
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/[0.03] px-3 py-2 text-[11px] dark:bg-white/[0.04]">
+              <span className="text-slate-600 dark:text-slate-300">
+                Total 6 bln:{' '}
+                <strong className="font-mono text-slate-900 dark:text-white">
+                  {totalSixMonthVisitors} unit
+                </strong>
+              </span>
+              <span className="text-slate-600 dark:text-slate-300">
+                Puncak:{' '}
+                <strong className="font-mono text-slate-900 dark:text-white">
+                  {peakMonth.label} ({peakMonth.visitors})
+                </strong>
+              </span>
+              <Link
+                href="/admin/reports"
+                className="font-semibold text-blue-700 hover:underline dark:text-blue-400"
+              >
+                Detail laporan ({avgMonthlyVisitors}/bln)
+              </Link>
+            </div>
+          </section>
+
+          {/* Panel B (Bottom): Prioritas Tindak Lanjut */}
           <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-5">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -450,81 +497,6 @@ export function AdminDashboardClient({
                 ))}
               </div>
             )}
-          </section>
-
-          {/* Panel B: Diagram Batang Kepadatan Pengunjung Bulanan */}
-          <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-5">
-            <div className="mb-3 flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" aria-hidden="true" />
-                  <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Kepadatan Pengunjung Bulanan
-                  </h2>
-                </div>
-                <p className="mt-0.5 text-[11px] text-slate-600 dark:text-slate-400">
-                  Tren jumlah kedatangan unit &amp; pelanggan dari bulan ke bulan
-                </p>
-              </div>
-              <Link
-                href="/admin/reports"
-                className="shrink-0 text-xs font-semibold text-blue-700 hover:underline dark:text-blue-400"
-              >
-                Detail laporan
-              </Link>
-            </div>
-
-            <div className="mt-4 grid grid-cols-6 items-end gap-2">
-              {monthlyVisitors.map((m, idx) => {
-                const heightPct = Math.max(14, Math.round((m.visitors / maxVisitors) * 100));
-                const isLatest = idx === monthlyVisitors.length - 1;
-                return (
-                  <div key={m.label} className="flex min-w-0 flex-col items-center">
-                    <span className="mb-1 font-mono text-[11px] font-black tabular-nums text-slate-900 dark:text-white">
-                      {m.visitors}
-                    </span>
-                    <div className="flex h-32 w-full items-end justify-center rounded-xl bg-black/[0.04] p-1 dark:bg-white/[0.06] sm:h-36">
-                      <div
-                        style={{ height: `${heightPct}%` }}
-                        className={`w-full rounded-lg transition-all duration-500 ${
-                          isLatest
-                            ? 'bg-emerald-600 dark:bg-emerald-400'
-                            : 'bg-slate-900/80 dark:bg-white/80'
-                        }`}
-                        title={`${m.label}: ${m.visitors} kunjungan (${m.mitra} Mitra, ${m.perorangan} Perorangan)`}
-                      />
-                    </div>
-                    <span className="mt-1.5 text-[11px] font-bold text-slate-800 dark:text-slate-200">
-                      {m.label}
-                    </span>
-                    <span className="truncate font-mono text-[9px] text-slate-500 dark:text-slate-400">
-                      {m.mitra}M·{m.perorangan}P
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/[0.03] px-3 py-2 text-[11px] dark:bg-white/[0.04]">
-              <span className="text-slate-600 dark:text-slate-300">
-                Total 6 bln:{' '}
-                <strong className="font-mono text-slate-900 dark:text-white">
-                  {totalSixMonthVisitors} unit
-                </strong>
-              </span>
-              <span className="text-slate-600 dark:text-slate-300">
-                Puncak:{' '}
-                <strong className="font-mono text-slate-900 dark:text-white">
-                  {peakMonth.label} ({peakMonth.visitors})
-                </strong>
-              </span>
-              <span className="text-slate-600 dark:text-slate-300">
-                Rata-rata:{' '}
-                <strong className="font-mono text-slate-900 dark:text-white">
-                  {avgMonthlyVisitors}/bln
-                </strong>
-              </span>
-            </div>
           </section>
         </div>
       </div>
