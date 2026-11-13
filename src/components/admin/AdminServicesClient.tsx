@@ -87,6 +87,32 @@ function calcTotalCharges(order: MockServiceOrder): number {
   return (order.charges || []).reduce((sum, c) => sum + c.qty * c.unitPrice, 0);
 }
 
+function getActiveWorkInfo(order: MockServiceOrder) {
+  const activeItem =
+    order.items.find(
+      (it) => it.status !== ItemStatus.SELESAI && it.status !== ItemStatus.BATAL
+    ) || order.items[0];
+
+  const status = activeItem?.status || ItemStatus.DITERIMA;
+  const statusMeta = getStatusMeta(status);
+
+  const latestLog = activeItem?.logs?.[0];
+  let workText = '';
+  if (latestLog?.note) {
+    workText = latestLog.note.replace(/^\[[^\]]+\]\s*/, '').trim();
+  }
+
+  if (!workText) {
+    workText = activeItem?.complaint || order.conditionNotes || 'Pemeriksaan modul di meja teknisi.';
+  }
+
+  return {
+    activeItem,
+    statusMeta,
+    workText,
+  };
+}
+
 function readFileAsDataUrl(file: File, onDone: (dataUrl: string) => void) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -684,9 +710,7 @@ export function AdminServicesClient() {
               </thead>
               <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
                 {filteredOrders.map((order) => {
-                  const primaryItem = order.items[0];
-                  const itemStatus = primaryItem?.status || ItemStatus.DITERIMA;
-                  const statusMeta = getStatusMeta(itemStatus);
+                  const { activeItem, statusMeta, workText } = getActiveWorkInfo(order);
                   const totalCharges = calcTotalCharges(order);
                   const totalPaid = calcTotalPaid(order);
                   const isPaidFull = totalCharges > 0 && totalPaid >= totalCharges;
@@ -755,14 +779,22 @@ export function AdminServicesClient() {
                         </p>
                       </td>
 
-                      {/* Col 4: Tahap Pengerjaan (Hanya tahapan yang sedang dikerjakan) */}
-                      <td className="whitespace-nowrap px-4 py-3.5 align-middle">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold leading-none ${statusMeta.badgeClass}`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dotClass}`} />
-                          {statusMeta.shortLabel}
-                        </span>
+                      {/* Col 4: Tahap Pengerjaan (Pengerjaan teknisi yang sedang dilakukan) */}
+                      <td className="max-w-[340px] px-4 py-3.5 align-middle">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold leading-none ${statusMeta.badgeClass}`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dotClass}`} />
+                            {statusMeta.shortLabel}
+                          </span>
+                          <span className="truncate text-[11px] font-bold text-slate-900 dark:text-white">
+                            {activeItem?.moduleName || 'Modul Servis'}
+                          </span>
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-600 dark:text-slate-300">
+                          {workText}
+                        </p>
                       </td>
 
                       {/* Col 5: Tagihan Ringkas */}
@@ -831,9 +863,7 @@ export function AdminServicesClient() {
           {/* Tampilan Kartu List Mobile */}
           <div className="divide-y divide-black/[0.05] md:hidden dark:divide-white/[0.06]">
             {filteredOrders.map((order) => {
-              const primaryItem = order.items[0];
-              const itemStatus = primaryItem?.status || ItemStatus.DITERIMA;
-              const statusMeta = getStatusMeta(itemStatus);
+              const { activeItem, statusMeta, workText } = getActiveWorkInfo(order);
               const totalCharges = calcTotalCharges(order);
 
               return (
@@ -865,10 +895,20 @@ export function AdminServicesClient() {
                     </span>
                   </div>
 
+                  {/* Pengerjaan yang sedang dilakukan */}
+                  <div className="rounded-xl bg-black/[0.02] p-2.5 dark:bg-white/[0.03]">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      {activeItem?.moduleName || 'Modul Servis'}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-slate-700 dark:text-slate-300">
+                      {workText}
+                    </p>
+                  </div>
+
                   <div className="flex items-center justify-between gap-2 border-t border-black/[0.05] pt-2.5 dark:border-white/[0.06]">
                     <div className="min-w-0">
-                      <p className="truncate text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                        {primaryItem?.moduleName || 'Modul Servis'}
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Tagihan
                       </p>
                       <p className="font-mono text-xs font-bold text-slate-900 dark:text-white">
                         {totalCharges > 0 ? formatRupiah(totalCharges) : '-'}
