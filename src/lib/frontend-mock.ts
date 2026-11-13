@@ -52,6 +52,7 @@ export interface MockServiceOrder {
   entryMethod: EntryMethod;
   trackingNumber?: string | null;
   conditionNotes?: string | null;
+  customPhotoUrl?: string | null;
   receivedAt: string;
   estimatedDoneAt: string | null;
   items: MockServiceItem[];

@@ -70,7 +70,34 @@ export function AdminDashboardClient({
   const gensetCount = recentOrders.filter((o) => o.unitCategory === 'GENSET_INDUSTRI').length;
 
   const siapCount = statusCounts[ItemStatus.SIAP_DIAMBIL] || 0;
+  const qcCount = statusCounts[ItemStatus.UJI_QC] || 0;
+  const siapOrders = recentOrders.filter((o) =>
+    o.items.some((item) => item.status === ItemStatus.SIAP_DIAMBIL)
+  );
+  const siapBengkelCount = siapOrders.filter((o) => o.entryMethod !== EntryMethod.EKSPEDISI).length;
+  const siapEkspedisiCount = siapOrders.filter((o) => o.entryMethod === EntryMethod.EKSPEDISI).length;
+
   const totalEstimatedRevenue = recentOrders.reduce((sum, order) => sum + getOrderTotal(order), 0);
+  const totalPaidAmount = recentOrders.reduce((sum, order) => sum + getOrderPaid(order), 0);
+  const paidPercentage =
+    totalEstimatedRevenue > 0 ? Math.round((totalPaidAmount / totalEstimatedRevenue) * 100) : 0;
+
+  const lunasCount = recentOrders.filter((o) => {
+    const total = getOrderTotal(o);
+    const paid = getOrderPaid(o);
+    return total > 0 && paid >= total;
+  }).length;
+  const dpCount = recentOrders.filter((o) => {
+    const total = getOrderTotal(o);
+    const paid = getOrderPaid(o);
+    return paid > 0 && paid < total;
+  }).length;
+  const belumBayarCount = recentOrders.filter((o) => getOrderPaid(o) === 0).length;
+
+  const peroranganCount = recentOrders.filter(
+    (o) => o.customerType === CustomerType.PERORANGAN
+  ).length;
+  const mitraCount = recentOrders.filter((o) => o.customerType === CustomerType.MITRA).length;
 
   const readyAlerts = allItems
     .filter(({ item }) => item.status === ItemStatus.SIAP_DIAMBIL)
@@ -181,37 +208,61 @@ export function AdminDashboardClient({
 
         <Link
           href="/admin/services?status=SIAP_DIAMBIL"
-          className="ios-glass-card flex min-w-0 flex-col justify-start rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
         >
-          <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-            Siap Diambil
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+              Siap Diambil
+            </span>
+            <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+              {qcCount} Uji &amp; QC
+            </span>
+          </div>
           <p className="mt-1.5 text-xl font-black tabular-nums text-emerald-700 dark:text-emerald-400 sm:text-2xl">
             {siapCount} Siap
+          </p>
+          <p className="mt-1 truncate text-[11px] text-slate-600 dark:text-slate-400">
+            {siapBengkelCount} Ambil Bengkel · {siapEkspedisiCount} Kirim Paket
           </p>
         </Link>
 
         <Link
           href="/admin/reports"
-          className="ios-glass-card flex min-w-0 flex-col justify-start rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
         >
-          <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-            Tagihan Berjalan
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+              Tagihan Berjalan
+            </span>
+            <span className="shrink-0 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+              {paidPercentage}% Masuk
+            </span>
+          </div>
           <p className="mt-1.5 truncate text-lg font-black tabular-nums text-slate-900 dark:text-white sm:text-xl">
             {formatRupiah(totalEstimatedRevenue)}
+          </p>
+          <p className="mt-1 truncate text-[11px] text-slate-600 dark:text-slate-400">
+            {lunasCount} Lunas · {dpCount} DP · {belumBayarCount} Belum Bayar
           </p>
         </Link>
 
         <Link
           href="/admin/customers"
-          className="ios-glass-card flex min-w-0 flex-col justify-start rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
         >
-          <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-            Pelanggan Aktif
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+              Pelanggan Aktif
+            </span>
+            <span className="shrink-0 rounded-full bg-slate-900/10 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-white/10 dark:text-slate-300">
+              {mitraCount} Mitra
+            </span>
+          </div>
           <p className="mt-1.5 text-xl font-black tabular-nums text-slate-900 dark:text-white sm:text-2xl">
             {totalCustomers} Data
+          </p>
+          <p className="mt-1 truncate text-[11px] text-slate-600 dark:text-slate-400">
+            {peroranganCount} Perorangan · {mitraCount} Bengkel Mitra
           </p>
         </Link>
       </div>

@@ -55,10 +55,24 @@ const STATUS_FILTER_OPTIONS: Array<{ value: 'ALL' | ItemStatus; label: string }>
 
 type IntakeChoice = 'MOBIL_UTUH' | 'MODUL_SAJA' | 'GENSET_INDUSTRI';
 
-const INTAKE_CHOICES: Array<{ value: IntakeChoice; label: string }> = [
-  { value: 'MOBIL_UTUH', label: 'Mobil Utuh' },
-  { value: 'MODUL_SAJA', label: 'Modul Saja' },
-  { value: 'GENSET_INDUSTRI', label: 'Genset / Industri' },
+const INTAKE_CHOICES: Array<{ value: IntakeChoice; label: string; hint: string }> = [
+  { value: 'MOBIL_UTUH', label: 'Mobil Utuh', hint: 'Unit kendaraan masuk bengkel' },
+  { value: 'MODUL_SAJA', label: 'Modul Saja', hint: 'Modul lepasan / kirim ekspedisi' },
+  { value: 'GENSET_INDUSTRI', label: 'Genset / Industri', hint: 'Panel AMF / controller genset' },
+];
+
+const VEHICLE_PRESETS: Array<{
+  label: string;
+  brand: string;
+  model: string;
+  year: string;
+  choice: IntakeChoice;
+}> = [
+  { label: 'Toyota Avanza', brand: 'Toyota', model: 'Avanza 1.3 Veloz', year: '2018', choice: 'MOBIL_UTUH' },
+  { label: 'Honda Jazz', brand: 'Honda', model: 'Jazz RS GK5', year: '2019', choice: 'MOBIL_UTUH' },
+  { label: 'Mitsubishi Pajero', brand: 'Mitsubishi', model: 'Pajero Sport Dakar', year: '2017', choice: 'MOBIL_UTUH' },
+  { label: 'Suzuki Ertiga', brand: 'Suzuki', model: 'Ertiga GX', year: '2019', choice: 'MOBIL_UTUH' },
+  { label: 'Genset DSE', brand: 'Deep Sea', model: 'Genset Controller DSE', year: '2021', choice: 'GENSET_INDUSTRI' },
 ];
 
 function calcTotalPaid(order: MockServiceOrder): number {
@@ -105,11 +119,22 @@ export function AdminServicesClient() {
   const [intakeModel, setIntakeModel] = useState('');
   const [intakeYear, setIntakeYear] = useState('2019');
   const [intakePlate, setIntakePlate] = useState('');
-  const [intakeModuleName, setIntakeModuleName] = useState('ECU (Engine Control Unit)');
-  const [intakeSerial, setIntakeSerial] = useState('');
   const [intakeComplaint, setIntakeComplaint] = useState('');
-  const [intakeEstimate, setIntakeEstimate] = useState('1500000');
-  const [intakeWarranty, setIntakeWarranty] = useState('3');
+  const [intakeCustomPhoto, setIntakeCustomPhoto] = useState<string | null>(null);
+  const intakePhotoInputRef = useRef<HTMLInputElement>(null);
+
+  const intakeHeroPreview = getVehicleHeroImage(
+    intakeBrand,
+    intakeModel,
+    intakeChoice === 'GENSET_INDUSTRI' ? 'GENSET_INDUSTRI' : 'OTOMOTIF'
+  );
+  const activeIntakePhotoSrc = intakeCustomPhoto || intakeHeroPreview.src;
+
+  const handleIntakePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIntakeCustomPhoto(URL.createObjectURL(file));
+  };
 
   // Input log baru di dalam detail order
   const [newLogNote, setNewLogNote] = useState('');
@@ -246,12 +271,41 @@ export function AdminServicesClient() {
     setNewLogNote('');
   };
 
-  // Submit penerimaan unit baru
+  // Tambah modul baru di dalam detail order
+  const handleAddModuleToOrder = () => {
+    if (!editOrder) return;
+    const newModuleItem = {
+      id: `item-${Date.now()}`,
+      moduleTypeId: `mod-${editOrder.items.length + 1}`,
+      moduleName: 'Modul Baru',
+      moduleDetail: '',
+      complaint: editOrder.conditionNotes || 'Pemeriksaan kelistrikan modul.',
+      status: ItemStatus.DITERIMA,
+      warrantyMonths: 3,
+      logs: [
+        {
+          id: `log-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          note: 'Modul ditambahkan pada detail servis.',
+          isPublic: true,
+          photoUrl: null,
+        },
+      ],
+    };
+    setEditOrder({
+      ...editOrder,
+      items: [...editOrder.items, newModuleItem],
+    });
+  };
+
+  // Submit penerimaan unit baru (informasi unit & pelanggan saja)
   const handleCreateIntake = (e: React.FormEvent) => {
     e.preventDefault();
     const newCode = generate4DigitCode();
     const isGenset = intakeChoice === 'GENSET_INDUSTRI';
     const isMobilUtuh = intakeChoice === 'MOBIL_UTUH';
+    const resolvedCondition =
+      intakeComplaint.trim() || 'Unit diterima di bengkel dalam kondisi siap diperiksa.';
 
     const newOrder: MockServiceOrder = {
       id: `ord-${Date.now()}`,
@@ -268,18 +322,19 @@ export function AdminServicesClient() {
       vehicleModel: intakeModel.trim() || (isGenset ? 'Genset Controller DSE' : 'Avanza'),
       vehicleYear: parseInt(intakeYear, 10) || 2019,
       plateNumber: intakePlate.trim() || null,
-      conditionNotes: 'Unit diterima di bengkel dalam kondisi baik.',
+      conditionNotes: resolvedCondition,
+      customPhotoUrl: intakeCustomPhoto,
       receivedAt: new Date().toISOString(),
       estimatedDoneAt: new Date(Date.now() + 86400000 * 2).toISOString(),
       items: [
         {
           id: `item-${Date.now()}`,
           moduleTypeId: 'mod-1',
-          moduleName: intakeModuleName.trim(),
-          moduleDetail: intakeSerial.trim() || '',
-          complaint: intakeComplaint.trim() || 'Pemeriksaan rutin kelistrikan modul.',
+          moduleName: isGenset ? 'Panel Kontrol / AMF' : 'ECU / Modul Utama',
+          moduleDetail: '',
+          complaint: resolvedCondition,
           status: ItemStatus.DITERIMA,
-          warrantyMonths: parseInt(intakeWarranty, 10) || 3,
+          warrantyMonths: 3,
           logs: [
             {
               id: `log-${Date.now()}`,
@@ -291,15 +346,7 @@ export function AdminServicesClient() {
           ],
         },
       ],
-      charges: [
-        {
-          id: `chg-${Date.now()}`,
-          kind: 'JASA',
-          description: `Estimasi Servis ${intakeModuleName}`,
-          qty: 1,
-          unitPrice: parseInt(intakeEstimate, 10) || 1500000,
-        },
-      ],
+      charges: [],
       payments: [],
     };
 
@@ -307,14 +354,17 @@ export function AdminServicesClient() {
     setIsIntakeOpen(false);
     setSelectedOrder(newOrder);
     setEditOrder(JSON.parse(JSON.stringify(newOrder)));
+    setSaveSuccess(false);
 
     // Reset Form
     setIntakeName('');
     setIntakePhone('');
+    setIntakeWorkshop('');
     setIntakeBrand('');
     setIntakeModel('');
     setIntakePlate('');
     setIntakeComplaint('');
+    setIntakeCustomPhoto(null);
   };
 
   // Filter list order servis
@@ -758,7 +808,14 @@ export function AdminServicesClient() {
               {/* Vehicle Photo Hero Card dengan Preview Maximize */}
               <div className="group relative overflow-hidden rounded-2xl border border-black/[0.06] bg-slate-100 dark:border-white/[0.08] dark:bg-black/30">
                 <img
-                  src={getVehicleHeroImage(editOrder.vehicleBrand, editOrder.vehicleModel, editOrder.unitCategory).src}
+                  src={
+                    editOrder.customPhotoUrl ||
+                    getVehicleHeroImage(
+                      editOrder.vehicleBrand,
+                      editOrder.vehicleModel,
+                      editOrder.unitCategory
+                    ).src
+                  }
                   alt="Unit Servis"
                   className="h-44 w-full object-cover sm:h-52"
                 />
@@ -766,7 +823,12 @@ export function AdminServicesClient() {
                   type="button"
                   onClick={() =>
                     setActiveLightboxPhoto(
-                      getVehicleHeroImage(editOrder.vehicleBrand, editOrder.vehicleModel, editOrder.unitCategory).src
+                      editOrder.customPhotoUrl ||
+                        getVehicleHeroImage(
+                          editOrder.vehicleBrand,
+                          editOrder.vehicleModel,
+                          editOrder.unitCategory
+                        ).src
                     )
                   }
                   className="absolute bottom-2.5 right-2.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white backdrop-blur-md"
@@ -937,13 +999,23 @@ export function AdminServicesClient() {
 
               {/* SEKSI 2: Modul & Status Pengerjaan (Admin Editable) */}
               <div className="ios-glass-inner space-y-3.5 rounded-[24px] p-4">
-                <div className="flex items-center justify-between border-b border-black/[0.05] pb-2 dark:border-white/[0.06]">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    Modul, Status & Progres Pengerjaan
-                  </h3>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                    Dropdown status otomatis perbarui timeline
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.05] pb-2.5 dark:border-white/[0.06]">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                      Modul, Status &amp; Progres Pengerjaan
+                    </h3>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Lengkapi nama modul &amp; dropdown status untuk perbarui timeline
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddModuleToOrder}
+                    className="inline-flex h-8 items-center gap-1 rounded-full bg-slate-900 px-3 text-[11px] font-bold text-white tap-bounce dark:bg-white dark:text-black"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Tambah Modul</span>
+                  </button>
                 </div>
 
                 {editOrder.items.map((item, idx) => (
@@ -1215,234 +1287,341 @@ export function AdminServicesClient() {
       {/* MODAL PENERIMAAN UNIT BARU (INTAKE) */}
       {isIntakeOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-0 backdrop-blur-md sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
           onClick={() => setIsIntakeOpen(false)}
         >
           <div
-            className="ios-glass-card max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-t-[32px] p-5 shadow-2xl sm:rounded-[32px] sm:p-7"
+            className="ios-glass-card max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-[28px] shadow-2xl sm:rounded-[32px]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-black/[0.06] pb-3.5 dark:border-white/[0.08]">
-              <div>
-                <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
-                  Penerimaan Unit Servis Baru
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-                  Isi data pelanggan, spesifikasi kendaraan, dan keluhan modul.
-                </p>
+            {/* Banner Foto Mobil / Unit di Paling Atas */}
+            <div className="relative h-44 w-full overflow-hidden bg-slate-900 sm:h-52">
+              <img
+                src={activeIntakePhotoSrc}
+                alt={intakeHeroPreview.caption}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/35" />
+
+              {/* Top Controls */}
+              <div className="absolute inset-x-4 top-3.5 flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
+                  <Car className="h-3.5 w-3.5" />
+                  <span>{INTAKE_CHOICES.find((c) => c.value === intakeChoice)?.label}</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setIsIntakeOpen(false)}
+                  aria-label="Tutup Modal Tambah Unit"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/55 text-white backdrop-blur-md transition-colors hover:bg-black/80"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsIntakeOpen(false)}
-                className="ios-glass-inner flex h-9 w-9 items-center justify-center rounded-full text-slate-700 hover:bg-black/5 dark:text-zinc-200 dark:hover:bg-white/10"
-              >
-                <X className="h-4 w-4" />
-              </button>
+
+              {/* Bottom Title & Custom Photo Action */}
+              <div className="absolute inset-x-4 bottom-3.5 flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/75">
+                    Tambah Unit Servis
+                  </p>
+                  <h2 className="truncate text-lg font-black tracking-tight text-white sm:text-xl">
+                    {intakeBrand || intakeModel
+                      ? `${intakeBrand} ${intakeModel}`.trim()
+                      : 'Unit Kendaraan / Genset Baru'}
+                  </h2>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <input
+                    ref={intakePhotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleIntakePhotoChange}
+                    className="hidden"
+                  />
+                  {intakeCustomPhoto && (
+                    <button
+                      type="button"
+                      onClick={() => setIntakeCustomPhoto(null)}
+                      className="inline-flex h-8 items-center rounded-full border border-white/20 bg-black/55 px-2.5 text-[10px] font-bold text-white backdrop-blur-md hover:bg-black/80"
+                    >
+                      Reset Foto
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => intakePhotoInputRef.current?.click()}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/25 bg-white/90 px-3 text-[11px] font-bold text-slate-900 shadow-sm transition-colors hover:bg-white"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                    <span>{intakeCustomPhoto ? 'Ganti Foto' : 'Upload Foto'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <form onSubmit={handleCreateIntake} className="mt-4 space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Nama Pelanggan
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={intakeName}
-                    onChange={(e) => setIntakeName(e.target.value)}
-                    placeholder="Contoh: Budi Santoso"
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                  />
+            <form onSubmit={handleCreateIntake} className="space-y-4 p-5 sm:p-6">
+              {/* Preset Cepat Unit Populer */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Pilih Cepat Unit Umum (Opsional)
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {VEHICLE_PRESETS.map((preset) => {
+                    const isSelected =
+                      intakeBrand.toLowerCase() === preset.brand.toLowerCase() &&
+                      intakeModel.toLowerCase() === preset.model.toLowerCase();
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          setIntakeBrand(preset.brand);
+                          setIntakeModel(preset.model);
+                          setIntakeYear(preset.year);
+                          setIntakeChoice(preset.choice);
+                        }}
+                        className={`rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
+                          isSelected
+                            ? 'border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-black'
+                            : 'border-black/10 bg-black/[0.03] text-slate-700 hover:bg-black/[0.07] dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-300 dark:hover:bg-white/10'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Langkah 1: Informasi Unit & Kendaraan */}
+              <div className="ios-glass-inner space-y-3 rounded-[22px] p-4">
+                <div className="flex items-center justify-between border-b border-black/[0.05] pb-2 dark:border-white/[0.06]">
+                  <div className="flex items-center gap-2">
+                    <Car className="h-4 w-4 text-slate-700 dark:text-slate-300" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      1. Informasi Unit Masuk
+                    </h3>
+                  </div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    Detail modul diisi setelah simpan
+                  </span>
                 </div>
 
+                {/* Pilihan Kategori Intake */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Nomor WhatsApp / HP
+                    Kategori Kedatangan
                   </label>
-                  <input
-                    type="tel"
-                    required
-                    value={intakePhone}
-                    onChange={(e) => setIntakePhone(e.target.value)}
-                    placeholder="08123456xxxx"
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                  />
+                  <div className="mt-1.5 grid grid-cols-3 gap-2">
+                    {INTAKE_CHOICES.map((c) => {
+                      const active = intakeChoice === c.value;
+                      return (
+                        <button
+                          key={c.value}
+                          type="button"
+                          onClick={() => setIntakeChoice(c.value)}
+                          className={`rounded-xl border px-2.5 py-2 text-left transition-colors ${
+                            active
+                              ? 'border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-black'
+                              : 'border-black/[0.08] bg-white text-slate-700 hover:bg-black/[0.03] dark:border-white/10 dark:bg-black/40 dark:text-slate-300 dark:hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <p className="text-[11px] font-bold leading-tight">{c.label}</p>
+                          <p
+                            className={`mt-0.5 line-clamp-1 text-[9px] ${
+                              active
+                                ? 'text-white/75 dark:text-black/70'
+                                : 'text-slate-500 dark:text-slate-400'
+                            }`}
+                          >
+                            {c.hint}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Tipe Pelanggan (Dropdown)
-                  </label>
-                  <select
-                    value={intakeCustomerType}
-                    onChange={(e) => setIntakeCustomerType(e.target.value as CustomerType)}
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
-                  >
-                    <option value={CustomerType.PERORANGAN}>Perorangan</option>
-                    <option value={CustomerType.MITRA}>Mitra B2B (Bengkel Rekanan)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Kategori Intake (Dropdown)
-                  </label>
-                  <select
-                    value={intakeChoice}
-                    onChange={(e) => setIntakeChoice(e.target.value as IntakeChoice)}
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
-                  >
-                    {INTAKE_CHOICES.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {intakeCustomerType === CustomerType.MITRA && (
-                  <div className="sm:col-span-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                      Nama Bengkel Mitra B2B
+                      Merek Unit
                     </label>
                     <input
                       type="text"
                       required
-                      value={intakeWorkshop}
-                      onChange={(e) => setIntakeWorkshop(e.target.value)}
-                      placeholder="Nama Bengkel Rekanan"
+                      value={intakeBrand}
+                      onChange={(e) => setIntakeBrand(e.target.value)}
+                      placeholder="Toyota / Honda / Deep Sea"
                       className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
                     />
                   </div>
-                )}
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Merek Unit
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={intakeBrand}
-                    onChange={(e) => setIntakeBrand(e.target.value)}
-                    placeholder="Toyota / Honda / Mitsubishi / Deep Sea"
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      Model / Tipe Unit
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={intakeModel}
+                      onChange={(e) => setIntakeModel(e.target.value)}
+                      placeholder="Avanza / Jazz / Pajero / Genset"
+                      className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Model / Tipe Unit
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={intakeModel}
-                    onChange={(e) => setIntakeModel(e.target.value)}
-                    placeholder="Avanza / Pajero / Genset DSE"
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      Tahun Unit
+                    </label>
+                    <input
+                      type="number"
+                      value={intakeYear}
+                      onChange={(e) => setIntakeYear(e.target.value)}
+                      placeholder="2019"
+                      className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Tahun Unit
-                  </label>
-                  <input
-                    type="number"
-                    value={intakeYear}
-                    onChange={(e) => setIntakeYear(e.target.value)}
-                    placeholder="2019"
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      Plat Nomor (Bila Ada)
+                    </label>
+                    <input
+                      type="text"
+                      value={intakePlate}
+                      onChange={(e) => setIntakePlate(e.target.value)}
+                      placeholder="Z 1842 AB"
+                      className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold uppercase text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Plat Nomor (Bila Ada)
-                  </label>
-                  <input
-                    type="text"
-                    value={intakePlate}
-                    onChange={(e) => setIntakePlate(e.target.value)}
-                    placeholder="Z 1842 AB"
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Nama Modul yang Dikerjakan
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={intakeModuleName}
-                    onChange={(e) => setIntakeModuleName(e.target.value)}
-                    placeholder="ECU / Speedometer / EPS / BCM / Panel AMF"
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Keluhan & Gejala Kerusakan
-                  </label>
-                  <textarea
-                    rows={2}
-                    required
-                    value={intakeComplaint}
-                    onChange={(e) => setIntakeComplaint(e.target.value)}
-                    placeholder="Jelaskan kendala seperti mogok, check engine menyala, mati total..."
-                    className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white p-2.5 text-xs text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Estimasi Biaya Servis (Rp)
-                  </label>
-                  <input
-                    type="number"
-                    value={intakeEstimate}
-                    onChange={(e) => setIntakeEstimate(e.target.value)}
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-mono font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Masa Garansi
-                  </label>
-                  <select
-                    value={intakeWarranty}
-                    onChange={(e) => setIntakeWarranty(e.target.value)}
-                    className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
-                  >
-                    <option value="1">1 Bulan</option>
-                    <option value="3">3 Bulan</option>
-                    <option value="6">6 Bulan</option>
-                    <option value="12">12 Bulan (1 Tahun)</option>
-                  </select>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      Keluhan &amp; Kondisi Awal Unit
+                    </label>
+                    <textarea
+                      rows={2}
+                      required
+                      value={intakeComplaint}
+                      onChange={(e) => setIntakeComplaint(e.target.value)}
+                      placeholder="Contoh: Mesin pincang, indikator check engine nyala, atau unit mati total..."
+                      className="mt-1 w-full rounded-xl border border-black/[0.08] bg-white p-2.5 text-xs text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 border-t border-black/[0.06] pt-3 dark:border-white/[0.08]">
-                <button
-                  type="button"
-                  onClick={() => setIsIntakeOpen(false)}
-                  className="inline-flex min-h-[44px] items-center rounded-full px-5 text-xs font-bold text-slate-700 hover:bg-black/5 dark:text-zinc-200 dark:hover:bg-white/10"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-900 px-6 text-xs font-bold text-white shadow-md tap-bounce dark:bg-white dark:text-black"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Buat Nota & Masukkan Antrean</span>
-                </button>
+              {/* Langkah 2: Informasi Pelanggan */}
+              <div className="ios-glass-inner space-y-3 rounded-[22px] p-4">
+                <div className="flex items-center gap-2 border-b border-black/[0.05] pb-2 dark:border-white/[0.06]">
+                  <User className="h-4 w-4 text-slate-700 dark:text-slate-300" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    2. Data Pelanggan
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      Nama Pelanggan
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={intakeName}
+                      onChange={(e) => setIntakeName(e.target.value)}
+                      placeholder="Contoh: Budi Santoso"
+                      className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      Nomor WhatsApp / HP
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={intakePhone}
+                      onChange={(e) => setIntakePhone(e.target.value)}
+                      placeholder="08123456xxxx"
+                      className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      Tipe Pelanggan
+                    </label>
+                    <div className="mt-1.5 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIntakeCustomerType(CustomerType.PERORANGAN)}
+                        className={`h-10 rounded-xl border px-3 text-xs font-bold transition-colors ${
+                          intakeCustomerType === CustomerType.PERORANGAN
+                            ? 'border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-black'
+                            : 'border-black/[0.08] bg-white text-slate-700 hover:bg-black/[0.03] dark:border-white/10 dark:bg-black/40 dark:text-slate-300 dark:hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        Perorangan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIntakeCustomerType(CustomerType.MITRA)}
+                        className={`h-10 rounded-xl border px-3 text-xs font-bold transition-colors ${
+                          intakeCustomerType === CustomerType.MITRA
+                            ? 'border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-black'
+                            : 'border-black/[0.08] bg-white text-slate-700 hover:bg-black/[0.03] dark:border-white/10 dark:bg-black/40 dark:text-slate-300 dark:hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        Bengkel Mitra B2B
+                      </button>
+                    </div>
+                  </div>
+
+                  {intakeCustomerType === CustomerType.MITRA && (
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                        Nama Bengkel Mitra B2B
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={intakeWorkshop}
+                        onChange={(e) => setIntakeWorkshop(e.target.value)}
+                        placeholder="Nama Bengkel Rekanan"
+                        className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 border-t border-black/[0.06] pt-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.08]">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Setelah tersimpan, halaman detail modul akan otomatis terbuka.
+                </p>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsIntakeOpen(false)}
+                    className="inline-flex min-h-[44px] items-center rounded-full px-5 text-xs font-bold text-slate-700 hover:bg-black/5 dark:text-zinc-200 dark:hover:bg-white/10"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-900 px-5 text-xs font-bold text-white shadow-md tap-bounce dark:bg-white dark:text-black"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Simpan Unit &amp; Lanjut ke Detail</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
