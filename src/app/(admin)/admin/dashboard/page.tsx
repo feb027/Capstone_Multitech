@@ -35,13 +35,13 @@ async function getDashboardData() {
       statusCounts[item.status] = item._count.id;
     }
 
-    if (totalActive === 0 && totalCustomers === 0) {
+    if (totalActive === 0) {
       return getFallbackDashboardData();
     }
 
     return {
       totalActive: totalActive || INITIAL_SERVICE_ORDERS.length,
-      totalCustomers: totalCustomers || INITIAL_CUSTOMERS.length,
+      totalCustomers: Math.max(totalCustomers, INITIAL_CUSTOMERS.length),
       totalModules,
       statusCounts,
       recentOrders: INITIAL_SERVICE_ORDERS,

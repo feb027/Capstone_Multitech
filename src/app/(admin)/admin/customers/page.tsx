@@ -13,7 +13,9 @@ async function getCustomers(): Promise<CustomerRow[]> {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return customers.length > 0 ? (customers as CustomerRow[]) : (INITIAL_CUSTOMERS as CustomerRow[]);
+    return customers.length >= INITIAL_CUSTOMERS.length
+      ? (customers as CustomerRow[])
+      : (INITIAL_CUSTOMERS as CustomerRow[]);
   } catch {
     return INITIAL_CUSTOMERS as CustomerRow[];
   }
