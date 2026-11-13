@@ -93,9 +93,6 @@ function getActiveWorkInfo(order: MockServiceOrder) {
       (it) => it.status !== ItemStatus.SELESAI && it.status !== ItemStatus.BATAL
     ) || order.items[0];
 
-  const status = activeItem?.status || ItemStatus.DITERIMA;
-  const statusMeta = getStatusMeta(status);
-
   const latestLog = activeItem?.logs?.[0];
   let workText = '';
   if (latestLog?.note) {
@@ -108,7 +105,6 @@ function getActiveWorkInfo(order: MockServiceOrder) {
 
   return {
     activeItem,
-    statusMeta,
     workText,
   };
 }
@@ -710,7 +706,7 @@ export function AdminServicesClient() {
               </thead>
               <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
                 {filteredOrders.map((order) => {
-                  const { activeItem, statusMeta, workText } = getActiveWorkInfo(order);
+                  const { activeItem, workText } = getActiveWorkInfo(order);
                   const totalCharges = calcTotalCharges(order);
                   const totalPaid = calcTotalPaid(order);
                   const isPaidFull = totalCharges > 0 && totalPaid >= totalCharges;
@@ -779,20 +775,12 @@ export function AdminServicesClient() {
                         </p>
                       </td>
 
-                      {/* Col 4: Tahap Pengerjaan (Pengerjaan teknisi yang sedang dilakukan) */}
+                      {/* Col 4: Tahap Pengerjaan (Hanya pengerjaan teknisi yang sedang dilakukan tanpa status/badge) */}
                       <td className="max-w-[340px] px-4 py-3.5 align-middle">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold leading-none ${statusMeta.badgeClass}`}
-                          >
-                            <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dotClass}`} />
-                            {statusMeta.shortLabel}
-                          </span>
-                          <span className="truncate text-[11px] font-bold text-slate-900 dark:text-white">
-                            {activeItem?.moduleName || 'Modul Servis'}
-                          </span>
-                        </div>
-                        <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-600 dark:text-slate-300">
+                        <p className="font-bold text-slate-900 dark:text-white">
+                          {activeItem?.moduleName || 'Modul Servis'}
+                        </p>
+                        <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-slate-600 dark:text-slate-300">
                           {workText}
                         </p>
                       </td>
@@ -863,7 +851,7 @@ export function AdminServicesClient() {
           {/* Tampilan Kartu List Mobile */}
           <div className="divide-y divide-black/[0.05] md:hidden dark:divide-white/[0.06]">
             {filteredOrders.map((order) => {
-              const { activeItem, statusMeta, workText } = getActiveWorkInfo(order);
+              const { activeItem, workText } = getActiveWorkInfo(order);
               const totalCharges = calcTotalCharges(order);
 
               return (
@@ -886,13 +874,6 @@ export function AdminServicesClient() {
                         {order.customerName} · {order.workshopName || 'Perorangan'}
                       </p>
                     </div>
-
-                    <span
-                      className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold leading-none ${statusMeta.badgeClass}`}
-                    >
-                      <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dotClass}`} />
-                      {statusMeta.shortLabel}
-                    </span>
                   </div>
 
                   {/* Pengerjaan yang sedang dilakukan */}
