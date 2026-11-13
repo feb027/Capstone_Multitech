@@ -70,23 +70,7 @@ export function AdminDashboardClient({
   const gensetCount = recentOrders.filter((o) => o.unitCategory === 'GENSET_INDUSTRI').length;
 
   const siapCount = statusCounts[ItemStatus.SIAP_DIAMBIL] || 0;
-  const qcCount = statusCounts[ItemStatus.UJI_QC] || 0;
-
-  const readyOrQcUnits = allItems
-    .filter(
-      ({ item }) => item.status === ItemStatus.SIAP_DIAMBIL || item.status === ItemStatus.UJI_QC
-    )
-    .slice(0, 2)
-    .map(({ order, item }) => `#${order.code} ${getStatusMeta(item.status).shortLabel}`);
-
   const totalEstimatedRevenue = recentOrders.reduce((sum, order) => sum + getOrderTotal(order), 0);
-  const totalPaid = recentOrders.reduce((sum, order) => sum + getOrderPaid(order), 0);
-  const totalUnpaid = Math.max(0, totalEstimatedRevenue - totalPaid);
-  const paidPercentage =
-    totalEstimatedRevenue > 0 ? Math.min(100, Math.round((totalPaid / totalEstimatedRevenue) * 100)) : 0;
-
-  const peroranganCount = recentOrders.filter((o) => o.customerType === CustomerType.PERORANGAN).length;
-  const mitraCount = recentOrders.filter((o) => o.customerType === CustomerType.MITRA).length;
 
   const readyAlerts = allItems
     .filter(({ item }) => item.status === ItemStatus.SIAP_DIAMBIL)
@@ -132,17 +116,12 @@ export function AdminDashboardClient({
   const priorityActions = [...readyAlerts, ...sparepartAlerts, ...billingAlerts].slice(0, 4);
 
   const monthlyVisitors = [
-    { label: 'Jun', visitors: 5, perorangan: 3, mitra: 2 },
-    { label: 'Jul', visitors: 7, perorangan: 4, mitra: 3 },
-    { label: 'Agu', visitors: 6, perorangan: 4, mitra: 2 },
-    { label: 'Sep', visitors: 8, perorangan: 4, mitra: 4 },
-    { label: 'Okt', visitors: 9, perorangan: 5, mitra: 4 },
-    {
-      label: 'Nov',
-      visitors: Math.max(recentOrders.length, 5),
-      perorangan: peroranganCount,
-      mitra: mitraCount,
-    },
+    { label: 'Jun', visitors: 5 },
+    { label: 'Jul', visitors: 7 },
+    { label: 'Agu', visitors: 6 },
+    { label: 'Sep', visitors: 8 },
+    { label: 'Okt', visitors: 9 },
+    { label: 'Nov', visitors: Math.max(recentOrders.length, 5) },
   ];
   const maxVisitors = Math.max(...monthlyVisitors.map((m) => m.visitors), 10);
   const visitorTopTick = Math.ceil(maxVisitors / 5) * 5;
@@ -202,69 +181,37 @@ export function AdminDashboardClient({
 
         <Link
           href="/admin/services?status=SIAP_DIAMBIL"
-          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card flex min-w-0 flex-col justify-start rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
         >
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-              Siap Diambil
-            </span>
-            <span className="shrink-0 rounded-full bg-purple-500/15 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300">
-              {qcCount} Uji &amp; QC
-            </span>
-          </div>
+          <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+            Siap Diambil
+          </span>
           <p className="mt-1.5 text-xl font-black tabular-nums text-emerald-700 dark:text-emerald-400 sm:text-2xl">
             {siapCount} Siap
-          </p>
-          <p className="mt-1 truncate text-[11px] text-slate-600 dark:text-slate-400">
-            {readyOrQcUnits.length > 0 ? readyOrQcUnits.join(' · ') : 'Belum ada unit siap'}
           </p>
         </Link>
 
         <Link
           href="/admin/reports"
-          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card flex min-w-0 flex-col justify-start rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
         >
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-              Tagihan Berjalan
-            </span>
-            <span className="shrink-0 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-bold tabular-nums text-blue-700 dark:text-blue-300">
-              {paidPercentage}% Masuk
-            </span>
-          </div>
+          <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+            Tagihan Berjalan
+          </span>
           <p className="mt-1.5 truncate text-lg font-black tabular-nums text-slate-900 dark:text-white sm:text-xl">
             {formatRupiah(totalEstimatedRevenue)}
           </p>
-          <div className="mt-1.5 space-y-1">
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.08] dark:bg-white/[0.1]">
-              <div
-                className="h-full rounded-full bg-emerald-600 transition-all dark:bg-emerald-400"
-                style={{ width: `${paidPercentage}%` }}
-              />
-            </div>
-            <p className="truncate text-[10px] text-slate-600 dark:text-slate-400">
-              DP/Lunas {formatRupiah(totalPaid)} · Sisa {formatRupiah(totalUnpaid)}
-            </p>
-          </div>
         </Link>
 
         <Link
           href="/admin/customers"
-          className="ios-glass-card flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card flex min-w-0 flex-col justify-start rounded-[20px] p-3.5 shadow-sm transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:rounded-[22px] sm:p-4"
         >
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-              Pelanggan Aktif
-            </span>
-            <span className="shrink-0 rounded-full bg-slate-900/10 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-white/10 dark:text-slate-300">
-              {mitraCount} Mitra
-            </span>
-          </div>
+          <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+            Pelanggan Aktif
+          </span>
           <p className="mt-1.5 text-xl font-black tabular-nums text-slate-900 dark:text-white sm:text-2xl">
             {totalCustomers} Data
-          </p>
-          <p className="mt-1 truncate text-[11px] text-slate-600 dark:text-slate-400">
-            {peroranganCount} Perorangan · {mitraCount} Bengkel Mitra
           </p>
         </Link>
       </div>
@@ -405,22 +352,16 @@ export function AdminDashboardClient({
           <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-5">
             <GroupedBarChart
               title="Diagram Kepadatan Pengunjung"
-              yAxisLabel="Jumlah Unit"
-              xAxisLabel="Bulan Kunjungan"
+              yAxisLabel="Jumlah Pengunjung"
+              xAxisLabel="Bulan"
               ticks={visitorTicks}
               series={[
-                { key: 'perorangan', label: 'Perorangan', colorClass: 'bg-[#4285F4]' },
-                { key: 'mitra', label: 'Bengkel Mitra', colorClass: 'bg-[#EA4335]' },
-                { key: 'total', label: 'Total Unit', colorClass: 'bg-[#FBBC04]' },
+                { key: 'visitors', label: 'Total Pengunjung', colorClass: 'bg-[#4285F4]' },
               ]}
               categories={monthlyVisitors.map((m) => ({
                 label: m.label,
-                values: [m.perorangan, m.mitra, m.visitors],
-                tooltips: [
-                  `${m.label} - Perorangan: ${m.perorangan} unit`,
-                  `${m.label} - Bengkel Mitra: ${m.mitra} unit`,
-                  `${m.label} - Total Unit: ${m.visitors} unit`,
-                ],
+                values: [m.visitors],
+                tooltips: [`${m.label}: ${m.visitors} pengunjung`],
               }))}
             />
 

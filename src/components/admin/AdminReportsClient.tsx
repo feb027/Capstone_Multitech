@@ -154,73 +154,24 @@ export function AdminReportsClient() {
 
   const financeTicks = useMemo(() => {
     const maxValM = Math.max(
-      ...monthlyData.map((m) => Math.max(m.billed, m.revenue, m.outstanding) / 1_000_000),
+      ...monthlyData.map((m) => m.revenue / 1_000_000),
       15
     );
     const topTick = Math.ceil(maxValM / 5) * 5;
     return [0, 1, 2, 3, 4, 5].map((i) => Math.round((topTick / 5) * i));
   }, [monthlyData]);
 
+  const billingSummaryTicks = useMemo(() => {
+    const maxValM = Math.max(summary.totalBilling / 1_000_000, 3);
+    const topTick = Math.ceil(maxValM);
+    return [0, 1, 2, 3, 4, 5].map((i) => Number(((topTick / 5) * i).toFixed(1)));
+  }, [summary.totalBilling]);
+
   const trafficTicks = useMemo(() => {
     const maxCount = Math.max(...monthlyData.map((m) => m.count), 10);
     const topTick = Math.ceil(maxCount / 5) * 5;
     return [0, 1, 2, 3, 4, 5].map((i) => Math.round((topTick / 5) * i));
   }, [monthlyData]);
-
-  const categoryRevenueData = useMemo(() => {
-    const baseScale =
-      period === 'THIS_MONTH'
-        ? 0.22
-        : period === 'LAST_3_MONTHS'
-          ? 0.55
-          : period === 'MITRA_B2B'
-            ? 0.58
-            : period === 'PERORANGAN'
-              ? 0.42
-              : 1;
-
-    const buckets: Record<string, { jasa: number; part: number; diagnosa: number }> = {
-      ECU: { jasa: 3_400_000 * baseScale, part: 2_600_000 * baseScale, diagnosa: 900_000 * baseScale },
-      EPS: { jasa: 2_200_000 * baseScale, part: 1_500_000 * baseScale, diagnosa: 750_000 * baseScale },
-      Cluster: { jasa: 1_850_000 * baseScale, part: 950_000 * baseScale, diagnosa: 500_000 * baseScale },
-      Genset: { jasa: 2_500_000 * baseScale, part: 1_750_000 * baseScale, diagnosa: 800_000 * baseScale },
-    };
-
-    for (const order of filteredOrders) {
-      const mod = (order.items[0]?.moduleName || '').toLowerCase();
-      const target =
-        order.unitCategory === 'GENSET_INDUSTRI' || mod.includes('genset') || mod.includes('amf')
-          ? 'Genset'
-          : mod.includes('speedo') || mod.includes('cluster')
-            ? 'Cluster'
-            : mod.includes('eps') || mod.includes('bcm')
-              ? 'EPS'
-              : 'ECU';
-
-      for (const c of order.charges) {
-        const amt = c.qty * c.unitPrice;
-        if (c.kind === 'JASA') buckets[target].jasa += amt;
-        else if (c.kind === 'SPAREPART') buckets[target].part += amt;
-        else buckets[target].diagnosa += amt;
-      }
-    }
-
-    return [
-      { label: 'ECU Mesin', ...buckets.ECU },
-      { label: 'EPS & BCM', ...buckets.EPS },
-      { label: 'Cluster', ...buckets.Cluster },
-      { label: 'Genset', ...buckets.Genset },
-    ];
-  }, [filteredOrders, period]);
-
-  const categoryTicks = useMemo(() => {
-    const maxValM = Math.max(
-      ...categoryRevenueData.map((c) => Math.max(c.jasa, c.part, c.diagnosa) / 1_000_000),
-      5
-    );
-    const topTick = Math.ceil(maxValM);
-    return [0, 1, 2, 3, 4, 5].map((i) => Number(((topTick / 5) * i).toFixed(1)));
-  }, [categoryRevenueData]);
 
   return (
     <div className="space-y-6">
@@ -336,68 +287,60 @@ export function AdminReportsClient() {
       </div>
 
       {/* ============================================================== */}
-      {/* 3 GRAFIK BATANG BERKELOMPOK (TERHUBUNG DENGAN FILTER PERIODE)  */}
+      {/* 3 GRAFIK BATANG UTAMA (TERHUBUNG DENGAN FILTER PERIODE)        */}
       {/* ============================================================== */}
       <div className="space-y-4">
-        {/* GRAFIK 1: Pemasukan & Tagihan Bulanan */}
+        {/* GRAFIK 1: Pemasukan Perusahaan Bulanan */}
         <section className="ios-glass-card rounded-[28px] p-5 shadow-sm sm:p-6">
           <GroupedBarChart
-            title="Diagram Pemasukan & Tagihan Bulanan"
+            title="Diagram Pemasukan Perusahaan Bulanan"
             yAxisLabel="Juta Rupiah"
-            xAxisLabel="Periode Bulan"
+            xAxisLabel="Bulan"
             ticks={financeTicks}
             formatTick={(v) => (v === 0 ? '0' : `${v}jt`)}
             heightClass="h-48 sm:h-56"
             series={[
-              { key: 'billed', label: 'Total Tagihan', colorClass: 'bg-[#4285F4]' },
-              { key: 'revenue', label: 'Kas Masuk', colorClass: 'bg-[#EA4335]' },
-              { key: 'outstanding', label: 'Sisa Piutang', colorClass: 'bg-[#FBBC04]' },
+              { key: 'revenue', label: 'Kas Masuk', colorClass: 'bg-[#4285F4]' },
             ]}
             categories={monthlyData.map((m) => ({
               label: m.label,
-              values: [
-                Number((m.billed / 1_000_000).toFixed(2)),
-                Number((m.revenue / 1_000_000).toFixed(2)),
-                Number((m.outstanding / 1_000_000).toFixed(2)),
-              ],
-              tooltips: [
-                `${m.label} - Tagihan: ${formatRupiah(m.billed)}`,
-                `${m.label} - Kas Masuk: ${formatRupiah(m.revenue)}`,
-                `${m.label} - Sisa Piutang: ${formatRupiah(m.outstanding)}`,
-              ],
+              values: [Number((m.revenue / 1_000_000).toFixed(2))],
+              tooltips: [`${m.label} - Kas Masuk: ${formatRupiah(m.revenue)}`],
             }))}
           />
         </section>
 
-        {/* GRAFIK 2 & 3: GRID 2 KOLOM (Pendapatan Kategori & Kepadatan Pelanggan) */}
+        {/* GRAFIK 2 & 3: GRID 2 KOLOM (Pendapatan & Kepadatan Pengunjung) */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* GRAFIK 2: Pendapatan per Kategori Modul */}
+          {/* GRAFIK 2: Pendapatan & Tagihan */}
           <section className="ios-glass-card rounded-[28px] p-5 shadow-sm">
             <GroupedBarChart
-              title="Diagram Pendapatan per Kategori"
+              title="Diagram Pendapatan & Tagihan"
               yAxisLabel="Juta Rupiah"
-              xAxisLabel="Kategori Layanan"
-              ticks={categoryTicks}
+              xAxisLabel="Komponen Tagihan"
+              ticks={billingSummaryTicks}
               formatTick={(v) => (v === 0 ? '0' : `${v}jt`)}
               heightClass="h-44 sm:h-48"
               series={[
-                { key: 'jasa', label: 'Jasa Servis', colorClass: 'bg-[#4285F4]' },
-                { key: 'part', label: 'Sparepart IC', colorClass: 'bg-[#EA4335]' },
-                { key: 'diagnosa', label: 'Diagnosa', colorClass: 'bg-[#FBBC04]' },
+                { key: 'amount', label: 'Nominal', colorClass: 'bg-[#4285F4]' },
               ]}
-              categories={categoryRevenueData.map((c) => ({
-                label: c.label,
-                values: [
-                  Number((c.jasa / 1_000_000).toFixed(2)),
-                  Number((c.part / 1_000_000).toFixed(2)),
-                  Number((c.diagnosa / 1_000_000).toFixed(2)),
-                ],
-                tooltips: [
-                  `${c.label} - Jasa Servis: ${formatRupiah(c.jasa)}`,
-                  `${c.label} - Sparepart IC: ${formatRupiah(c.part)}`,
-                  `${c.label} - Diagnosa: ${formatRupiah(c.diagnosa)}`,
-                ],
-              }))}
+              categories={[
+                {
+                  label: 'Total Tagihan',
+                  values: [Number((summary.totalBilling / 1_000_000).toFixed(2))],
+                  tooltips: [`Total Tagihan: ${formatRupiah(summary.totalBilling)}`],
+                },
+                {
+                  label: 'Kas Masuk',
+                  values: [Number((summary.totalPaid / 1_000_000).toFixed(2))],
+                  tooltips: [`Kas Masuk: ${formatRupiah(summary.totalPaid)}`],
+                },
+                {
+                  label: 'Sisa Piutang',
+                  values: [Number((summary.outstanding / 1_000_000).toFixed(2))],
+                  tooltips: [`Sisa Piutang: ${formatRupiah(summary.outstanding)}`],
+                },
+              ]}
             />
 
             <div className="mt-4 rounded-2xl bg-black/[0.03] p-3 text-xs dark:bg-white/[0.04]">
@@ -408,34 +351,28 @@ export function AdminReportsClient() {
             </div>
           </section>
 
-          {/* GRAFIK 3: Kepadatan Pelanggan Bulanan */}
+          {/* GRAFIK 3: Kepadatan Pengunjung Bulanan */}
           <section className="ios-glass-card rounded-[28px] p-5 shadow-sm">
             <GroupedBarChart
-              title="Diagram Kepadatan Pelanggan"
-              yAxisLabel="Jumlah Unit"
-              xAxisLabel="Bulan Kunjungan"
+              title="Diagram Kepadatan Pengunjung Bulanan"
+              yAxisLabel="Jumlah Pengunjung"
+              xAxisLabel="Bulan"
               ticks={trafficTicks}
               heightClass="h-44 sm:h-48"
               series={[
-                { key: 'perorangan', label: 'Perorangan', colorClass: 'bg-[#4285F4]' },
-                { key: 'mitra', label: 'Bengkel Mitra', colorClass: 'bg-[#EA4335]' },
-                { key: 'total', label: 'Total Unit', colorClass: 'bg-[#FBBC04]' },
+                { key: 'total', label: 'Total Pengunjung', colorClass: 'bg-[#4285F4]' },
               ]}
               categories={monthlyData.map((m) => ({
                 label: m.label,
-                values: [m.peroranganCount, m.mitraCount, m.count],
-                tooltips: [
-                  `${m.label} - Perorangan: ${m.peroranganCount} unit`,
-                  `${m.label} - Bengkel Mitra: ${m.mitraCount} unit`,
-                  `${m.label} - Total Unit: ${m.count} unit`,
-                ],
+                values: [m.count],
+                tooltips: [`${m.label}: ${m.count} pengunjung`],
               }))}
             />
 
             <div className="mt-4 rounded-2xl bg-black/[0.03] p-3 text-xs dark:bg-white/[0.04]">
               <span className="font-bold text-slate-900 dark:text-white">Tren Kunjungan: </span>
               <span className="text-slate-600 dark:text-slate-300">
-                Menampilkan distribusi kunjungan pelanggan Perorangan, Bengkel Mitra, dan total unit masuk per bulan.
+                Menampilkan total banyaknya pengunjung / unit servis yang masuk di setiap bulan.
               </span>
             </div>
           </section>

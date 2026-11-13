@@ -34,26 +34,29 @@ export function GroupedBarChart({
   heightClass = 'h-44 sm:h-48',
 }: GroupedBarChartProps) {
   const maxTick = ticks.length > 0 ? Math.max(...ticks, 1) : 1;
+  const isSingleSeries = series.length <= 1;
 
   return (
-    <div className="w-full select-none">
+    <div className="w-full min-w-0 select-none overflow-hidden">
       {/* Centered Chart Title */}
       <h3 className="text-center text-sm font-bold tracking-tight text-slate-900 dark:text-white sm:text-base">
         {title}
       </h3>
 
-      {/* Centered Series Legend */}
-      <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] font-medium text-slate-700 dark:text-slate-300 sm:text-xs">
-        {series.map((s) => (
-          <div key={s.key} className="inline-flex items-center gap-1.5">
-            <span className={`h-3 w-3 shrink-0 rounded-[2px] ${s.colorClass}`} aria-hidden="true" />
-            <span>{s.label}</span>
-          </div>
-        ))}
-      </div>
+      {/* Centered Series Legend (only when multiple series) */}
+      {!isSingleSeries && (
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] font-medium text-slate-700 dark:text-slate-300 sm:text-xs">
+          {series.map((s) => (
+            <div key={s.key} className="inline-flex items-center gap-1.5">
+              <span className={`h-3 w-3 shrink-0 rounded-[2px] ${s.colorClass}`} aria-hidden="true" />
+              <span>{s.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Main Plot Area */}
-      <div className="mt-4 flex items-stretch gap-1.5 sm:gap-2">
+      <div className="mt-4 flex min-w-0 items-stretch gap-1.5 sm:gap-2">
         {/* Vertical Y-Axis Title */}
         <div className="flex w-4 shrink-0 items-center justify-center sm:w-5">
           <span className="-rotate-90 whitespace-nowrap text-[10px] font-semibold text-slate-600 dark:text-slate-400 sm:text-[11px]">
@@ -63,7 +66,7 @@ export function GroupedBarChart({
 
         {/* Plot Grid + Bars + X Labels */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-stretch">
+          <div className="flex min-w-0 items-stretch">
             {/* Y-Axis Tick Labels Column */}
             <div className={`relative mr-2 w-7 shrink-0 sm:w-8 ${heightClass}`}>
               {ticks.map((tick) => {
@@ -81,7 +84,7 @@ export function GroupedBarChart({
             </div>
 
             {/* Gridlines & Grouped Vertical Bars */}
-            <div className={`relative min-w-0 flex-1 ${heightClass}`}>
+            <div className={`relative min-w-0 flex-1 overflow-hidden ${heightClass}`}>
               {/* Horizontal Gridlines */}
               {ticks.map((tick) => {
                 const bottomPct = (tick / maxTick) * 100;
@@ -100,11 +103,11 @@ export function GroupedBarChart({
               })}
 
               {/* Category Groups */}
-              <div className="relative z-10 flex h-full w-full items-end justify-around px-1 sm:px-2">
+              <div className="relative z-10 flex h-full w-full min-w-0 items-end justify-around px-1 sm:px-2">
                 {categories.map((cat) => (
                   <div
                     key={cat.label}
-                    className="flex h-full flex-1 items-end justify-center gap-[2px] px-0.5 sm:gap-1 sm:px-1"
+                    className="flex h-full min-w-0 flex-1 items-end justify-center gap-[2px] px-1 sm:gap-1 sm:px-1.5"
                   >
                     {series.map((s, sIdx) => {
                       const val = cat.values[sIdx] ?? 0;
@@ -112,12 +115,15 @@ export function GroupedBarChart({
                         val <= 0 ? 0 : Math.min(100, Math.max(2, (val / maxTick) * 100));
                       const tooltipText =
                         cat.tooltips?.[sIdx] ?? `${cat.label} - ${s.label}: ${val}`;
+                      const barWidthClass = isSingleSeries
+                        ? 'w-full max-w-[26px] sm:max-w-[34px]'
+                        : 'flex-1 max-w-[14px]';
                       return (
                         <div
                           key={`${cat.label}-${s.key}`}
                           style={{ height: `${heightPct}%` }}
                           title={tooltipText}
-                          className={`w-2.5 rounded-t-[3px] transition-all duration-300 hover:brightness-110 sm:w-3.5 md:w-4 ${s.colorClass}`}
+                          className={`${barWidthClass} rounded-t-[3px] transition-all duration-300 hover:brightness-110 ${s.colorClass}`}
                         />
                       );
                     })}
@@ -128,9 +134,9 @@ export function GroupedBarChart({
           </div>
 
           {/* X-Axis Category Labels */}
-          <div className="ml-9 flex items-start justify-around px-1 pt-2 sm:ml-10 sm:px-2">
+          <div className="ml-9 flex min-w-0 items-start justify-around px-1 pt-2 sm:ml-10 sm:px-2">
             {categories.map((cat) => (
-              <div key={`x-cat-${cat.label}`} className="flex-1 text-center">
+              <div key={`x-cat-${cat.label}`} className="min-w-0 flex-1 text-center">
                 <span className="block truncate text-[10px] font-medium text-slate-800 dark:text-slate-200 sm:text-xs">
                   {cat.label}
                 </span>
