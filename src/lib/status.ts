@@ -153,7 +153,7 @@ export function getVehicleHeroImage(
     normalized.includes('dse')
   ) {
     return {
-      src: '/images/vehicles/genset-unit.jpg',
+      src: '/images/vehicles/genset-unit.jpg?v=2',
       caption: fullName || 'Unit Genset / Panel AMF',
       badge: 'Foto Unit Genset',
     };
@@ -161,7 +161,7 @@ export function getVehicleHeroImage(
 
   if (normalized.includes('pajero') || normalized.includes('fortuner') || normalized.includes('cr-v') || normalized.includes('rush') || normalized.includes('terios')) {
     return {
-      src: '/images/vehicles/pajero-sport.jpg',
+      src: '/images/vehicles/pajero-sport.jpg?v=2',
       caption: fullName || 'Unit SUV / Mobil',
       badge: 'Foto Kendaraan',
     };
@@ -169,7 +169,7 @@ export function getVehicleHeroImage(
 
   if (normalized.includes('jazz') || normalized.includes('brio') || normalized.includes('yaris') || normalized.includes('agya') || normalized.includes('ayla') || normalized.includes('swift')) {
     return {
-      src: '/images/vehicles/honda-jazz.jpg',
+      src: '/images/vehicles/honda-jazz.jpg?v=2',
       caption: fullName || 'Unit Hatchback / Mobil',
       badge: 'Foto Kendaraan',
     };
@@ -177,14 +177,14 @@ export function getVehicleHeroImage(
 
   if (normalized.includes('ertiga') || normalized.includes('xl7') || normalized.includes('suzuki') || normalized.includes('xpander') || normalized.includes('livina')) {
     return {
-      src: '/images/vehicles/suzuki-ertiga.jpg',
+      src: '/images/vehicles/suzuki-ertiga.jpg?v=2',
       caption: fullName || 'Unit MPV / Mobil',
       badge: 'Foto Kendaraan',
     };
   }
 
   return {
-    src: '/images/vehicles/toyota-avanza.jpg',
+    src: '/images/vehicles/toyota-avanza.jpg?v=2',
     caption: fullName || 'Unit Kendaraan Servis',
     badge: 'Foto Kendaraan',
   };
