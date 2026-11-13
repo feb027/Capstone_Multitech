@@ -1,6 +1,15 @@
 import { CustomerType, EntryMethod, IntakeType, ItemStatus, PaymentMethod } from '@prisma/client';
 
-export const PARTNER_WORKSHOPS = ['Jaya Motor', 'Kurnia', 'Noenoeng'] as const;
+export const PARTNER_WORKSHOPS = [
+  'Wahana Retro',
+  'Merdeka Motor',
+  'Kurnia',
+  'Edis Motor',
+  'Fals Motor',
+  'Tridaya Motor',
+  'Eko Motor',
+  'Aci Motor',
+] as const;
 export type PartnerWorkshopName = (typeof PARTNER_WORKSHOPS)[number];
 
 export function normalizePhone(phone?: string | null): string {
@@ -17,10 +26,15 @@ export function normalizeWorkshopName(
 ): PartnerWorkshopName | null {
   if (customerType !== CustomerType.MITRA) return null;
   const raw = (workshopName || '').trim().toLowerCase();
+  if (raw.includes('merdeka')) return 'Merdeka Motor';
   if (raw.includes('kurnia')) return 'Kurnia';
-  if (raw.includes('noenoeng')) return 'Noenoeng';
-  if (raw.includes('jaya')) return 'Jaya Motor';
-  return 'Jaya Motor';
+  if (raw.includes('edis')) return 'Edis Motor';
+  if (raw.includes('fals')) return 'Fals Motor';
+  if (raw.includes('tridaya')) return 'Tridaya Motor';
+  if (raw.includes('eko')) return 'Eko Motor';
+  if (raw.includes('aci')) return 'Aci Motor';
+  if (raw.includes('wahana')) return 'Wahana Retro';
+  return 'Wahana Retro';
 }
 
 export interface MockProgressLog {
@@ -75,6 +89,7 @@ export interface MockServiceOrder {
   entryMethod: EntryMethod;
   trackingNumber?: string | null;
   conditionNotes?: string | null;
+  priorityNote?: string | null;
   customPhotoUrl?: string | null;
   receivedAt: string;
   estimatedDoneAt: string | null;
@@ -114,6 +129,7 @@ export const INITIAL_SERVICE_ORDERS: MockServiceOrder[] = [
     entryMethod: EntryMethod.DATANG,
     conditionNotes:
       'Mesin pincang saat putaran idle, lampu check engine berkedip. Speedometer terkadang mati mendadak.',
+    priorityNote: 'Cek ulang bench test cluster setelah soldering IC 5V sebelum serah unit.',
     receivedAt: '2026-11-11T09:15:00.000Z',
     estimatedDoneAt: '2026-11-13T16:00:00.000Z',
     items: [
@@ -177,7 +193,7 @@ export const INITIAL_SERVICE_ORDERS: MockServiceOrder[] = [
     customerName: 'Pak Hendra',
     customerPhone: '6289876544321',
     customerType: CustomerType.MITRA,
-    workshopName: 'Jaya Motor',
+    workshopName: 'Wahana Retro',
     vehicleBrand: 'Honda',
     vehicleModel: 'Jazz RS GK5',
     vehicleYear: 2019,
@@ -230,6 +246,7 @@ export const INITIAL_SERVICE_ORDERS: MockServiceOrder[] = [
     entryMethod: EntryMethod.EKSPEDISI,
     trackingNumber: 'JNE-TSM-8829104',
     conditionNotes: 'Modul ECU kiriman ekspedisi dari Garut, segel aman tanpa retak.',
+    priorityNote: 'Konfirmasi resi kirim balik JNE ke bengkel Kurnia hari ini.',
     receivedAt: '2026-11-10T11:00:00.000Z',
     estimatedDoneAt: '2026-11-12T15:00:00.000Z',
     items: [
@@ -276,6 +293,7 @@ export const INITIAL_SERVICE_ORDERS: MockServiceOrder[] = [
     intakeType: IntakeType.MOBIL_UTUH,
     entryMethod: EntryMethod.DATANG,
     conditionNotes: 'Central lock pintu kanan & lampu sein kanan sering mati sendiri.',
+    priorityNote: 'Follow up supplier untuk relay Omron G8ND-2S siang ini.',
     receivedAt: '2026-11-09T13:20:00.000Z',
     estimatedDoneAt: '2026-11-13T12:00:00.000Z',
     items: [
@@ -310,7 +328,7 @@ export const INITIAL_SERVICE_ORDERS: MockServiceOrder[] = [
     customerName: 'CV Sinar Priangan',
     customerPhone: '6282111226140',
     customerType: CustomerType.MITRA,
-    workshopName: 'Noenoeng',
+    workshopName: 'Merdeka Motor',
     vehicleBrand: 'Deep Sea',
     vehicleModel: 'Genset Controller DSE7320',
     vehicleYear: 2021,
@@ -456,7 +474,7 @@ export const INITIAL_CUSTOMERS: MockCustomerRow[] = [
     name: 'Pak Hendra',
     phone: '6289876544321',
     type: CustomerType.MITRA,
-    workshopName: 'Jaya Motor',
+    workshopName: 'Wahana Retro',
     address: 'Jl. Sutisna Senjaya No. 88, Tasikmalaya',
     vehicles: [
       { id: 'v2', brand: 'Honda', model: 'Jazz RS GK5', year: 2019, plateNumber: 'D 5678 CD' },
@@ -492,7 +510,7 @@ export const INITIAL_CUSTOMERS: MockCustomerRow[] = [
     name: 'CV Sinar Priangan',
     phone: '6282111226140',
     type: CustomerType.MITRA,
-    workshopName: 'Noenoeng',
+    workshopName: 'Merdeka Motor',
     address: 'Kawasan Industri Indihiang, Tasikmalaya',
     vehicles: [
       { id: 'v6', brand: 'Deep Sea', model: 'Genset Controller DSE7320', year: 2021, plateNumber: null },

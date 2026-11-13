@@ -21,6 +21,7 @@ interface GroupedBarChartProps {
   ticks: number[];
   formatTick?: (val: number) => string;
   heightClass?: string;
+  wideBars?: boolean;
 }
 
 export function GroupedBarChart({
@@ -32,6 +33,7 @@ export function GroupedBarChart({
   ticks,
   formatTick = (val) => String(val),
   heightClass = 'h-44 sm:h-48',
+  wideBars = false,
 }: GroupedBarChartProps) {
   const maxTick = ticks.length > 0 ? Math.max(...ticks, 1) : 1;
   const isSingleSeries = series.length <= 1;
@@ -116,7 +118,9 @@ export function GroupedBarChart({
                       const tooltipText =
                         cat.tooltips?.[sIdx] ?? `${cat.label} - ${s.label}: ${val}`;
                       const barWidthClass = isSingleSeries
-                        ? 'w-full max-w-[26px] sm:max-w-[34px]'
+                        ? wideBars
+                          ? 'w-full max-w-[36px] sm:max-w-[48px]'
+                          : 'w-full max-w-[26px] sm:max-w-[34px]'
                         : 'flex-1 max-w-[14px]';
                       return (
                         <div

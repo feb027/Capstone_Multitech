@@ -1,16 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { CustomerType, EntryMethod, IntakeType, ItemStatus } from '@prisma/client';
 import { getStatusMeta } from '@/lib/status';
 import { MockServiceOrder, SparepartItem } from '@/lib/frontend-mock';
 import { useDataset } from '@/lib/use-dataset';
-import { formatRupiah } from '@/lib/utils';
+import { formatDate, formatRupiah } from '@/lib/utils';
 import {
   Plus,
-  AlertCircle,
-  CheckCircle2,
-  Package,
+  Pencil,
+  Check,
+  X,
+  Clock,
+  ArrowUpRight,
 } from 'lucide-react';
 import { GroupedBarChart } from './GroupedBarChart';
 
@@ -36,13 +39,53 @@ function getShortModuleName(moduleName: string): string {
   return firstPart || moduleName;
 }
 
+function toDateInputValue(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+
+function getUrgencyMeta(estimatedDoneAt?: string | null): {
+  label: string;
+  badgeClass: string;
+} {
+  if (!estimatedDoneAt) {
+    return {
+      label: 'Terjadwal',
+      badgeClass: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
+    };
+  }
+  const diffHours = (new Date(estimatedDoneAt).getTime() - Date.now()) / (1000 * 60 * 60);
+  if (diffHours <= 24) {
+    return {
+      label: 'Urgent',
+      badgeClass: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
+    };
+  }
+  if (diffHours <= 48) {
+    return {
+      label: 'Segera',
+      badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+    };
+  }
+  return {
+    label: 'Terjadwal',
+    badgeClass: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
+  };
+}
+
 export function AdminDashboardClient({
   totalActive: initialTotalActive,
   totalCustomers: initialTotalCustomers,
   statusCounts: initialStatusCounts,
   recentOrders: initialOrders,
 }: AdminDashboardClientProps) {
-  const { orders, customers, isLoaded } = useDataset(initialOrders);
+  const { orders, customers, isLoaded, upsertOrder } = useDataset(initialOrders);
+  const [editingPriorityId, setEditingPriorityId] = useState<string | null>(null);
+  const [editReminderText, setEditReminderText] = useState('');
+  const [editTargetDate, setEditTargetDate] = useState('');
+
   const recentOrders = orders.length > 0 ? orders : initialOrders;
   const totalActive = isLoaded ? recentOrders.length : initialTotalActive || recentOrders.length;
   const totalCustomers = isLoaded ? customers.length : initialTotalCustomers || customers.length;
@@ -106,48 +149,47 @@ export function AdminDashboardClient({
   ).length;
   const mitraCount = recentOrders.filter((o) => o.customerType === CustomerType.MITRA).length;
 
-  const readyAlerts = allItems
-    .filter(({ item }) => item.status === ItemStatus.SIAP_DIAMBIL)
-    .map(({ order, item }) => ({
-      id: `ready-${item.id}`,
-      orderId: order.id,
-      code: order.code,
-      title: `${order.vehicleBrand} ${order.vehicleModel}`,
-      detail: `${getShortModuleName(item.moduleName)} siap diambil / dikirim (${order.customerName})`,
-      tone: 'emerald' as const,
-    }));
-
-  const sparepartAlerts = allItems
-    .filter(({ item }) => item.status === ItemStatus.MENUNGGU_SPAREPART)
-    .map(({ order, item }) => ({
-      id: `part-${item.id}`,
-      orderId: order.id,
-      code: order.code,
-      title: `${order.vehicleBrand} ${order.vehicleModel}`,
-      detail: `Tunggu komponen: ${item.moduleName}`,
-      tone: 'amber' as const,
-    }));
-
-  const billingAlerts = recentOrders
-    .filter((order) => {
-      const total = getOrderTotal(order);
-      const paid = getOrderPaid(order);
-      return total > 0 && total - paid > 0;
+  // Top 3 paling urgent berdasarkan estimasi tanggal selesai (estimatedDoneAt terdekat)
+  const urgentPriorityOrders = [...recentOrders]
+    .filter((order) =>
+      order.items.some(
+        (item) => item.status !== ItemStatus.SELESAI && item.status !== ItemStatus.BATAL
+      )
+    )
+    .sort((a, b) => {
+      const timeA = a.estimatedDoneAt
+        ? new Date(a.estimatedDoneAt).getTime()
+        : Number.MAX_SAFE_INTEGER;
+      const timeB = b.estimatedDoneAt
+        ? new Date(b.estimatedDoneAt).getTime()
+        : Number.MAX_SAFE_INTEGER;
+      return timeA - timeB;
     })
-    .slice(0, 2)
-    .map((order) => {
-      const remaining = getOrderTotal(order) - getOrderPaid(order);
-      return {
-        id: `bill-${order.id}`,
-        orderId: order.id,
-        code: order.code,
-        title: `${order.customerName} (${order.vehicleModel})`,
-        detail: `Sisa tagihan berjalan ${formatRupiah(remaining)}`,
-        tone: 'blue' as const,
-      };
-    });
+    .slice(0, 3);
 
-  const priorityActions = [...readyAlerts, ...sparepartAlerts, ...billingAlerts].slice(0, 4);
+  const startEditPriority = (order: MockServiceOrder) => {
+    const primaryItem = order.items[0];
+    const defaultNote =
+      order.priorityNote ||
+      (primaryItem
+        ? `${getShortModuleName(primaryItem.moduleName)}: ${getStatusMeta(primaryItem.status).shortLabel} (${order.customerName})`
+        : order.conditionNotes || 'Perlu tindak lanjut');
+    setEditingPriorityId(order.id);
+    setEditReminderText(defaultNote);
+    setEditTargetDate(toDateInputValue(order.estimatedDoneAt));
+  };
+
+  const handleSavePriorityReminder = async (order: MockServiceOrder) => {
+    const nextEstimated = editTargetDate
+      ? new Date(`${editTargetDate}T16:00:00.000Z`).toISOString()
+      : order.estimatedDoneAt;
+    await upsertOrder({
+      ...order,
+      priorityNote: editReminderText.trim() || null,
+      estimatedDoneAt: nextEstimated,
+    });
+    setEditingPriorityId(null);
+  };
 
   const monthlyVisitors = [
     { label: 'Jun', visitors: 5 },
@@ -393,101 +435,187 @@ export function AdminDashboardClient({
           </div>
         </section>
 
-        {/* Right: Monthly Visitor Chart (Top) & Priority Action Queue (Bottom) */}
-        <div className="space-y-4 lg:col-span-5">
-          {/* Panel A (Top): Diagram Batang Kepadatan Pengunjung */}
-          <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-5">
-            <GroupedBarChart
-              title="Diagram Kepadatan Pengunjung"
-              yAxisLabel="Jumlah Pengunjung"
-              xAxisLabel="Bulan"
-              ticks={visitorTicks}
-              series={[
-                { key: 'visitors', label: 'Total Pengunjung', colorClass: 'bg-[#4285F4]' },
-              ]}
-              categories={monthlyVisitors.map((m) => ({
-                label: m.label,
-                values: [m.visitors],
-                tooltips: [`${m.label}: ${m.visitors} pengunjung`],
-              }))}
-            />
-
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/[0.03] px-3 py-2 text-[11px] dark:bg-white/[0.04]">
-              <span className="text-slate-600 dark:text-slate-300">
-                Total 6 bln:{' '}
-                <strong className="font-mono text-slate-900 dark:text-white">
-                  {totalSixMonthVisitors} unit
-                </strong>
-              </span>
-              <span className="text-slate-600 dark:text-slate-300">
-                Puncak:{' '}
-                <strong className="font-mono text-slate-900 dark:text-white">
-                  {peakMonth.label} ({peakMonth.visitors})
-                </strong>
-              </span>
-              <Link
-                href="/admin/reports"
-                className="font-semibold text-blue-700 hover:underline dark:text-blue-400"
-              >
-                Detail laporan ({avgMonthlyVisitors}/bln)
-              </Link>
-            </div>
-          </section>
-
-          {/* Panel B (Bottom): Prioritas Tindak Lanjut */}
-          <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-5">
-            <div className="mb-3 flex items-center justify-between gap-2">
+        {/* Right: Top 3 Prioritas Tindak Lanjut (Editable Reminder berdasarkan Estimasi Selesai) */}
+        <section className="ios-glass-card self-start rounded-[24px] p-4 shadow-sm sm:p-5 lg:col-span-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                 Prioritas Tindak Lanjut
               </h2>
-              <span className="rounded-full bg-slate-900/10 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-white/10 dark:text-slate-300">
-                {priorityActions.length} Item
-              </span>
-            </div>
-
-            {priorityActions.length === 0 ? (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Semua unit berjalan normal tanpa antrean tertunda.
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                Top 3 deadline terdekat · klik edit untuk catat reminder
               </p>
-            ) : (
-              <div className="space-y-2">
-                {priorityActions.map((alert) => (
-                  <Link
-                    key={alert.id}
-                    href={`/admin/services?orderId=${alert.orderId}`}
-                    className="ios-glass-inner flex items-start gap-2.5 rounded-2xl p-3 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+            </div>
+            <span className="shrink-0 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300">
+              Top {urgentPriorityOrders.length} Urgent
+            </span>
+          </div>
+
+          {urgentPriorityOrders.length === 0 ? (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Semua unit sudah selesai atau belum memiliki target estimasi.
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {urgentPriorityOrders.map((order) => {
+                const urgency = getUrgencyMeta(order.estimatedDoneAt);
+                const primaryItem = order.items[0];
+                const defaultReminder =
+                  order.priorityNote ||
+                  (primaryItem
+                    ? `${getShortModuleName(primaryItem.moduleName)}: ${getStatusMeta(primaryItem.status).shortLabel} (${order.customerName})`
+                    : order.conditionNotes || 'Perlu tindak lanjut');
+                const isEditing = editingPriorityId === order.id;
+
+                return (
+                  <div
+                    key={order.id}
+                    className="ios-glass-inner rounded-2xl p-3 transition-colors"
                   >
-                    <div className="mt-0.5 shrink-0">
-                      {alert.tone === 'emerald' && (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                      )}
-                      {alert.tone === 'amber' && (
-                        <Package className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-                      )}
-                      {alert.tone === 'blue' && (
-                        <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" aria-hidden="true" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[10px] font-bold text-slate-900 dark:text-white">
-                          #{alert.code}
-                        </span>
-                        <span className="truncate text-xs font-bold text-slate-800 dark:text-slate-200">
-                          {alert.title}
-                        </span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white dark:bg-white dark:text-slate-900">
+                            #{order.code}
+                          </span>
+                          <span className="truncate text-xs font-bold text-slate-900 dark:text-white">
+                            {order.vehicleBrand} {order.vehicleModel}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${urgency.badgeClass}`}
+                          >
+                            {urgency.label}
+                          </span>
+                        </div>
+
+                        <div className="mt-1 flex items-center gap-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                          <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                          <span>
+                            {order.estimatedDoneAt
+                              ? `Estimasi selesai ${formatDate(order.estimatedDoneAt)}`
+                              : 'Estimasi belum diisi'}
+                          </span>
+                          <span>·</span>
+                          <span className="truncate">{order.customerName}</span>
+                        </div>
                       </div>
-                      <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-slate-400">
-                        {alert.detail}
-                      </p>
+
+                      <div className="flex shrink-0 items-center gap-1">
+                        {!isEditing && (
+                          <button
+                            type="button"
+                            onClick={() => startEditPriority(order)}
+                            title="Edit reminder & estimasi"
+                            aria-label={`Edit pengingat #${order.code}`}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/[0.05] text-slate-700 hover:bg-black/10 dark:bg-white/[0.08] dark:text-slate-200 dark:hover:bg-white/15"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <Link
+                          href={`/admin/services?orderId=${order.id}`}
+                          title="Buka detail unit"
+                          aria-label={`Buka detail unit #${order.code}`}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/[0.05] text-slate-700 hover:bg-black/10 dark:bg-white/[0.08] dark:text-slate-200 dark:hover:bg-white/15"
+                        >
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </Link>
+                      </div>
                     </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
+
+                    {isEditing ? (
+                      <div className="mt-2.5 space-y-2 border-t border-black/[0.06] pt-2.5 dark:border-white/[0.08]">
+                        <input
+                          type="text"
+                          value={editReminderText}
+                          onChange={(e) => setEditReminderText(e.target.value)}
+                          placeholder="Tulis catatan pengingat untuk tim..."
+                          aria-label="Catatan pengingat"
+                          className="h-8 w-full rounded-xl border border-black/10 bg-white px-2.5 text-[11px] font-medium text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                        />
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 dark:text-slate-400">
+                            <span>Est. Selesai:</span>
+                            <input
+                              type="date"
+                              value={editTargetDate}
+                              onChange={(e) => setEditTargetDate(e.target.value)}
+                              className="h-7 rounded-lg border border-black/10 bg-white px-2 font-mono text-[10px] text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                            />
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditingPriorityId(null)}
+                              className="inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[10px] font-bold text-slate-600 hover:bg-black/5 dark:text-slate-300 dark:hover:bg-white/10"
+                            >
+                              <X className="h-3 w-3" />
+                              <span>Batal</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSavePriorityReminder(order)}
+                              className="inline-flex h-7 items-center gap-1 rounded-full bg-slate-900 px-3 text-[10px] font-bold text-white tap-bounce dark:bg-white dark:text-black"
+                            >
+                              <Check className="h-3 w-3" />
+                              <span>Simpan</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-slate-700 dark:text-slate-300">
+                        {defaultReminder}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
+
+      {/* Full-Width Bar Chart Section: Diagram Kepadatan Pengunjung */}
+      <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-6">
+        <GroupedBarChart
+          title="Diagram Kepadatan Pengunjung"
+          yAxisLabel="Jumlah Pengunjung"
+          xAxisLabel="Bulan"
+          heightClass="h-48 sm:h-56"
+          wideBars
+          ticks={visitorTicks}
+          series={[
+            { key: 'visitors', label: 'Total Pengunjung', colorClass: 'bg-[#4285F4]' },
+          ]}
+          categories={monthlyVisitors.map((m) => ({
+            label: m.label,
+            values: [m.visitors],
+            tooltips: [`${m.label}: ${m.visitors} pengunjung`],
+          }))}
+        />
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/[0.03] px-4 py-2.5 text-[11px] dark:bg-white/[0.04]">
+          <span className="text-slate-600 dark:text-slate-300">
+            Total 6 bln:{' '}
+            <strong className="font-mono text-slate-900 dark:text-white">
+              {totalSixMonthVisitors} unit
+            </strong>
+          </span>
+          <span className="text-slate-600 dark:text-slate-300">
+            Puncak:{' '}
+            <strong className="font-mono text-slate-900 dark:text-white">
+              {peakMonth.label} ({peakMonth.visitors} pengunjung)
+            </strong>
+          </span>
+          <Link
+            href="/admin/reports"
+            className="font-semibold text-blue-700 hover:underline dark:text-blue-400"
+          >
+            Detail laporan ({avgMonthlyVisitors}/bln)
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

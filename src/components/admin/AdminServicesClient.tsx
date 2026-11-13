@@ -123,6 +123,9 @@ export function AdminServicesClient() {
   const [intakeModel, setIntakeModel] = useState('');
   const [intakeYear, setIntakeYear] = useState('2019');
   const [intakePlate, setIntakePlate] = useState('');
+  const [intakeEstimatedDone, setIntakeEstimatedDone] = useState(() =>
+    new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 10)
+  );
   const [intakeComplaint, setIntakeComplaint] = useState('');
   const [intakeCustomPhoto, setIntakeCustomPhoto] = useState<string | null>(null);
   const intakePhotoInputRef = useRef<HTMLInputElement>(null);
@@ -383,7 +386,9 @@ export function AdminServicesClient() {
       conditionNotes: resolvedCondition,
       customPhotoUrl: intakeCustomPhoto,
       receivedAt: new Date().toISOString(),
-      estimatedDoneAt: new Date(Date.now() + 86400000 * 2).toISOString(),
+      estimatedDoneAt: intakeEstimatedDone
+        ? new Date(`${intakeEstimatedDone}T16:00:00.000Z`).toISOString()
+        : new Date(Date.now() + 86400000 * 2).toISOString(),
       items: [
         {
           id: `item-${Date.now()}`,
@@ -1060,6 +1065,44 @@ export function AdminServicesClient() {
                       </select>
                     </div>
                   )}
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Estimasi Selesai (Klasifikasi Urgent)
+                    </label>
+                    <input
+                      type="date"
+                      value={
+                        editOrder.estimatedDoneAt
+                          ? new Date(editOrder.estimatedDoneAt).toISOString().slice(0, 10)
+                          : ''
+                      }
+                      onChange={(e) =>
+                        setEditOrder({
+                          ...editOrder,
+                          estimatedDoneAt: e.target.value
+                            ? new Date(`${e.target.value}T16:00:00.000Z`).toISOString()
+                            : null,
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 font-mono text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Catatan Pengingat Prioritas
+                    </label>
+                    <input
+                      type="text"
+                      value={editOrder.priorityNote || ''}
+                      onChange={(e) =>
+                        setEditOrder({ ...editOrder, priorityNote: e.target.value })
+                      }
+                      placeholder="Pengingat untuk dashboard admin..."
+                      className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1563,6 +1606,18 @@ export function AdminServicesClient() {
                       onChange={(e) => setIntakePlate(e.target.value)}
                       placeholder="Z 1842 AB"
                       className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold uppercase text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      Estimasi Selesai (Menentukan Prioritas Urgent)
+                    </label>
+                    <input
+                      type="date"
+                      value={intakeEstimatedDone}
+                      onChange={(e) => setIntakeEstimatedDone(e.target.value)}
+                      className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 font-mono text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
                     />
                   </div>
 
