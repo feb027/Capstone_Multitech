@@ -831,7 +831,7 @@ export function AdminServicesClient() {
                         </p>
                       </td>
 
-                      {/* Col 6: 2 Tombol Aksi Berbeda (Detail & Edit) */}
+                      {/* Col 6: 2 Tombol Aksi Icon Only (Detail & Edit) */}
                       <td className="whitespace-nowrap px-4 py-3.5 text-right align-middle">
                         <div className="inline-flex items-center justify-end gap-1.5">
                           <button
@@ -840,11 +840,11 @@ export function AdminServicesClient() {
                               e.stopPropagation();
                               handleOpenDetail(order, 'DETAIL');
                             }}
-                            title="Lihat detail & progress"
-                            className="ios-glass-inner inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-bold text-slate-800 transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
+                            title="Lihat Detail"
+                            aria-label={`Lihat detail #${order.code}`}
+                            className="ios-glass-inner inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
                           >
                             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>Detail</span>
                           </button>
 
                           <button
@@ -853,11 +853,11 @@ export function AdminServicesClient() {
                               e.stopPropagation();
                               handleOpenDetail(order, 'EDIT');
                             }}
-                            title="Edit pengerjaan, foto before/after & biaya"
-                            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-slate-900 px-3 text-[11px] font-bold text-white shadow-xs transition-colors hover:bg-slate-800 tap-bounce dark:bg-white dark:text-black dark:hover:bg-slate-200"
+                            title="Edit Servis"
+                            aria-label={`Edit servis #${order.code}`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white shadow-xs transition-colors hover:bg-slate-800 tap-bounce dark:bg-white dark:text-black dark:hover:bg-slate-200"
                           >
                             <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>Edit</span>
                           </button>
                         </div>
                       </td>
@@ -946,10 +946,11 @@ export function AdminServicesClient() {
                           e.stopPropagation();
                           handleOpenDetail(order, 'DETAIL');
                         }}
-                        className="ios-glass-inner inline-flex h-8 items-center gap-1 rounded-full px-3 text-[11px] font-bold text-slate-800 dark:text-white"
+                        title="Lihat Detail"
+                        aria-label={`Lihat detail #${order.code}`}
+                        className="ios-glass-inner inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-800 dark:text-white"
                       >
                         <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Detail</span>
                       </button>
                       <button
                         type="button"
@@ -957,10 +958,11 @@ export function AdminServicesClient() {
                           e.stopPropagation();
                           handleOpenDetail(order, 'EDIT');
                         }}
-                        className="inline-flex h-8 items-center gap-1 rounded-full bg-slate-900 px-3 text-[11px] font-bold text-white dark:bg-white dark:text-black"
+                        title="Edit Servis"
+                        aria-label={`Edit servis #${order.code}`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white dark:bg-white dark:text-black"
                       >
                         <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Edit</span>
                       </button>
                     </div>
                   </div>
