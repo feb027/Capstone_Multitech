@@ -5,11 +5,9 @@ import { CustomerType, EntryMethod, IntakeType, ItemStatus } from '@prisma/clien
 import { getStatusMeta } from '@/lib/status';
 import { MockServiceOrder, SparepartItem } from '@/lib/frontend-mock';
 import { useDataset } from '@/lib/use-dataset';
-import { formatDate, formatRupiah } from '@/lib/utils';
+import { formatRupiah } from '@/lib/utils';
 import {
   Plus,
-  ArrowUpRight,
-  Clock,
   AlertCircle,
   CheckCircle2,
   Package,
@@ -31,12 +29,6 @@ function getOrderTotal(order: MockServiceOrder): number {
 
 function getOrderPaid(order: MockServiceOrder): number {
   return (order.payments || []).reduce((sum, pay) => sum + pay.amount, 0);
-}
-
-function getIntakeLabel(order: MockServiceOrder): string {
-  if (order.unitCategory === 'GENSET_INDUSTRI') return 'Genset';
-  if (order.entryMethod === EntryMethod.EKSPEDISI) return 'Ekspedisi';
-  return order.intakeType === IntakeType.MOBIL_UTUH ? 'Mobil Utuh' : 'Modul Saja';
 }
 
 function getShortModuleName(moduleName: string): string {
@@ -284,15 +276,15 @@ export function AdminDashboardClient({
 
       {/* Two-Column Operational Workspace */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        {/* Left: Detailed Active Orders */}
-        <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-5 lg:col-span-7">
+        {/* Left: Compact Active Orders Table */}
+        <section className="ios-glass-card self-start rounded-[24px] p-4 shadow-sm sm:p-5 lg:col-span-7">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                 Unit Dalam Penanganan
               </h2>
               <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                Klik unit untuk edit progres teknisi, modul, dan tagihan
+                Ringkasan antrean aktif, klik baris untuk detail &amp; edit
               </p>
             </div>
             <Link
@@ -303,108 +295,97 @@ export function AdminDashboardClient({
             </Link>
           </div>
 
+          <div className="hidden grid-cols-12 gap-2 border-b border-black/[0.06] pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:border-white/[0.08] dark:text-slate-400 sm:grid">
+            <span className="col-span-4">Unit</span>
+            <span className="col-span-3">Pelanggan</span>
+            <span className="col-span-3">Modul &amp; Status</span>
+            <span className="col-span-2 text-right">Tagihan</span>
+          </div>
+
           <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
             {recentOrders.map((order) => {
               const total = getOrderTotal(order);
               const paid = getOrderPaid(order);
               const isPaidFull = total > 0 && paid >= total;
               const isPartial = total > 0 && paid > 0 && paid < total;
-              const primaryComplaint =
-                order.items[0]?.complaint || order.conditionNotes || 'Pemeriksaan modul';
+              const primaryItem = order.items[0];
+              const primaryMeta = primaryItem ? getStatusMeta(primaryItem.status) : null;
+              const extraModuleCount = Math.max(0, order.items.length - 1);
 
               return (
                 <Link
                   key={order.id}
                   href={`/admin/services?orderId=${order.id}`}
-                  className="block py-3 transition-colors first:pt-1 last:pb-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+                  className="grid grid-cols-1 items-center gap-1.5 py-2.5 transition-colors first:pt-2 last:pb-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:grid-cols-12 sm:gap-2"
                 >
-                  {/* Top Row: Code, Unit Name, Plate, Intake Type */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                      <span className="rounded-md bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white dark:bg-white dark:text-slate-900">
+                  {/* Col 1: Unit */}
+                  <div className="min-w-0 sm:col-span-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="shrink-0 rounded-md bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white dark:bg-white dark:text-slate-900">
                         #{order.code}
                       </span>
                       <span className="truncate text-xs font-bold text-slate-900 dark:text-white">
                         {order.vehicleBrand} {order.vehicleModel}
-                        {order.vehicleYear ? ` (${order.vehicleYear})` : ''}
-                      </span>
-                      {order.plateNumber && (
-                        <span className="rounded-md border border-black/[0.08] bg-black/[0.03] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-700 dark:border-white/[0.1] dark:bg-white/[0.05] dark:text-slate-300">
-                          {order.plateNumber}
-                        </span>
-                      )}
-                      <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300">
-                        {getIntakeLabel(order)}
                       </span>
                     </div>
-
-                    <ArrowUpRight
-                      className="mt-0.5 h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500"
-                      aria-hidden="true"
-                    />
+                    {order.plateNumber && (
+                      <p className="mt-0.5 font-mono text-[10px] text-slate-500 dark:text-slate-400">
+                        {order.plateNumber}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Middle Row: Modules + Status Badges & Complaint */}
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    {order.items.map((item) => {
-                      const meta = getStatusMeta(item.status);
-                      return (
-                        <span
-                          key={item.id}
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${meta.badgeClass}`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${meta.dotClass}`} />
-                          <span>
-                            {getShortModuleName(item.moduleName)}: {meta.shortLabel}
-                          </span>
-                        </span>
-                      );
-                    })}
+                  {/* Col 2: Pelanggan */}
+                  <div className="flex min-w-0 items-center justify-between gap-2 sm:col-span-3 sm:block">
+                    <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      {order.customerName}
+                    </p>
+                    {order.customerType === CustomerType.MITRA && order.workshopName && (
+                      <p className="truncate text-[10px] text-slate-500 dark:text-slate-400">
+                        {order.workshopName}
+                      </p>
+                    )}
                   </div>
 
-                  <p className="mt-1.5 truncate text-[11px] text-slate-600 dark:text-slate-400">
-                    {primaryComplaint}
-                  </p>
-
-                  {/* Bottom Row: Customer, Target Date, Billing Progress */}
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                    <div className="flex min-w-0 items-center gap-2 text-slate-600 dark:text-slate-400">
-                      <span className="truncate font-semibold text-slate-800 dark:text-slate-200">
-                        {order.customerName}
+                  {/* Col 3: Modul & Status */}
+                  <div className="flex min-w-0 items-center gap-1 sm:col-span-3">
+                    {primaryItem && primaryMeta && (
+                      <span
+                        className={`inline-flex max-w-full items-center gap-1 truncate rounded-full border px-2 py-0.5 text-[10px] font-bold ${primaryMeta.badgeClass}`}
+                      >
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${primaryMeta.dotClass}`} />
+                        <span className="truncate">
+                          {getShortModuleName(primaryItem.moduleName)}: {primaryMeta.shortLabel}
+                        </span>
                       </span>
-                      {order.customerType === CustomerType.MITRA && order.workshopName && (
-                        <span className="hidden truncate rounded bg-black/[0.05] px-1.5 py-0.5 text-[10px] dark:bg-white/[0.08] sm:inline">
-                          {order.workshopName}
-                        </span>
-                      )}
-                      {order.estimatedDoneAt && (
-                        <span className="inline-flex shrink-0 items-center gap-1 text-[10px]">
-                          <Clock className="h-3 w-3" aria-hidden="true" />
-                          Target {formatDate(order.estimatedDoneAt)}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
-                        {total > 0 ? formatRupiah(total) : 'Estimasi -'}
+                    )}
+                    {extraModuleCount > 0 && (
+                      <span className="shrink-0 rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-white/[0.1] dark:text-slate-300">
+                        +{extraModuleCount}
                       </span>
-                      {isPaidFull && (
-                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-                          Lunas
-                        </span>
-                      )}
-                      {isPartial && (
-                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
-                          DP {formatRupiah(paid)}
-                        </span>
-                      )}
-                      {total > 0 && paid === 0 && (
-                        <span className="rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                          Belum Bayar
-                        </span>
-                      )}
-                    </div>
+                    )}
+                  </div>
+
+                  {/* Col 4: Tagihan */}
+                  <div className="flex items-center justify-between sm:col-span-2 sm:flex-col sm:items-end sm:justify-center">
+                    <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                      {total > 0 ? formatRupiah(total) : '-'}
+                    </span>
+                    {isPaidFull && (
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                        Lunas
+                      </span>
+                    )}
+                    {isPartial && (
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                        DP
+                      </span>
+                    )}
+                    {total > 0 && paid === 0 && (
+                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                        Belum Bayar
+                      </span>
+                    )}
                   </div>
                 </Link>
               );
