@@ -46,35 +46,6 @@ function toDateInputValue(iso?: string | null): string {
   return d.toISOString().slice(0, 10);
 }
 
-function getUrgencyMeta(estimatedDoneAt?: string | null): {
-  label: string;
-  badgeClass: string;
-} {
-  if (!estimatedDoneAt) {
-    return {
-      label: 'Terjadwal',
-      badgeClass: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
-    };
-  }
-  const diffHours = (new Date(estimatedDoneAt).getTime() - Date.now()) / (1000 * 60 * 60);
-  if (diffHours <= 24) {
-    return {
-      label: 'Urgent',
-      badgeClass: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
-    };
-  }
-  if (diffHours <= 48) {
-    return {
-      label: 'Segera',
-      badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-    };
-  }
-  return {
-    label: 'Terjadwal',
-    badgeClass: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
-  };
-}
-
 export function AdminDashboardClient({
   totalActive: initialTotalActive,
   totalCustomers: initialTotalCustomers,
@@ -350,10 +321,10 @@ export function AdminDashboardClient({
             </Link>
           </div>
 
-          <div className="hidden grid-cols-12 gap-3 border-b border-black/[0.06] pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:border-white/[0.08] dark:text-slate-400 sm:grid">
+          <div className="grid grid-cols-12 items-center gap-2 border-b border-black/[0.06] pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:border-white/[0.08] dark:text-slate-400">
             <span className="col-span-5">Unit</span>
             <span className="col-span-3">Pelanggan</span>
-            <span className="col-span-4">Modul &amp; Pengerjaan</span>
+            <span className="col-span-4 text-right">Modul &amp; Penanganan</span>
           </div>
 
           <div className="flex-1 divide-y divide-black/[0.06] dark:divide-white/[0.06]">
@@ -361,10 +332,10 @@ export function AdminDashboardClient({
               <Link
                 key={order.id}
                 href={`/admin/services?orderId=${order.id}`}
-                className="grid grid-cols-1 items-center gap-2 py-2.5 transition-colors first:pt-2 last:pb-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:grid-cols-12 sm:gap-3"
+                className="grid grid-cols-12 items-center gap-2 py-2.5 transition-colors first:pt-2 last:pb-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
               >
                 {/* Col 1: Unit */}
-                <div className="min-w-0 sm:col-span-5">
+                <div className="col-span-5 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="shrink-0 rounded-md bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white dark:bg-white dark:text-slate-900">
                       #{order.code}
@@ -381,7 +352,7 @@ export function AdminDashboardClient({
                 </div>
 
                 {/* Col 2: Pelanggan */}
-                <div className="flex min-w-0 items-center justify-between gap-2 sm:col-span-3 sm:block">
+                <div className="col-span-3 min-w-0">
                   <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
                     {order.customerName}
                   </p>
@@ -392,17 +363,17 @@ export function AdminDashboardClient({
                   )}
                 </div>
 
-                {/* Col 3: Modul & Pengerjaan */}
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:col-span-4">
+                {/* Col 3: Modul & Penanganan (Right-aligned) */}
+                <div className="col-span-4 flex min-w-0 flex-wrap items-center justify-end gap-1 text-right">
                   {order.items.map((item) => {
                     const meta = getStatusMeta(item.status);
                     return (
                       <span
                         key={item.id}
-                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${meta.badgeClass}`}
+                        className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${meta.badgeClass}`}
                       >
                         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dotClass}`} />
-                        <span>
+                        <span className="truncate">
                           {getShortModuleName(item.moduleName)}: {meta.shortLabel}
                         </span>
                       </span>
@@ -437,7 +408,6 @@ export function AdminDashboardClient({
           ) : (
             <div className="flex flex-1 flex-col justify-between gap-2.5">
               {urgentPriorityOrders.map((order) => {
-                const urgency = getUrgencyMeta(order.estimatedDoneAt);
                 const primaryItem = order.items[0];
                 const defaultReminder =
                   order.priorityNote ||
@@ -459,11 +429,6 @@ export function AdminDashboardClient({
                           </span>
                           <span className="truncate text-xs font-bold text-slate-900 dark:text-white">
                             {order.vehicleBrand} {order.vehicleModel}
-                          </span>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${urgency.badgeClass}`}
-                          >
-                            {urgency.label}
                           </span>
                         </div>
 
