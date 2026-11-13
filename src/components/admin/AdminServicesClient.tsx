@@ -677,7 +677,7 @@ export function AdminServicesClient() {
                   <th className="px-4 py-3.5">Kode &amp; Masuk</th>
                   <th className="px-4 py-3.5">Unit Servis</th>
                   <th className="px-4 py-3.5">Pelanggan</th>
-                  <th className="px-4 py-3.5">Modul &amp; Tahap Pengerjaan</th>
+                  <th className="px-4 py-3.5">Tahap Pengerjaan</th>
                   <th className="px-4 py-3.5 text-right">Tagihan</th>
                   <th className="px-4 py-3.5 text-right">Aksi</th>
                 </tr>
@@ -687,14 +687,10 @@ export function AdminServicesClient() {
                   const primaryItem = order.items[0];
                   const itemStatus = primaryItem?.status || ItemStatus.DITERIMA;
                   const statusMeta = getStatusMeta(itemStatus);
-                  const stepIndex = getProgressStepIndex(itemStatus);
-                  const isCancelled = itemStatus === ItemStatus.BATAL;
-                  const isDone = itemStatus === ItemStatus.SELESAI;
                   const totalCharges = calcTotalCharges(order);
                   const totalPaid = calcTotalPaid(order);
                   const isPaidFull = totalCharges > 0 && totalPaid >= totalCharges;
                   const isPartial = totalCharges > 0 && totalPaid > 0 && totalPaid < totalCharges;
-                  const extraModules = Math.max(0, order.items.length - 1);
 
                   return (
                     <tr
@@ -759,50 +755,14 @@ export function AdminServicesClient() {
                         </p>
                       </td>
 
-                      {/* Col 4: Modul & Tahap Visual 5-Langkah */}
-                      <td className="min-w-[230px] px-4 py-3.5 align-middle">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex min-w-0 items-center gap-1.5">
-                            <span className="truncate font-bold text-slate-900 dark:text-white">
-                              {primaryItem?.moduleName || 'Modul Servis'}
-                            </span>
-                            {extraModules > 0 && (
-                              <span className="shrink-0 rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-white/[0.1] dark:text-slate-300">
-                                +{extraModules}
-                              </span>
-                            )}
-                          </div>
-                          <span
-                            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold leading-none ${statusMeta.badgeClass}`}
-                          >
-                            <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dotClass}`} />
-                            {!isCancelled && !isDone
-                              ? `Tahap ${stepIndex + 1}/5 · ${statusMeta.shortLabel}`
-                              : statusMeta.shortLabel}
-                          </span>
-                        </div>
-
-                        {!isCancelled && (
-                          <div className="mt-2 grid grid-cols-5 gap-1" aria-hidden="true">
-                            {PROGRESS_STEPS.map((step, idx) => {
-                              const stepDone = isDone || idx < stepIndex;
-                              const stepActive = !isDone && idx === stepIndex;
-                              return (
-                                <div
-                                  key={step.key}
-                                  title={`${idx + 1}. ${step.label}`}
-                                  className={`h-1.5 rounded-full transition-colors ${
-                                    stepDone
-                                      ? 'bg-emerald-500 dark:bg-emerald-400'
-                                      : stepActive
-                                      ? 'bg-blue-600 dark:bg-blue-400'
-                                      : 'bg-slate-200 dark:bg-white/15'
-                                  }`}
-                                />
-                              );
-                            })}
-                          </div>
-                        )}
+                      {/* Col 4: Tahap Pengerjaan (Hanya tahapan yang sedang dikerjakan) */}
+                      <td className="whitespace-nowrap px-4 py-3.5 align-middle">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold leading-none ${statusMeta.badgeClass}`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dotClass}`} />
+                          {statusMeta.shortLabel}
+                        </span>
                       </td>
 
                       {/* Col 5: Tagihan Ringkas */}
@@ -874,9 +834,6 @@ export function AdminServicesClient() {
               const primaryItem = order.items[0];
               const itemStatus = primaryItem?.status || ItemStatus.DITERIMA;
               const statusMeta = getStatusMeta(itemStatus);
-              const stepIndex = getProgressStepIndex(itemStatus);
-              const isDone = itemStatus === ItemStatus.SELESAI;
-              const isCancelled = itemStatus === ItemStatus.BATAL;
               const totalCharges = calcTotalCharges(order);
 
               return (
@@ -907,27 +864,6 @@ export function AdminServicesClient() {
                       {statusMeta.shortLabel}
                     </span>
                   </div>
-
-                  {!isCancelled && (
-                    <div className="grid grid-cols-5 gap-1">
-                      {PROGRESS_STEPS.map((step, idx) => {
-                        const stepDone = isDone || idx < stepIndex;
-                        const stepActive = !isDone && idx === stepIndex;
-                        return (
-                          <div
-                            key={step.key}
-                            className={`h-1.5 rounded-full ${
-                              stepDone
-                                ? 'bg-emerald-500 dark:bg-emerald-400'
-                                : stepActive
-                                ? 'bg-blue-600 dark:bg-blue-400'
-                                : 'bg-slate-200 dark:bg-white/15'
-                            }`}
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
 
                   <div className="flex items-center justify-between gap-2 border-t border-black/[0.05] pt-2.5 dark:border-white/[0.06]">
                     <div className="min-w-0">
