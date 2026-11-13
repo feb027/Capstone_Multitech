@@ -42,6 +42,7 @@ import {
   Wrench,
   Camera,
   Car,
+  ChevronDown,
 } from 'lucide-react';
 
 const STATUS_FILTER_OPTIONS: Array<{ value: 'ALL' | ItemStatus; label: string }> = [
@@ -126,6 +127,11 @@ export function AdminServicesClient() {
   const [intakeCustomPhoto, setIntakeCustomPhoto] = useState<string | null>(null);
   const intakePhotoInputRef = useRef<HTMLInputElement>(null);
 
+  // Searchable combobox "Isi cepat pelanggan terdaftar"
+  const [isCustomerPickerOpen, setIsCustomerPickerOpen] = useState(false);
+  const [customerPickerSearch, setCustomerPickerSearch] = useState('');
+  const customerPickerRef = useRef<HTMLDivElement>(null);
+
   const intakeHeroPreview = getVehicleHeroImage(
     intakeBrand,
     intakeModel,
@@ -180,6 +186,42 @@ export function AdminServicesClient() {
       window.removeEventListener('keydown', onKey);
     };
   }, [isFilterOpen]);
+
+  // Tutup dropdown pelanggan terdaftar saat klik di luar / Escape
+  useEffect(() => {
+    if (!isCustomerPickerOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (customerPickerRef.current && !customerPickerRef.current.contains(e.target as Node)) {
+        setIsCustomerPickerOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsCustomerPickerOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [isCustomerPickerOpen]);
+
+  const filteredPickerCustomers = useMemo(() => {
+    const q = customerPickerSearch.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter((c) => {
+      const matchName = c.name.toLowerCase().includes(q);
+      const matchPhone = c.phone.toLowerCase().includes(q);
+      const matchWorkshop = (c.workshopName || '').toLowerCase().includes(q);
+      const matchVehicle = c.vehicles.some(
+        (v) =>
+          v.brand.toLowerCase().includes(q) ||
+          v.model.toLowerCase().includes(q) ||
+          (v.plateNumber || '').toLowerCase().includes(q)
+      );
+      return matchName || matchPhone || matchWorkshop || matchVehicle;
+    });
+  }, [customers, customerPickerSearch]);
 
   // Buka detail order untuk diedit
   const handleOpenDetail = (order: MockServiceOrder) => {
@@ -381,6 +423,8 @@ export function AdminServicesClient() {
     setIntakePlate('');
     setIntakeComplaint('');
     setIntakeCustomPhoto(null);
+    setIsCustomerPickerOpen(false);
+    setCustomerPickerSearch('');
   };
 
   // Filter list order servis
@@ -1540,41 +1584,135 @@ export function AdminServicesClient() {
 
               {/* Langkah 2: Informasi Pelanggan */}
               <div className="ios-glass-inner space-y-3 rounded-[22px] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.05] pb-2 dark:border-white/[0.06]">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-slate-700 dark:text-slate-300" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      2. Data Pelanggan
-                    </h3>
+                <div
+                  ref={customerPickerRef}
+                  className="relative space-y-2 border-b border-black/[0.05] pb-2.5 dark:border-white/[0.06]"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-slate-700 dark:text-slate-300" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        2. Data Pelanggan
+                      </h3>
+                    </div>
+
+                    {customers.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomerPickerOpen((prev) => !prev)}
+                        aria-expanded={isCustomerPickerOpen}
+                        aria-haspopup="listbox"
+                        className="inline-flex h-8 max-w-[240px] items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 text-[11px] font-semibold text-slate-700 shadow-xs transition-colors hover:bg-black/[0.03] dark:border-white/10 dark:bg-[#1C1C1E] dark:text-slate-200 dark:hover:bg-white/[0.06]"
+                      >
+                        <Search className="h-3 w-3 shrink-0 text-slate-500 dark:text-slate-400" />
+                        <span className="truncate">Isi cepat pelanggan terdaftar</span>
+                        <ChevronDown
+                          className={`h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform dark:text-slate-400 ${
+                            isCustomerPickerOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+                    )}
                   </div>
 
-                  {customers.length > 0 && (
-                    <select
-                      aria-label="Pilih pelanggan terdaftar"
-                      defaultValue=""
-                      onChange={(e) => {
-                        const selected = customers.find((c) => c.id === e.target.value);
-                        if (!selected) return;
-                        setIntakeName(selected.name);
-                        setIntakePhone(selected.phone);
-                        setIntakeCustomerType(selected.type);
-                        if (selected.type === CustomerType.MITRA) {
-                          setIntakeWorkshop(
-                            normalizeWorkshopName(selected.workshopName, CustomerType.MITRA) ||
-                              PARTNER_WORKSHOPS[0]
-                          );
-                        }
-                      }}
-                      className="h-8 max-w-[220px] rounded-full border border-black/10 bg-white px-3 text-[11px] font-semibold text-slate-700 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-slate-200"
+                  {isCustomerPickerOpen && (
+                    <div
+                      role="listbox"
+                      aria-label="Daftar pelanggan terdaftar"
+                      className="rounded-2xl border border-black/10 bg-white shadow-lg dark:border-white/10 dark:bg-[#1C1C1E]"
                     >
-                      <option value="">Isi cepat pelanggan terdaftar...</option>
-                      {customers.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                          {c.workshopName ? ` (${c.workshopName})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                      {/* Sticky Search Bar */}
+                      <div className="flex items-center gap-2 border-b border-black/[0.06] px-3 py-2 dark:border-white/[0.08]">
+                        <Search
+                          className="h-3.5 w-3.5 shrink-0 text-slate-500 dark:text-slate-400"
+                          aria-hidden="true"
+                        />
+                        <input
+                          type="text"
+                          autoFocus
+                          value={customerPickerSearch}
+                          onChange={(e) => setCustomerPickerSearch(e.target.value)}
+                          placeholder="Cari nama, WA, mitra, atau plat..."
+                          aria-label="Cari pelanggan terdaftar"
+                          className="h-7 min-w-0 flex-1 bg-transparent text-xs text-slate-900 placeholder-slate-400 focus:outline-none dark:text-white dark:placeholder-slate-500"
+                        />
+                        {customerPickerSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setCustomerPickerSearch('')}
+                            aria-label="Hapus pencarian pelanggan"
+                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-black/5 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Scrollable Customer List */}
+                      <div className="max-h-56 divide-y divide-black/[0.04] overflow-y-auto dark:divide-white/[0.06]">
+                        {filteredPickerCustomers.length === 0 ? (
+                          <p className="px-3.5 py-4 text-center text-xs text-slate-500 dark:text-slate-400">
+                            Pelanggan tidak ditemukan
+                          </p>
+                        ) : (
+                          filteredPickerCustomers.map((c) => {
+                            const vehicleSummary = c.vehicles
+                              .map((v) =>
+                                `${v.brand} ${v.model}${v.plateNumber ? ` (${v.plateNumber})` : ''}`.trim()
+                              )
+                              .join(', ');
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                role="option"
+                                aria-selected={
+                                  intakeName.trim().toLowerCase() === c.name.trim().toLowerCase() &&
+                                  intakePhone.trim() === c.phone
+                                }
+                                onClick={() => {
+                                  setIntakeName(c.name);
+                                  setIntakePhone(c.phone);
+                                  setIntakeCustomerType(c.type);
+                                  if (c.type === CustomerType.MITRA) {
+                                    setIntakeWorkshop(
+                                      normalizeWorkshopName(c.workshopName, CustomerType.MITRA) ||
+                                        PARTNER_WORKSHOPS[0]
+                                    );
+                                  }
+                                  setIsCustomerPickerOpen(false);
+                                  setCustomerPickerSearch('');
+                                }}
+                                className="flex w-full items-start justify-between gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="truncate text-xs font-bold text-slate-900 dark:text-white">
+                                      {c.name}
+                                    </span>
+                                    <span
+                                      className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                                        c.type === CustomerType.MITRA
+                                          ? 'bg-purple-500/15 text-purple-800 dark:text-purple-300'
+                                          : 'bg-blue-500/15 text-blue-800 dark:text-blue-300'
+                                      }`}
+                                    >
+                                      {c.type === CustomerType.MITRA
+                                        ? `Mitra: ${c.workshopName || PARTNER_WORKSHOPS[0]}`
+                                        : 'Perorangan'}
+                                    </span>
+                                  </div>
+                                  <p className="mt-0.5 truncate font-mono text-[10px] text-slate-500 dark:text-slate-400">
+                                    +{c.phone}
+                                    {vehicleSummary ? ` · ${vehicleSummary}` : ''}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
 
