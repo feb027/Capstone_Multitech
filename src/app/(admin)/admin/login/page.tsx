@@ -16,7 +16,16 @@ export default function AdminLoginPage() {
       <div className="ios-glass-card relative w-full max-w-sm overflow-hidden rounded-[32px] p-6 shadow-2xl sm:p-7">
         {/* Header di dalam kotak login: Logo & Pengubah Mode */}
         <div className="flex items-center justify-between gap-3">
-          <BrandLogo href="/" />
+          <Link
+            href="/"
+            className="flex min-h-[44px] items-center gap-2.5 tap-bounce"
+            aria-label="CV Multitech Beranda"
+          >
+            <BrandLogo href="" compact />
+            <span className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white">
+              CV Multitech
+            </span>
+          </Link>
           <ThemeToggle />
         </div>
 
