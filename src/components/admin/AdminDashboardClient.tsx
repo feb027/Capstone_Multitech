@@ -11,7 +11,7 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
-  Wrench,
+  BarChart3,
   Package,
 } from 'lucide-react';
 
@@ -23,15 +23,6 @@ interface AdminDashboardClientProps {
   recentOrders: MockServiceOrder[];
   lowStockParts: SparepartItem[];
 }
-
-const PIPELINE_KEYS: ItemStatus[] = [
-  ItemStatus.DITERIMA,
-  ItemStatus.DIAGNOSA,
-  ItemStatus.MENUNGGU_SPAREPART,
-  ItemStatus.PERBAIKAN,
-  ItemStatus.UJI_QC,
-  ItemStatus.SIAP_DIAMBIL,
-];
 
 function getOrderTotal(order: MockServiceOrder): number {
   return (order.charges || []).reduce((sum, line) => sum + line.qty * line.unitPrice, 0);
@@ -97,20 +88,6 @@ export function AdminDashboardClient({
   const peroranganCount = recentOrders.filter((o) => o.customerType === CustomerType.PERORANGAN).length;
   const mitraCount = recentOrders.filter((o) => o.customerType === CustomerType.MITRA).length;
 
-  const stageUnitsMap = PIPELINE_KEYS.reduce<Record<string, Array<{ orderId: string; code: string; label: string }>>>(
-    (acc, status) => {
-      acc[status] = allItems
-        .filter(({ item }) => item.status === status)
-        .map(({ order, item }) => ({
-          orderId: order.id,
-          code: order.code,
-          label: `${getShortModuleName(item.moduleName)} ${order.vehicleModel.split(' ')[0]}`,
-        }));
-      return acc;
-    },
-    {}
-  );
-
   const readyAlerts = allItems
     .filter(({ item }) => item.status === ItemStatus.SIAP_DIAMBIL)
     .map(({ order, item }) => ({
@@ -154,26 +131,25 @@ export function AdminDashboardClient({
 
   const priorityActions = [...readyAlerts, ...sparepartAlerts, ...billingAlerts].slice(0, 4);
 
-  const recentLogs = recentOrders
-    .flatMap((order) =>
-      order.items.flatMap((item) =>
-        item.logs.map((log) => ({
-          id: log.id,
-          orderId: order.id,
-          code: order.code,
-          unitLabel: `${order.vehicleBrand} ${order.vehicleModel}`,
-          moduleLabel: getShortModuleName(item.moduleName),
-          createdAt: log.createdAt,
-          note: log.note,
-        }))
-      )
-    )
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 4);
-
-  const totalPipelineCount = PIPELINE_KEYS.reduce(
-    (sum, status) => sum + (statusCounts[status] || 0),
-    0
+  const monthlyVisitors = [
+    { label: 'Jun', visitors: 5, perorangan: 3, mitra: 2 },
+    { label: 'Jul', visitors: 7, perorangan: 4, mitra: 3 },
+    { label: 'Agu', visitors: 6, perorangan: 4, mitra: 2 },
+    { label: 'Sep', visitors: 8, perorangan: 4, mitra: 4 },
+    { label: 'Okt', visitors: 9, perorangan: 5, mitra: 4 },
+    {
+      label: 'Nov',
+      visitors: Math.max(recentOrders.length, 5),
+      perorangan: peroranganCount,
+      mitra: mitraCount,
+    },
+  ];
+  const maxVisitors = Math.max(...monthlyVisitors.map((m) => m.visitors), 1);
+  const totalSixMonthVisitors = monthlyVisitors.reduce((sum, m) => sum + m.visitors, 0);
+  const avgMonthlyVisitors = Math.round(totalSixMonthVisitors / monthlyVisitors.length);
+  const peakMonth = monthlyVisitors.reduce(
+    (best, cur) => (cur.visitors > best.visitors ? cur : best),
+    monthlyVisitors[0]
   );
 
   return (
@@ -290,90 +266,6 @@ export function AdminDashboardClient({
           </p>
         </Link>
       </div>
-
-      {/* Pipeline Status Modul */}
-      <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-5">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Alur Pengerjaan Modul ({totalActiveModules} Modul Aktif)
-            </h2>
-          </div>
-          <Link
-            href="/admin/services"
-            className="shrink-0 text-xs font-semibold text-blue-700 hover:underline dark:text-blue-400"
-          >
-            Buka tabel servis
-          </Link>
-        </div>
-
-        {/* Segmented Proportion Bar */}
-        <div
-          className="mb-3 flex h-2 w-full overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.08]"
-          aria-label="Distribusi tahap modul aktif"
-        >
-          {PIPELINE_KEYS.map((status) => {
-            const count = statusCounts[status] || 0;
-            if (count === 0 || totalPipelineCount === 0) return null;
-            const meta = getStatusMeta(status);
-            const widthPct = (count / totalPipelineCount) * 100;
-            return (
-              <div
-                key={status}
-                className={`${meta.dotClass} h-full border-r border-white/60 last:border-r-0 dark:border-black/40`}
-                style={{ width: `${widthPct}%` }}
-                title={`${meta.label}: ${count}`}
-              />
-            );
-          })}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-          {PIPELINE_KEYS.map((status) => {
-            const meta = getStatusMeta(status);
-            const count = statusCounts[status] || 0;
-            const unitsInStage = stageUnitsMap[status] || [];
-
-            return (
-              <Link
-                key={status}
-                href={`/admin/services?status=${status}`}
-                className="ios-glass-inner flex min-w-0 flex-col justify-between rounded-2xl p-3 transition-colors hover:bg-black/5 tap-bounce dark:hover:bg-white/10"
-              >
-                <div className="flex items-center justify-between gap-1.5">
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dotClass}`} />
-                    <span className="truncate text-[11px] font-bold text-slate-800 dark:text-slate-200">
-                      {meta.shortLabel}
-                    </span>
-                  </div>
-                  <span className="shrink-0 rounded-md bg-black/[0.06] px-1.5 py-0.5 text-[11px] font-black tabular-nums text-slate-900 dark:bg-white/[0.1] dark:text-white">
-                    {count}
-                  </span>
-                </div>
-
-                <div className="mt-2 min-h-[28px] space-y-0.5">
-                  {unitsInStage.length > 0 ? (
-                    unitsInStage.slice(0, 2).map((u) => (
-                      <p
-                        key={`${status}-${u.orderId}-${u.label}`}
-                        className="truncate text-[10px] font-medium text-slate-600 dark:text-slate-400"
-                      >
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                          #{u.code}
-                        </span>{' '}
-                        {u.label}
-                      </p>
-                    ))
-                  ) : (
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500">Kosong</p>
-                  )}
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
 
       {/* Two-Column Operational Workspace */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
@@ -560,48 +452,78 @@ export function AdminDashboardClient({
             )}
           </section>
 
-          {/* Panel B: Aktivitas Meja Teknisi */}
+          {/* Panel B: Diagram Batang Kepadatan Pengunjung Bulanan */}
           <section className="ios-glass-card rounded-[24px] p-4 shadow-sm sm:p-5">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <Wrench className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" aria-hidden="true" />
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Aktivitas Meja Teknisi
-                </h2>
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Kepadatan Pengunjung Bulanan
+                  </h2>
+                </div>
+                <p className="mt-0.5 text-[11px] text-slate-600 dark:text-slate-400">
+                  Tren jumlah kedatangan unit &amp; pelanggan dari bulan ke bulan
+                </p>
               </div>
               <Link
-                href="/admin/services"
-                className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-400"
+                href="/admin/reports"
+                className="shrink-0 text-xs font-semibold text-blue-700 hover:underline dark:text-blue-400"
               >
-                Kelola log
+                Detail laporan
               </Link>
             </div>
 
-            <div className="space-y-2.5">
-              {recentLogs.map((log) => (
-                <Link
-                  key={log.id}
-                  href={`/admin/services?orderId=${log.orderId}`}
-                  className="ios-glass-inner block rounded-2xl p-3 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <span className="font-mono text-[10px] font-bold text-slate-900 dark:text-white">
-                        #{log.code}
-                      </span>
-                      <span className="truncate text-[11px] font-bold text-slate-800 dark:text-slate-200">
-                        {log.moduleLabel} · {log.unitLabel}
-                      </span>
+            <div className="mt-4 grid grid-cols-6 items-end gap-2">
+              {monthlyVisitors.map((m, idx) => {
+                const heightPct = Math.max(14, Math.round((m.visitors / maxVisitors) * 100));
+                const isLatest = idx === monthlyVisitors.length - 1;
+                return (
+                  <div key={m.label} className="flex min-w-0 flex-col items-center">
+                    <span className="mb-1 font-mono text-[11px] font-black tabular-nums text-slate-900 dark:text-white">
+                      {m.visitors}
+                    </span>
+                    <div className="flex h-32 w-full items-end justify-center rounded-xl bg-black/[0.04] p-1 dark:bg-white/[0.06] sm:h-36">
+                      <div
+                        style={{ height: `${heightPct}%` }}
+                        className={`w-full rounded-lg transition-all duration-500 ${
+                          isLatest
+                            ? 'bg-emerald-600 dark:bg-emerald-400'
+                            : 'bg-slate-900/80 dark:bg-white/80'
+                        }`}
+                        title={`${m.label}: ${m.visitors} kunjungan (${m.mitra} Mitra, ${m.perorangan} Perorangan)`}
+                      />
                     </div>
-                    <span className="shrink-0 text-[10px] text-slate-500 dark:text-slate-400">
-                      {formatDate(log.createdAt)}
+                    <span className="mt-1.5 text-[11px] font-bold text-slate-800 dark:text-slate-200">
+                      {m.label}
+                    </span>
+                    <span className="truncate font-mono text-[9px] text-slate-500 dark:text-slate-400">
+                      {m.mitra}M·{m.perorangan}P
                     </span>
                   </div>
-                  <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
-                    {log.note}
-                  </p>
-                </Link>
-              ))}
+                );
+              })}
+            </div>
+
+            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/[0.03] px-3 py-2 text-[11px] dark:bg-white/[0.04]">
+              <span className="text-slate-600 dark:text-slate-300">
+                Total 6 bln:{' '}
+                <strong className="font-mono text-slate-900 dark:text-white">
+                  {totalSixMonthVisitors} unit
+                </strong>
+              </span>
+              <span className="text-slate-600 dark:text-slate-300">
+                Puncak:{' '}
+                <strong className="font-mono text-slate-900 dark:text-white">
+                  {peakMonth.label} ({peakMonth.visitors})
+                </strong>
+              </span>
+              <span className="text-slate-600 dark:text-slate-300">
+                Rata-rata:{' '}
+                <strong className="font-mono text-slate-900 dark:text-white">
+                  {avgMonthlyVisitors}/bln
+                </strong>
+              </span>
             </div>
           </section>
         </div>
