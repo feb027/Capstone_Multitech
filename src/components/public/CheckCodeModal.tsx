@@ -134,7 +134,7 @@ export function CheckCodeModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-cek-status-title"
@@ -148,15 +148,14 @@ export function CheckCodeModal({
         aria-hidden="true"
       />
 
-      {/* Modal Sheet / Card */}
+      {/* Modal Popup Card */}
       <div
-        className={`ios-glass-card relative z-10 w-full max-w-md overflow-hidden rounded-t-[32px] p-5 shadow-2xl transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] sm:rounded-[32px] sm:p-7 ${
+        className={`ios-glass-card relative z-10 w-full max-w-sm sm:max-w-md overflow-hidden rounded-[28px] p-5 shadow-2xl transition-all duration-200 ease-out sm:rounded-[32px] sm:p-7 ${
           visible
-            ? 'translate-y-0 sm:scale-100 sm:opacity-100'
-            : 'translate-y-full sm:translate-y-4 sm:scale-95 sm:opacity-0'
+            ? 'scale-100 opacity-100 translate-y-0'
+            : 'scale-95 opacity-0 translate-y-2'
         }`}
       >
-        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-white/20 sm:hidden" aria-hidden="true" />
 
         <div className="flex items-start justify-between gap-3">
           <div>

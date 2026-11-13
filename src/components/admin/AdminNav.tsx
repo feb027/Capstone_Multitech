@@ -81,7 +81,7 @@ export function AdminHeaderMenu({ session }: { session?: { name?: string; email?
   }, [isOpen]);
 
   return (
-    <div ref={menuRef} className="relative">
+    <div ref={menuRef} className="relative hidden md:block">
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}

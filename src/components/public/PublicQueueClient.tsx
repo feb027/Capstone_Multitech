@@ -228,24 +228,22 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
         )}
       </div>
 
-      {/* Single Bottom Action Button (Hidden when CheckCodeModal is open) */}
-      {!isModalOpen && (
-        <div className="no-print fixed bottom-0 left-0 right-0 z-40 p-4 pointer-events-none">
-          <div className="mx-auto max-w-lg px-2 pointer-events-auto">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedOrderCode('');
-                setSelectedUnitLabel('');
-                setIsModalOpen(true);
-              }}
-              className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-xs font-bold text-white shadow-xl backdrop-blur-2xl transition-transform tap-bounce dark:bg-white dark:text-black"
-            >
-              <span>Cek Kode Servis</span>
-            </button>
-          </div>
+      {/* Single Bottom Action Button */}
+      <div className="no-print fixed bottom-0 left-0 right-0 z-40 p-4 pointer-events-none">
+        <div className="mx-auto max-w-lg px-2 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedOrderCode('');
+              setSelectedUnitLabel('');
+              setIsModalOpen(true);
+            }}
+            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-xs font-bold text-white shadow-xl backdrop-blur-2xl transition-transform tap-bounce dark:bg-white dark:text-black"
+          >
+            <span>Cek Kode Servis</span>
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Smooth Apple Modal Sheet */}
       <CheckCodeModal
