@@ -61,7 +61,7 @@ export function GroupedBarChart({
       )}
 
       {/* Main Plot Area */}
-      <div className="mt-6 flex min-w-0 items-stretch gap-1.5 sm:gap-2">
+      <div className="mt-8 flex min-w-0 items-stretch gap-1.5 sm:gap-2">
         {/* Vertical Y-Axis Title */}
         <div className="flex w-4 shrink-0 items-center justify-center sm:w-5">
           <span className="-rotate-90 whitespace-nowrap text-[10px] font-semibold text-slate-600 dark:text-slate-400 sm:text-[11px]">

@@ -20,7 +20,7 @@ export default async function AdminLayout({
     <div className="min-h-screen bg-[#ECEEF2] transition-colors dark:bg-black">
       <div className="ios-ambient-backdrop relative mx-auto flex min-h-screen max-w-5xl flex-col transition-colors">
         <header className="no-print sticky top-0 z-40 border-b border-black/[0.06] bg-white/75 backdrop-blur-2xl backdrop-saturate-150 transition-colors dark:border-white/[0.08] dark:bg-black/80">
-          <div className="mx-auto flex h-14 w-full items-center justify-between gap-3 px-4 sm:px-6">
+          <div className="mx-auto flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6">
             <div className="flex items-center gap-3">
               <Link
                 href="/admin/dashboard"
@@ -46,7 +46,7 @@ export default async function AdminLayout({
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-3.5 pb-24 sm:px-6 md:pb-12">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-5 pb-24 sm:px-6 md:pb-12">
           {children}
         </main>
 
