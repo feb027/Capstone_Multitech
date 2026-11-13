@@ -39,6 +39,10 @@ export default async function TrackingDetailPage({ params }: TrackPageProps) {
       complaint: string;
       status: string;
       warrantyMonths: number | null;
+      beforePhotoUrl?: string | null;
+      afterPhotoUrl?: string | null;
+      beforeCaption?: string | null;
+      afterCaption?: string | null;
       logs: Array<{
         id: string;
         createdAt: string | Date;
@@ -170,6 +174,10 @@ export default async function TrackingDetailPage({ params }: TrackPageProps) {
           complaint: it.complaint,
           status: it.status,
           warrantyMonths: it.warrantyMonths,
+          beforePhotoUrl: it.beforePhotoUrl ?? null,
+          afterPhotoUrl: it.afterPhotoUrl ?? null,
+          beforeCaption: it.beforeCaption ?? null,
+          afterCaption: it.afterCaption ?? null,
           logs: it.logs
             .filter((l) => l.isPublic)
             .map((l) => ({

@@ -53,7 +53,62 @@ export interface MockServiceItem {
   complaint: string;
   status: ItemStatus;
   warrantyMonths: number;
+  beforePhotoUrl?: string | null;
+  afterPhotoUrl?: string | null;
+  beforeCaption?: string | null;
+  afterCaption?: string | null;
   logs: MockProgressLog[];
+}
+
+export function getDefaultBeforeAfter(
+  moduleName?: string,
+  unitCategory?: string
+): {
+  beforePhotoUrl: string;
+  afterPhotoUrl: string;
+  beforeCaption: string;
+  afterCaption: string;
+} {
+  const name = (moduleName || '').toLowerCase();
+
+  if (
+    unitCategory === 'GENSET_INDUSTRI' ||
+    name.includes('genset') ||
+    name.includes('amf') ||
+    name.includes('dse')
+  ) {
+    return {
+      beforePhotoUrl: '/images/units/genset-dse7320.png',
+      afterPhotoUrl: '/images/shop/multitech-genset-units.jpg',
+      beforeCaption: 'Kondisi awal panel controller blank & regulator DC-DC 24V putus.',
+      afterCaption: 'Penggantian IC regulator DC-DC & re-soldering jalur power, display normal.',
+    };
+  }
+
+  if (name.includes('speedometer') || name.includes('cluster') || name.includes('odometer')) {
+    return {
+      beforePhotoUrl: '/images/units/speedometer-cluster.jpg',
+      afterPhotoUrl: '/images/units/speedometer-cluster.jpg',
+      beforeCaption: 'Kondisi awal layar LCD redup & jarum RPM tidak stabil.',
+      afterCaption: 'Penggantian IC regulator 5V, kapasitor filter, dan kalibrasi jarum RPM.',
+    };
+  }
+
+  if (name.includes('eps') || name.includes('bcm')) {
+    return {
+      beforePhotoUrl: '/images/units/eps-bcm-module.jpg',
+      afterPhotoUrl: '/images/units/eps-bcm-module.jpg',
+      beforeCaption: 'Kondisi awal soket & jalur relay modul mengalami korosi / pin lemah.',
+      afterCaption: 'Penggantian relay dual-coil Omron & pembersihan PCB, bench test lolos QC.',
+    };
+  }
+
+  return {
+    beforePhotoUrl: '/images/units/ecu-module.jpg',
+    afterPhotoUrl: '/images/units/ecu-module.jpg',
+    beforeCaption: 'Kondisi awal transistor driver coil & jalur PCB bermasalah (drop tegangan).',
+    afterCaption: 'Penggantian IC driver baru, reballing & uji osiloskop sinyal output normal.',
+  };
 }
 
 export interface MockChargeLine {
@@ -559,6 +614,16 @@ export function synchronizeDataset(
       vehicleBrand: (raw.vehicleBrand || '').trim(),
       vehicleModel: (raw.vehicleModel || '').trim(),
       plateNumber: raw.plateNumber ? raw.plateNumber.trim().toUpperCase() : null,
+      items: (raw.items || []).map((item) => {
+        const defaults = getDefaultBeforeAfter(item.moduleName, raw.unitCategory);
+        return {
+          ...item,
+          beforePhotoUrl: item.beforePhotoUrl || defaults.beforePhotoUrl,
+          afterPhotoUrl: item.afterPhotoUrl || defaults.afterPhotoUrl,
+          beforeCaption: item.beforeCaption || defaults.beforeCaption,
+          afterCaption: item.afterCaption || defaults.afterCaption,
+        };
+      }),
     });
   }
 

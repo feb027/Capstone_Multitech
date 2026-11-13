@@ -51,6 +51,10 @@ interface TrackingOrderProp {
     complaint: string;
     status: string;
     warrantyMonths: number | null;
+    beforePhotoUrl?: string | null;
+    afterPhotoUrl?: string | null;
+    beforeCaption?: string | null;
+    afterCaption?: string | null;
     logs: Array<{
       id: string;
       createdAt: string | Date;
@@ -357,6 +361,69 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
               ) : (
                 <div className="rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
                   Pengerjaan modul ini dibatalkan.
+                </div>
+              )}
+
+              {(item.beforePhotoUrl || item.afterPhotoUrl || item.beforeCaption || item.afterCaption) && (
+                <div className="border-t border-slate-100 pt-3 dark:border-white/[0.06]">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                    Dokumentasi Before &amp; After Perbaikan
+                  </p>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <div className="overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-2.5 dark:bg-amber-950/20">
+                      <span className="inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                        BEFORE · Kondisi Awal
+                      </span>
+                      {item.beforePhotoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotoError(false);
+                            setActivePhoto(item.beforePhotoUrl || null);
+                          }}
+                          className="mt-2 block w-full overflow-hidden rounded-xl border border-black/[0.06] dark:border-white/[0.08]"
+                        >
+                          <img
+                            src={item.beforePhotoUrl}
+                            alt={`Kondisi awal ${item.moduleType.name}`}
+                            className="h-28 w-full object-cover"
+                          />
+                        </button>
+                      )}
+                      {item.beforeCaption && (
+                        <p className="mt-1.5 text-[11px] leading-snug text-slate-700 dark:text-slate-300">
+                          {item.beforeCaption}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-2.5 dark:bg-emerald-950/20">
+                      <span className="inline-block rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                        AFTER · Setelah Diperbaiki
+                      </span>
+                      {item.afterPhotoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotoError(false);
+                            setActivePhoto(item.afterPhotoUrl || null);
+                          }}
+                          className="mt-2 block w-full overflow-hidden rounded-xl border border-black/[0.06] dark:border-white/[0.08]"
+                        >
+                          <img
+                            src={item.afterPhotoUrl}
+                            alt={`Setelah diperbaiki ${item.moduleType.name}`}
+                            className="h-28 w-full object-cover"
+                          />
+                        </button>
+                      )}
+                      {item.afterCaption && (
+                        <p className="mt-1.5 text-[11px] leading-snug text-slate-700 dark:text-slate-300">
+                          {item.afterCaption}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
