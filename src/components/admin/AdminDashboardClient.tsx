@@ -191,13 +191,26 @@ export function AdminDashboardClient({
     setEditingPriorityId(null);
   };
 
+  const novOrderCount = recentOrders.filter(
+    (o) => new Date(o.receivedAt).getMonth() === 10
+  ).length;
+  const decOrderCount = recentOrders.filter(
+    (o) => new Date(o.receivedAt).getMonth() === 11
+  ).length;
+
   const monthlyVisitors = [
+    { label: 'Jan', visitors: 4 },
+    { label: 'Feb', visitors: 6 },
+    { label: 'Mar', visitors: 5 },
+    { label: 'Apr', visitors: 7 },
+    { label: 'Mei', visitors: 6 },
     { label: 'Jun', visitors: 5 },
     { label: 'Jul', visitors: 7 },
     { label: 'Agu', visitors: 6 },
     { label: 'Sep', visitors: 8 },
     { label: 'Okt', visitors: 9 },
-    { label: 'Nov', visitors: Math.max(recentOrders.length, 5) },
+    { label: 'Nov', visitors: Math.max(novOrderCount, recentOrders.length, 5) },
+    { label: 'Des', visitors: 4 + decOrderCount },
   ];
   const maxVisitors = Math.max(...monthlyVisitors.map((m) => m.visitors), 10);
   const visitorTopTick = Math.ceil(maxVisitors / 5) * 5;
@@ -563,7 +576,7 @@ export function AdminDashboardClient({
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/[0.03] px-4 py-2.5 text-[11px] dark:bg-white/[0.04]">
           <span className="text-slate-600 dark:text-slate-300">
-            Total 6 bln:{' '}
+            Total Jan-Des:{' '}
             <strong className="font-mono text-slate-900 dark:text-white">
               {totalSixMonthVisitors} unit
             </strong>

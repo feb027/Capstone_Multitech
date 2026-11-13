@@ -88,12 +88,18 @@ export function AdminReportsClient() {
       string,
       { label: string; revenue: number; billed: number; count: number; mitraCount: number; peroranganCount: number }
     > = {
+      '0': { label: 'Jan', revenue: 5200000, billed: 5800000, count: 4, mitraCount: 2, peroranganCount: 2 },
+      '1': { label: 'Feb', revenue: 7400000, billed: 8100000, count: 6, mitraCount: 3, peroranganCount: 3 },
+      '2': { label: 'Mar', revenue: 6300000, billed: 6900000, count: 5, mitraCount: 2, peroranganCount: 3 },
+      '3': { label: 'Apr', revenue: 8600000, billed: 9400000, count: 7, mitraCount: 3, peroranganCount: 4 },
+      '4': { label: 'Mei', revenue: 7500000, billed: 8200000, count: 6, mitraCount: 2, peroranganCount: 4 },
       '5': { label: 'Jun', revenue: 6500000, billed: 7200000, count: 5, mitraCount: 2, peroranganCount: 3 },
       '6': { label: 'Jul', revenue: 8400000, billed: 9100000, count: 7, mitraCount: 3, peroranganCount: 4 },
       '7': { label: 'Agu', revenue: 7800000, billed: 8500000, count: 6, mitraCount: 2, peroranganCount: 4 },
       '8': { label: 'Sep', revenue: 9900000, billed: 11200000, count: 8, mitraCount: 4, peroranganCount: 4 },
       '9': { label: 'Okt', revenue: 11500000, billed: 12800000, count: 9, mitraCount: 4, peroranganCount: 5 },
       '10': { label: 'Nov', revenue: 0, billed: 0, count: 0, mitraCount: 0, peroranganCount: 0 },
+      '11': { label: 'Des', revenue: 4900000, billed: 5400000, count: 4, mitraCount: 2, peroranganCount: 2 },
     };
 
     // Tambahkan data dari filteredOrders untuk bulan berjalan (Nov)
