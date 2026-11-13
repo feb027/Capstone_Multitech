@@ -317,9 +317,9 @@ export function AdminDashboardClient({
       </div>
 
       {/* Two-Column Operational Workspace */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-stretch">
         {/* Left: Compact Active Orders Table */}
-        <section className="ios-glass-card self-start rounded-[24px] p-4 shadow-sm sm:p-5 lg:col-span-7">
+        <section className="ios-glass-card flex h-full flex-col rounded-[24px] p-4 shadow-sm sm:p-5 lg:col-span-7">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -337,106 +337,72 @@ export function AdminDashboardClient({
             </Link>
           </div>
 
-          <div className="hidden grid-cols-12 gap-2 border-b border-black/[0.06] pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:border-white/[0.08] dark:text-slate-400 sm:grid">
-            <span className="col-span-4">Unit</span>
+          <div className="hidden grid-cols-12 gap-3 border-b border-black/[0.06] pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:border-white/[0.08] dark:text-slate-400 sm:grid">
+            <span className="col-span-5">Unit</span>
             <span className="col-span-3">Pelanggan</span>
-            <span className="col-span-3">Modul &amp; Status</span>
-            <span className="col-span-2 text-right">Tagihan</span>
+            <span className="col-span-4">Modul &amp; Pengerjaan</span>
           </div>
 
-          <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
-            {recentOrders.map((order) => {
-              const total = getOrderTotal(order);
-              const paid = getOrderPaid(order);
-              const isPaidFull = total > 0 && paid >= total;
-              const isPartial = total > 0 && paid > 0 && paid < total;
-              const primaryItem = order.items[0];
-              const primaryMeta = primaryItem ? getStatusMeta(primaryItem.status) : null;
-              const extraModuleCount = Math.max(0, order.items.length - 1);
-
-              return (
-                <Link
-                  key={order.id}
-                  href={`/admin/services?orderId=${order.id}`}
-                  className="grid grid-cols-1 items-center gap-1.5 py-2.5 transition-colors first:pt-2 last:pb-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:grid-cols-12 sm:gap-2"
-                >
-                  {/* Col 1: Unit */}
-                  <div className="min-w-0 sm:col-span-4">
-                    <div className="flex items-center gap-1.5">
-                      <span className="shrink-0 rounded-md bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white dark:bg-white dark:text-slate-900">
-                        #{order.code}
-                      </span>
-                      <span className="truncate text-xs font-bold text-slate-900 dark:text-white">
-                        {order.vehicleBrand} {order.vehicleModel}
-                      </span>
-                    </div>
-                    {order.plateNumber && (
-                      <p className="mt-0.5 font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                        {order.plateNumber}
-                      </p>
-                    )}
+          <div className="flex-1 divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+            {recentOrders.map((order) => (
+              <Link
+                key={order.id}
+                href={`/admin/services?orderId=${order.id}`}
+                className="grid grid-cols-1 items-center gap-2 py-2.5 transition-colors first:pt-2 last:pb-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:grid-cols-12 sm:gap-3"
+              >
+                {/* Col 1: Unit */}
+                <div className="min-w-0 sm:col-span-5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="shrink-0 rounded-md bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white dark:bg-white dark:text-slate-900">
+                      #{order.code}
+                    </span>
+                    <span className="truncate text-xs font-bold text-slate-900 dark:text-white">
+                      {order.vehicleBrand} {order.vehicleModel}
+                    </span>
                   </div>
-
-                  {/* Col 2: Pelanggan */}
-                  <div className="flex min-w-0 items-center justify-between gap-2 sm:col-span-3 sm:block">
-                    <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      {order.customerName}
+                  {order.plateNumber && (
+                    <p className="mt-0.5 font-mono text-[10px] text-slate-500 dark:text-slate-400">
+                      {order.plateNumber}
                     </p>
-                    {order.customerType === CustomerType.MITRA && order.workshopName && (
-                      <p className="truncate text-[10px] text-slate-500 dark:text-slate-400">
-                        {order.workshopName}
-                      </p>
-                    )}
-                  </div>
+                  )}
+                </div>
 
-                  {/* Col 3: Modul & Status */}
-                  <div className="flex min-w-0 items-center gap-1 sm:col-span-3">
-                    {primaryItem && primaryMeta && (
+                {/* Col 2: Pelanggan */}
+                <div className="flex min-w-0 items-center justify-between gap-2 sm:col-span-3 sm:block">
+                  <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    {order.customerName}
+                  </p>
+                  {order.customerType === CustomerType.MITRA && order.workshopName && (
+                    <p className="truncate text-[10px] text-slate-500 dark:text-slate-400">
+                      {order.workshopName}
+                    </p>
+                  )}
+                </div>
+
+                {/* Col 3: Modul & Pengerjaan */}
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:col-span-4">
+                  {order.items.map((item) => {
+                    const meta = getStatusMeta(item.status);
+                    return (
                       <span
-                        className={`inline-flex max-w-full items-center gap-1 truncate rounded-full border px-2 py-0.5 text-[10px] font-bold ${primaryMeta.badgeClass}`}
+                        key={item.id}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${meta.badgeClass}`}
                       >
-                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${primaryMeta.dotClass}`} />
-                        <span className="truncate">
-                          {getShortModuleName(primaryItem.moduleName)}: {primaryMeta.shortLabel}
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dotClass}`} />
+                        <span>
+                          {getShortModuleName(item.moduleName)}: {meta.shortLabel}
                         </span>
                       </span>
-                    )}
-                    {extraModuleCount > 0 && (
-                      <span className="shrink-0 rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-white/[0.1] dark:text-slate-300">
-                        +{extraModuleCount}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Col 4: Tagihan */}
-                  <div className="flex items-center justify-between sm:col-span-2 sm:flex-col sm:items-end sm:justify-center">
-                    <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
-                      {total > 0 ? formatRupiah(total) : '-'}
-                    </span>
-                    {isPaidFull && (
-                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-                        Lunas
-                      </span>
-                    )}
-                    {isPartial && (
-                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300">
-                        DP
-                      </span>
-                    )}
-                    {total > 0 && paid === 0 && (
-                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                        Belum Bayar
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
+                    );
+                  })}
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
 
         {/* Right: Top 3 Prioritas Tindak Lanjut (Editable Reminder berdasarkan Estimasi Selesai) */}
-        <section className="ios-glass-card self-start rounded-[24px] p-4 shadow-sm sm:p-5 lg:col-span-5">
+        <section className="ios-glass-card flex h-full flex-col rounded-[24px] p-4 shadow-sm sm:p-5 lg:col-span-5">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -456,7 +422,7 @@ export function AdminDashboardClient({
               Semua unit sudah selesai atau belum memiliki target estimasi.
             </p>
           ) : (
-            <div className="space-y-2.5">
+            <div className="flex flex-1 flex-col justify-between gap-2.5">
               {urgentPriorityOrders.map((order) => {
                 const urgency = getUrgencyMeta(order.estimatedDoneAt);
                 const primaryItem = order.items[0];
