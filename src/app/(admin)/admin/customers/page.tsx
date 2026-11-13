@@ -1,8 +1,11 @@
 import { prisma } from '@/lib/db';
 import { AdminCustomersClient, CustomerRow } from './AdminCustomersClient';
-import { INITIAL_CUSTOMERS } from '@/lib/frontend-mock';
+import { getServerDataset } from '@/lib/dataset-store';
+
+export const dynamic = 'force-dynamic';
 
 async function getCustomers(): Promise<CustomerRow[]> {
+  const dataset = getServerDataset();
   try {
     const customers = await prisma.customer.findMany({
       include: {
@@ -13,11 +16,11 @@ async function getCustomers(): Promise<CustomerRow[]> {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return customers.length >= INITIAL_CUSTOMERS.length
+    return customers.length > dataset.customers.length
       ? (customers as CustomerRow[])
-      : (INITIAL_CUSTOMERS as CustomerRow[]);
+      : (dataset.customers as CustomerRow[]);
   } catch {
-    return INITIAL_CUSTOMERS as CustomerRow[];
+    return dataset.customers as CustomerRow[];
   }
 }
 

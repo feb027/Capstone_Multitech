@@ -2,25 +2,27 @@ import { prisma } from '@/lib/db';
 import { ItemStatus } from '@prisma/client';
 import { PublicQueueClient } from '@/components/public/PublicQueueClient';
 import { QueueCardProps } from '@/components/public/QueueCard';
-import { INITIAL_SERVICE_ORDERS } from '@/lib/frontend-mock';
+import { getServerDataset } from '@/lib/dataset-store';
 
-export const revalidate = 30;
+export const dynamic = 'force-dynamic';
 
-const FALLBACK_ORDERS: QueueCardProps[] = INITIAL_SERVICE_ORDERS.map((o) => ({
-  publicId: o.publicId,
-  code: o.code,
-  vehicleBrand: o.vehicleBrand,
-  vehicleModel: o.vehicleModel,
-  vehicleYear: o.vehicleYear,
-  intakeType: o.intakeType,
-  unitCategory: o.unitCategory,
-  receivedAt: o.receivedAt,
-  items: o.items.map((i) => ({
-    id: i.id,
-    moduleName: i.moduleName,
-    status: i.status,
-  })),
-}));
+function getFallbackOrders(): QueueCardProps[] {
+  return getServerDataset().orders.map((o) => ({
+    publicId: o.publicId,
+    code: o.code,
+    vehicleBrand: o.vehicleBrand,
+    vehicleModel: o.vehicleModel,
+    vehicleYear: o.vehicleYear,
+    intakeType: o.intakeType,
+    unitCategory: o.unitCategory,
+    receivedAt: o.receivedAt,
+    items: o.items.map((i) => ({
+      id: i.id,
+      moduleName: i.moduleName,
+      status: i.status,
+    })),
+  }));
+}
 
 async function getActiveOrders(): Promise<QueueCardProps[]> {
   try {
@@ -65,7 +67,7 @@ async function getActiveOrders(): Promise<QueueCardProps[]> {
     });
 
     if (orders.length === 0) {
-      return FALLBACK_ORDERS;
+      return getFallbackOrders();
     }
 
     return orders.map((o) => ({
@@ -86,7 +88,7 @@ async function getActiveOrders(): Promise<QueueCardProps[]> {
       })),
     }));
   } catch {
-    return FALLBACK_ORDERS;
+    return getFallbackOrders();
   }
 }
 

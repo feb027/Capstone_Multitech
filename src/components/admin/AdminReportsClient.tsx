@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { INITIAL_SERVICE_ORDERS, MockServiceOrder } from '@/lib/frontend-mock';
+import { MockServiceOrder } from '@/lib/frontend-mock';
+import { useDataset } from '@/lib/use-dataset';
 import { WORKSHOP_PROFILE, getStatusMeta } from '@/lib/status';
 import { BrandLogo } from '@/components/shared/BrandLogo';
 import { formatDate, formatRupiah } from '@/lib/utils';
@@ -33,11 +34,12 @@ function formatVehicleLabel(order: MockServiceOrder): string {
 }
 
 export function AdminReportsClient() {
+  const { orders } = useDataset();
   const [period, setPeriod] = useState('ALL');
 
   // Filter order sesuai pilihan tab
   const filteredOrders = useMemo(() => {
-    return INITIAL_SERVICE_ORDERS.filter((order) => {
+    return orders.filter((order) => {
       const orderDate = new Date(order.receivedAt);
       const now = new Date();
 
@@ -56,7 +58,7 @@ export function AdminReportsClient() {
       if (period === 'PERORANGAN') return order.customerType === 'PERORANGAN';
       return true;
     });
-  }, [period]);
+  }, [orders, period]);
 
   // Kalkulasi agregat keuangan
   const summary = useMemo(() => {

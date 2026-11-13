@@ -3,7 +3,8 @@
 import { prisma } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { INITIAL_SERVICE_ORDERS } from '@/lib/frontend-mock';
+import { getServerDataset } from '@/lib/dataset-store';
+import { normalizePhone } from '@/lib/frontend-mock';
 
 // Fallback verified codes for all initial units
 const MOCK_CODES: Record<string, { phoneLast4: string; publicId: string }> = {
@@ -57,18 +58,19 @@ export async function verifyCustomerAccessAction(
     console.warn('Database offline, checking mock codes fallback for code:', cleanCode);
   }
 
-  // Check mock code fallback if not resolved from DB
+  // Check synchronized dataset fallback if not resolved from DB
   if (!matchedPublicId) {
-    const mockOrder = INITIAL_SERVICE_ORDERS.find(
-      (o) => o.code === cleanCode || o.customerPhone.endsWith(cleanPhoneLast4)
+    const datasetOrders = getServerDataset().orders;
+    const mockOrder = datasetOrders.find(
+      (o) =>
+        o.code === cleanCode &&
+        normalizePhone(o.customerPhone).endsWith(cleanPhoneLast4)
     );
     const mock = MOCK_CODES[cleanCode];
 
-    if (mock && mock.phoneLast4 === cleanPhoneLast4) {
-      matchedPublicId = mock.publicId;
-    } else if (mockOrder && (mockOrder.code === cleanCode || mockOrder.customerPhone.endsWith(cleanPhoneLast4))) {
+    if (mockOrder) {
       matchedPublicId = mockOrder.publicId;
-    } else if (mock) {
+    } else if (mock && mock.phoneLast4 === cleanPhoneLast4) {
       matchedPublicId = mock.publicId;
     } else {
       return { error: 'Kode servis atau 4 digit nomor HP tidak cocok.' };

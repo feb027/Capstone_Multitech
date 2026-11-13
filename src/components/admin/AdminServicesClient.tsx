@@ -4,12 +4,15 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CustomerType, EntryMethod, IntakeType, ItemStatus, PaymentMethod } from '@prisma/client';
 import {
-  INITIAL_SERVICE_ORDERS,
   MockServiceOrder,
   MockProgressLog,
   MockChargeLine,
   MockPayment,
+  PARTNER_WORKSHOPS,
+  normalizePhone,
+  normalizeWorkshopName,
 } from '@/lib/frontend-mock';
+import { useDataset } from '@/lib/use-dataset';
 import {
   ITEM_STATUS_LIST,
   getStatusMeta,
@@ -90,7 +93,7 @@ export function AdminServicesClient() {
   const initialSearchParam = searchParams.get('search') || searchParams.get('customer') || '';
   const shouldOpenNew = searchParams.get('new') === '1';
 
-  const [orders, setOrders] = useState<MockServiceOrder[]>(INITIAL_SERVICE_ORDERS);
+  const { orders, customers, upsertOrder } = useDataset();
   const [searchQuery, setSearchQuery] = useState(initialSearchParam);
   const [statusFilter, setStatusFilter] = useState<'ALL' | ItemStatus>(
     initialStatusParam && ITEM_STATUS_LIST.some((s) => s.key === initialStatusParam)
@@ -113,7 +116,7 @@ export function AdminServicesClient() {
   const [intakeName, setIntakeName] = useState('');
   const [intakePhone, setIntakePhone] = useState('');
   const [intakeCustomerType, setIntakeCustomerType] = useState<CustomerType>(CustomerType.PERORANGAN);
-  const [intakeWorkshop, setIntakeWorkshop] = useState('');
+  const [intakeWorkshop, setIntakeWorkshop] = useState<string>(PARTNER_WORKSHOPS[0]);
   const [intakeChoice, setIntakeChoice] = useState<IntakeChoice>('MOBIL_UTUH');
   const [intakeBrand, setIntakeBrand] = useState('');
   const [intakeModel, setIntakeModel] = useState('');
@@ -185,15 +188,22 @@ export function AdminServicesClient() {
     setSaveSuccess(false);
   };
 
-  // Simpan perubahan order yang diedit admin
-  const handleSaveOrderChanges = (e: React.FormEvent) => {
+  // Simpan perubahan order yang diedit admin (sinkron ke dataset)
+  const handleSaveOrderChanges = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editOrder) return;
 
-    setOrders((prev) =>
-      prev.map((o) => (o.id === editOrder.id ? { ...editOrder } : o))
-    );
-    setSelectedOrder({ ...editOrder });
+    const normalizedOrder: MockServiceOrder = {
+      ...editOrder,
+      customerName: editOrder.customerName.trim(),
+      customerPhone: normalizePhone(editOrder.customerPhone),
+      workshopName: normalizeWorkshopName(editOrder.workshopName, editOrder.customerType),
+      plateNumber: editOrder.plateNumber ? editOrder.plateNumber.trim().toUpperCase() : null,
+    };
+
+    await upsertOrder(normalizedOrder);
+    setEditOrder(normalizedOrder);
+    setSelectedOrder(normalizedOrder);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
   };
@@ -299,9 +309,15 @@ export function AdminServicesClient() {
   };
 
   // Submit penerimaan unit baru (informasi unit & pelanggan saja)
-  const handleCreateIntake = (e: React.FormEvent) => {
+  const handleCreateIntake = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newCode = generate4DigitCode();
+    let newCode = generate4DigitCode();
+    let guard = 0;
+    while (orders.some((o) => o.code === newCode) && guard < 20) {
+      newCode = generate4DigitCode();
+      guard += 1;
+    }
+
     const isGenset = intakeChoice === 'GENSET_INDUSTRI';
     const isMobilUtuh = intakeChoice === 'MOBIL_UTUH';
     const resolvedCondition =
@@ -312,16 +328,16 @@ export function AdminServicesClient() {
       publicId: `${(intakeModel || 'unit').toLowerCase().replace(/\s+/g, '-')}-${newCode}`,
       code: newCode,
       customerName: intakeName.trim(),
-      customerPhone: intakePhone.trim(),
+      customerPhone: normalizePhone(intakePhone),
       customerType: intakeCustomerType,
-      workshopName: intakeCustomerType === CustomerType.MITRA ? intakeWorkshop.trim() : null,
+      workshopName: normalizeWorkshopName(intakeWorkshop, intakeCustomerType),
       intakeType: isMobilUtuh ? IntakeType.MOBIL_UTUH : IntakeType.MODUL_SAJA,
       entryMethod: EntryMethod.DATANG,
       unitCategory: isGenset ? 'GENSET_INDUSTRI' : 'OTOMOTIF',
       vehicleBrand: intakeBrand.trim() || (isGenset ? 'Deep Sea' : 'Toyota'),
       vehicleModel: intakeModel.trim() || (isGenset ? 'Genset Controller DSE' : 'Avanza'),
       vehicleYear: parseInt(intakeYear, 10) || 2019,
-      plateNumber: intakePlate.trim() || null,
+      plateNumber: intakePlate.trim() ? intakePlate.trim().toUpperCase() : null,
       conditionNotes: resolvedCondition,
       customPhotoUrl: intakeCustomPhoto,
       receivedAt: new Date().toISOString(),
@@ -350,7 +366,7 @@ export function AdminServicesClient() {
       payments: [],
     };
 
-    setOrders([newOrder, ...orders]);
+    await upsertOrder(newOrder);
     setIsIntakeOpen(false);
     setSelectedOrder(newOrder);
     setEditOrder(JSON.parse(JSON.stringify(newOrder)));
@@ -359,7 +375,7 @@ export function AdminServicesClient() {
     // Reset Form
     setIntakeName('');
     setIntakePhone('');
-    setIntakeWorkshop('');
+    setIntakeWorkshop(PARTNER_WORKSHOPS[0]);
     setIntakeBrand('');
     setIntakeModel('');
     setIntakePlate('');
@@ -943,12 +959,14 @@ export function AdminServicesClient() {
                     </label>
                     <select
                       value={editOrder.customerType}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const nextType = e.target.value as CustomerType;
                         setEditOrder({
                           ...editOrder,
-                          customerType: e.target.value as CustomerType,
-                        })
-                      }
+                          customerType: nextType,
+                          workshopName: normalizeWorkshopName(editOrder.workshopName, nextType),
+                        });
+                      }}
                       className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
                     >
                       <option value={CustomerType.PERORANGAN}>Perorangan (Pemilik Langsung)</option>
@@ -983,15 +1001,19 @@ export function AdminServicesClient() {
                   {editOrder.customerType === CustomerType.MITRA && (
                     <div className="sm:col-span-2">
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        Nama Bengkel Mitra B2B
+                        Bengkel Mitra B2B (Dropdown)
                       </label>
-                      <input
-                        type="text"
-                        value={editOrder.workshopName || ''}
+                      <select
+                        value={normalizeWorkshopName(editOrder.workshopName, CustomerType.MITRA) || PARTNER_WORKSHOPS[0]}
                         onChange={(e) => setEditOrder({ ...editOrder, workshopName: e.target.value })}
-                        placeholder="Contoh: Bengkel Maju Motor Tasik"
-                        className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                      />
+                        className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
+                      >
+                        {PARTNER_WORKSHOPS.map((w) => (
+                          <option key={w} value={w}>
+                            {w}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   )}
                 </div>
@@ -1518,11 +1540,42 @@ export function AdminServicesClient() {
 
               {/* Langkah 2: Informasi Pelanggan */}
               <div className="ios-glass-inner space-y-3 rounded-[22px] p-4">
-                <div className="flex items-center gap-2 border-b border-black/[0.05] pb-2 dark:border-white/[0.06]">
-                  <User className="h-4 w-4 text-slate-700 dark:text-slate-300" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                    2. Data Pelanggan
-                  </h3>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.05] pb-2 dark:border-white/[0.06]">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-slate-700 dark:text-slate-300" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      2. Data Pelanggan
+                    </h3>
+                  </div>
+
+                  {customers.length > 0 && (
+                    <select
+                      aria-label="Pilih pelanggan terdaftar"
+                      defaultValue=""
+                      onChange={(e) => {
+                        const selected = customers.find((c) => c.id === e.target.value);
+                        if (!selected) return;
+                        setIntakeName(selected.name);
+                        setIntakePhone(selected.phone);
+                        setIntakeCustomerType(selected.type);
+                        if (selected.type === CustomerType.MITRA) {
+                          setIntakeWorkshop(
+                            normalizeWorkshopName(selected.workshopName, CustomerType.MITRA) ||
+                              PARTNER_WORKSHOPS[0]
+                          );
+                        }
+                      }}
+                      className="h-8 max-w-[220px] rounded-full border border-black/10 bg-white px-3 text-[11px] font-semibold text-slate-700 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-slate-200"
+                    >
+                      <option value="">Isi cepat pelanggan terdaftar...</option>
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                          {c.workshopName ? ` (${c.workshopName})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1572,7 +1625,13 @@ export function AdminServicesClient() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setIntakeCustomerType(CustomerType.MITRA)}
+                        onClick={() => {
+                          setIntakeCustomerType(CustomerType.MITRA);
+                          setIntakeWorkshop(
+                            normalizeWorkshopName(intakeWorkshop, CustomerType.MITRA) ||
+                              PARTNER_WORKSHOPS[0]
+                          );
+                        }}
                         className={`h-10 rounded-xl border px-3 text-xs font-bold transition-colors ${
                           intakeCustomerType === CustomerType.MITRA
                             ? 'border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-black'
@@ -1587,16 +1646,23 @@ export function AdminServicesClient() {
                   {intakeCustomerType === CustomerType.MITRA && (
                     <div className="sm:col-span-2">
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                        Nama Bengkel Mitra B2B
+                        Bengkel Mitra B2B (Dropdown)
                       </label>
-                      <input
-                        type="text"
+                      <select
                         required
-                        value={intakeWorkshop}
+                        value={
+                          normalizeWorkshopName(intakeWorkshop, CustomerType.MITRA) ||
+                          PARTNER_WORKSHOPS[0]
+                        }
                         onChange={(e) => setIntakeWorkshop(e.target.value)}
-                        placeholder="Nama Bengkel Rekanan"
-                        className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
-                      />
+                        className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
+                      >
+                        {PARTNER_WORKSHOPS.map((w) => (
+                          <option key={w} value={w}>
+                            {w}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   )}
                 </div>

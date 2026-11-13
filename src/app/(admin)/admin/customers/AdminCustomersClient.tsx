@@ -4,7 +4,12 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { CustomerType } from '@prisma/client';
 import { CustomerForm } from './CustomerForm';
-import { INITIAL_SERVICE_ORDERS } from '@/lib/frontend-mock';
+import {
+  PARTNER_WORKSHOPS,
+  normalizePhone,
+  normalizeWorkshopName,
+} from '@/lib/frontend-mock';
+import { useDataset } from '@/lib/use-dataset';
 import { getStatusMeta } from '@/lib/status';
 import { formatRupiah } from '@/lib/utils';
 import {
@@ -13,11 +18,11 @@ import {
   Eye,
   X,
   MessageCircle,
-  Phone,
-  MapPin,
   Car,
   Wrench,
   Building2,
+  Check,
+  Save,
 } from 'lucide-react';
 
 export interface CustomerRow {
@@ -37,10 +42,28 @@ export interface CustomerRow {
   _count: { serviceOrders: number };
 }
 
-export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }) {
+export function AdminCustomersClient({ customers: initialCustomers }: { customers: CustomerRow[] }) {
+  const { orders, customers, upsertCustomer } = useDataset(undefined, initialCustomers);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | CustomerType>('ALL');
+  const [workshopFilter, setWorkshopFilter] = useState<'ALL' | string>('ALL');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editType, setEditType] = useState<CustomerType>(CustomerType.PERORANGAN);
+  const [editWorkshop, setEditWorkshop] = useState<string>(PARTNER_WORKSHOPS[0]);
+  const [editAddress, setEditAddress] = useState('');
+  const [customerSaved, setCustomerSaved] = useState(false);
+
+  const openCustomerDetail = (c: CustomerRow) => {
+    setSelectedCustomer(c);
+    setEditName(c.name);
+    setEditPhone(c.phone);
+    setEditType(c.type);
+    setEditWorkshop(normalizeWorkshopName(c.workshopName, CustomerType.MITRA) || PARTNER_WORKSHOPS[0]);
+    setEditAddress(c.address || '');
+    setCustomerSaved(false);
+  };
 
   useEffect(() => {
     if (!selectedCustomer) return;
@@ -54,6 +77,7 @@ export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }
   const filtered = useMemo(() => {
     return customers.filter((c) => {
       if (typeFilter !== 'ALL' && c.type !== typeFilter) return false;
+      if (workshopFilter !== 'ALL' && c.workshopName !== workshopFilter) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         const matchName = c.name.toLowerCase().includes(q);
@@ -69,19 +93,45 @@ export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }
       }
       return true;
     });
-  }, [customers, search, typeFilter]);
+  }, [customers, search, typeFilter, workshopFilter]);
 
   // Cari servis yang berelasi dengan pelanggan yang dipilih
   const customerOrders = useMemo(() => {
     if (!selectedCustomer) return [];
-    return INITIAL_SERVICE_ORDERS.filter(
-      (ord) =>
-        ord.customerName.toLowerCase() === selectedCustomer.name.toLowerCase() ||
-        ord.customerPhone.includes(selectedCustomer.phone) ||
-        (selectedCustomer.workshopName &&
-          ord.workshopName?.toLowerCase() === selectedCustomer.workshopName.toLowerCase())
-    );
-  }, [selectedCustomer]);
+    const targetPhone = normalizePhone(selectedCustomer.phone);
+    const targetName = selectedCustomer.name.trim().toLowerCase();
+    return orders.filter((ord) => {
+      const ordPhone = normalizePhone(ord.customerPhone);
+      if (targetPhone && ordPhone) return ordPhone === targetPhone;
+      return ord.customerName.trim().toLowerCase() === targetName;
+    });
+  }, [orders, selectedCustomer]);
+
+  const handleSaveCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCustomer) return;
+
+    const updated = await upsertCustomer({
+      id: selectedCustomer.id,
+      previousPhone: selectedCustomer.phone,
+      name: editName.trim() || selectedCustomer.name,
+      phone: editPhone.trim() || selectedCustomer.phone,
+      type: editType,
+      workshopName: editType === CustomerType.MITRA ? editWorkshop : null,
+      address: editAddress.trim() || null,
+    });
+
+    const cleanTargetPhone = normalizePhone(editPhone.trim() || selectedCustomer.phone);
+    const refreshed =
+      updated.customers.find((c) => normalizePhone(c.phone) === cleanTargetPhone) ||
+      updated.customers.find((c) => c.id === selectedCustomer.id) ||
+      null;
+    if (refreshed) {
+      setSelectedCustomer(refreshed);
+    }
+    setCustomerSaved(true);
+    setTimeout(() => setCustomerSaved(false), 2500);
+  };
 
   return (
     <div className="space-y-5">
@@ -100,7 +150,7 @@ export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }
 
       {/* Filter Tabs & Search Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+        <div className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1">
           {[
             { key: 'ALL', label: 'Semua' },
             { key: CustomerType.PERORANGAN, label: 'Perorangan' },
@@ -111,7 +161,11 @@ export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setTypeFilter(tab.key as 'ALL' | CustomerType)}
+                onClick={() => {
+                  const nextType = tab.key as 'ALL' | CustomerType;
+                  setTypeFilter(nextType);
+                  if (nextType === CustomerType.PERORANGAN) setWorkshopFilter('ALL');
+                }}
                 className={`min-h-[40px] shrink-0 rounded-full px-4 text-xs font-semibold transition-all tap-bounce ${
                   active
                     ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900'
@@ -122,6 +176,24 @@ export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }
               </button>
             );
           })}
+
+          <select
+            aria-label="Filter bengkel mitra"
+            value={workshopFilter}
+            onChange={(e) => {
+              const val = e.target.value;
+              setWorkshopFilter(val);
+              if (val !== 'ALL') setTypeFilter(CustomerType.MITRA);
+            }}
+            className="h-10 shrink-0 rounded-full border border-black/[0.06] bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-sm focus:outline-none dark:border-white/[0.08] dark:bg-[#1C1C1E] dark:text-slate-200"
+          >
+            <option value="ALL">Semua Bengkel Mitra</option>
+            {PARTNER_WORKSHOPS.map((w) => (
+              <option key={w} value={w}>
+                Mitra: {w}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="relative w-full sm:w-72">
@@ -154,6 +226,7 @@ export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }
             onClick={() => {
               setSearch('');
               setTypeFilter('ALL');
+              setWorkshopFilter('ALL');
             }}
             className="mt-4 inline-flex min-h-[40px] items-center rounded-full bg-[#F2F2F7] px-4 text-xs font-semibold text-slate-900 hover:bg-slate-200/70 tap-bounce dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
           >
@@ -168,7 +241,7 @@ export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }
             {filtered.map((c) => (
               <div
                 key={c.id}
-                onClick={() => setSelectedCustomer(c)}
+                onClick={() => openCustomerDetail(c)}
                 className="cursor-pointer space-y-2 p-4 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -242,7 +315,7 @@ export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }
                 {filtered.map((c) => (
                   <tr
                     key={c.id}
-                    onClick={() => setSelectedCustomer(c)}
+                    onClick={() => openCustomerDetail(c)}
                     className="cursor-pointer transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
                   >
                     {/* Pelanggan */}
@@ -331,7 +404,7 @@ export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedCustomer(c);
+                          openCustomerDetail(c);
                         }}
                         className="inline-flex min-h-[36px] items-center gap-1 rounded-full bg-[#F2F2F7] px-3 text-xs font-semibold text-slate-800 hover:bg-slate-200/80 tap-bounce dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/20"
                       >
@@ -401,42 +474,118 @@ export function AdminCustomersClient({ customers }: { customers: CustomerRow[] }
               </button>
             </div>
 
-            {/* Contact & Info Cards */}
+            {/* Contact & Editable Info Form (Sinkron ke Servis & Dataset) */}
             <div className="mt-4 space-y-3.5">
-              <div className="rounded-2xl bg-[#F2F2F7] p-4 text-xs dark:bg-white/[0.04]">
-                <p className="font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Informasi Kontak
-                </p>
-                <div className="mt-2.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                      <Phone className="h-3.5 w-3.5" />
-                      <span>WhatsApp / Telepon</span>
-                    </span>
-                    <a
-                      href={`https://wa.me/${selectedCustomer.phone}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 font-mono font-bold text-emerald-700 hover:underline dark:text-emerald-400"
-                    >
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      <span>+{selectedCustomer.phone}</span>
-                    </a>
+              {customerSaved && (
+                <div className="flex items-center gap-2 rounded-2xl bg-emerald-500/15 px-4 py-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                  <Check className="h-4 w-4 shrink-0" />
+                  <span>Data pelanggan &amp; mitra berhasil disimpan serta disinkronkan!</span>
+                </div>
+              )}
+
+              <form
+                onSubmit={handleSaveCustomer}
+                className="rounded-2xl bg-[#F2F2F7] p-4 text-xs dark:bg-white/[0.04]"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Edit &amp; Sinkronkan Profil Pelanggan
+                  </p>
+                  <a
+                    href={`https://wa.me/${selectedCustomer.phone}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-emerald-700 hover:underline dark:text-emerald-400"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    <span>Chat WA</span>
+                  </a>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Nama Pelanggan
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="mt-1 h-9 w-full rounded-xl border border-black/[0.06] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
                   </div>
 
-                  {selectedCustomer.address && (
-                    <div className="flex items-start justify-between gap-3 border-t border-black/[0.04] pt-2 dark:border-white/[0.04]">
-                      <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                        <MapPin className="h-3.5 w-3.5 shrink-0" />
-                        <span>Alamat</span>
-                      </span>
-                      <span className="text-right font-medium text-slate-900 dark:text-white">
-                        {selectedCustomer.address}
-                      </span>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      No. WhatsApp / HP
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      className="mt-1 h-9 w-full rounded-xl border border-black/[0.06] bg-white px-3 font-mono text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Tipe Pelanggan
+                    </label>
+                    <select
+                      value={editType}
+                      onChange={(e) => setEditType(e.target.value as CustomerType)}
+                      className="mt-1 h-9 w-full rounded-xl border border-black/[0.06] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
+                    >
+                      <option value={CustomerType.PERORANGAN}>Perorangan</option>
+                      <option value={CustomerType.MITRA}>Mitra B2B</option>
+                    </select>
+                  </div>
+
+                  {editType === CustomerType.MITRA && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Bengkel Mitra (Dropdown)
+                      </label>
+                      <select
+                        value={editWorkshop}
+                        onChange={(e) => setEditWorkshop(e.target.value)}
+                        className="mt-1 h-9 w-full rounded-xl border border-black/[0.06] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
+                      >
+                        {PARTNER_WORKSHOPS.map((w) => (
+                          <option key={w} value={w}>
+                            {w}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   )}
+
+                  <div className={editType === CustomerType.MITRA ? 'sm:col-span-2' : ''}>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Alamat
+                    </label>
+                    <input
+                      type="text"
+                      value={editAddress}
+                      onChange={(e) => setEditAddress(e.target.value)}
+                      placeholder="Alamat singkat pelanggan / mitra"
+                      className="mt-1 h-9 w-full rounded-xl border border-black/[0.06] bg-white px-3 text-xs text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                    />
+                  </div>
                 </div>
-              </div>
+
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="submit"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-slate-900 px-4 text-[11px] font-bold text-white tap-bounce dark:bg-white dark:text-black"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    <span>Simpan Perubahan</span>
+                  </button>
+                </div>
+              </form>
 
               {/* Registered Vehicles */}
               <div className="rounded-2xl bg-[#F2F2F7] p-4 text-xs dark:bg-white/[0.04]">

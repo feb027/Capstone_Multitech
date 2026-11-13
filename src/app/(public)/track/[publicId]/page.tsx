@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
-import { INITIAL_SERVICE_ORDERS } from '@/lib/frontend-mock';
+import { getServerDataset } from '@/lib/dataset-store';
 import { TrackingDetailClient } from './TrackingDetailClient';
+
+export const dynamic = 'force-dynamic';
 
 interface TrackPageProps {
   params: Promise<{ publicId: string }>;
@@ -135,9 +137,10 @@ export default async function TrackingDetailPage({ params }: TrackPageProps) {
   }
 
   if (!orderData) {
+    const datasetOrders = getServerDataset().orders;
     const mock =
-      INITIAL_SERVICE_ORDERS.find((o) => o.publicId === publicId) ??
-      (publicId.includes('4821') || publicId === 'demo' ? INITIAL_SERVICE_ORDERS[0] : null);
+      datasetOrders.find((o) => o.publicId === publicId) ??
+      (publicId.includes('4821') || publicId === 'demo' ? datasetOrders[0] : null);
 
     if (mock) {
       orderData = {

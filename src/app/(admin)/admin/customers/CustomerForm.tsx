@@ -3,9 +3,12 @@
 import { useState, useEffect } from 'react';
 import { createCustomerAction } from './actions';
 import { CustomerType } from '@prisma/client';
+import { PARTNER_WORKSHOPS } from '@/lib/frontend-mock';
+import { useDataset } from '@/lib/use-dataset';
 import { Plus, X } from 'lucide-react';
 
 export function CustomerForm() {
+  const { upsertCustomer } = useDataset();
   const [isOpen, setIsOpen] = useState(false);
   const [type, setType] = useState<CustomerType>(CustomerType.PERORANGAN);
   const [error, setError] = useState<string | null>(null);
@@ -23,19 +26,47 @@ export function CustomerForm() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
     const formData = new FormData(e.currentTarget);
     formData.set('type', type);
 
-    const res = await createCustomerAction(formData);
-    setLoading(false);
+    const name = String(formData.get('name') || '').trim();
+    const phone = String(formData.get('phone') || '').trim();
+    const workshopName =
+      type === CustomerType.MITRA
+        ? String(formData.get('workshopName') || PARTNER_WORKSHOPS[0])
+        : null;
+    const address = String(formData.get('address') || '').trim() || null;
+    const brand = String(formData.get('brand') || '').trim();
+    const model = String(formData.get('model') || '').trim();
+    const yearStr = String(formData.get('year') || '').trim();
+    const plateNumber = String(formData.get('plateNumber') || '').trim() || null;
 
-    if (res?.error) {
-      setError(res.error);
-    } else {
-      setIsOpen(false);
+    if (!name || !phone) {
+      setError('Nama dan nomor telepon wajib diisi.');
+      return;
     }
+
+    setLoading(true);
+    await upsertCustomer({
+      name,
+      phone,
+      type,
+      workshopName,
+      address,
+      vehicle:
+        brand && model
+          ? {
+              brand,
+              model,
+              year: yearStr ? parseInt(yearStr, 10) : null,
+              plateNumber,
+            }
+          : null,
+    });
+    await createCustomerAction(formData).catch(() => null);
+    setLoading(false);
+    setIsOpen(false);
   }
 
   if (!isOpen) {
@@ -149,15 +180,21 @@ export function CustomerForm() {
           {type === CustomerType.MITRA && (
             <div>
               <label htmlFor="cust-workshop" className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                Nama Bengkel / Instansi Mitra *
+                Bengkel Mitra (Dropdown) *
               </label>
-              <input
+              <select
                 id="cust-workshop"
                 name="workshopName"
+                defaultValue={PARTNER_WORKSHOPS[0]}
                 required
-                placeholder="Nama bengkel atau perusahaan"
-                className="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 text-sm text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400"
-              />
+                className="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 text-sm font-semibold text-slate-900 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-[#2C2C2E] dark:text-white"
+              >
+                {PARTNER_WORKSHOPS.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

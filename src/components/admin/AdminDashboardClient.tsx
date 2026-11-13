@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { CustomerType, EntryMethod, IntakeType, ItemStatus } from '@prisma/client';
 import { getStatusMeta } from '@/lib/status';
 import { MockServiceOrder, SparepartItem } from '@/lib/frontend-mock';
+import { useDataset } from '@/lib/use-dataset';
 import { formatDate, formatRupiah } from '@/lib/utils';
 import {
   Plus,
@@ -44,11 +45,25 @@ function getShortModuleName(moduleName: string): string {
 }
 
 export function AdminDashboardClient({
-  totalActive,
-  totalCustomers,
-  statusCounts,
-  recentOrders,
+  totalActive: initialTotalActive,
+  totalCustomers: initialTotalCustomers,
+  statusCounts: initialStatusCounts,
+  recentOrders: initialOrders,
 }: AdminDashboardClientProps) {
+  const { orders, customers, isLoaded } = useDataset(initialOrders);
+  const recentOrders = orders.length > 0 ? orders : initialOrders;
+  const totalActive = isLoaded ? recentOrders.length : initialTotalActive || recentOrders.length;
+  const totalCustomers = isLoaded ? customers.length : initialTotalCustomers || customers.length;
+
+  const statusCounts: Record<string, number> = isLoaded ? {} : { ...initialStatusCounts };
+  if (isLoaded) {
+    for (const order of recentOrders) {
+      for (const item of order.items) {
+        statusCounts[item.status] = (statusCounts[item.status] || 0) + 1;
+      }
+    }
+  }
+
   const allItems = recentOrders.flatMap((order) =>
     order.items.map((item) => ({
       order,
