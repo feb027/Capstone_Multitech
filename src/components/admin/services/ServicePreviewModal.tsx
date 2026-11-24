@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import Link from 'next/link';
 import { MockServiceOrder } from '@/lib/frontend-mock';
+import { useDataset } from '@/lib/use-dataset';
 import { Check, Copy, ExternalLink, MessageCircle, Printer, X } from 'lucide-react';
 import { ServiceDetailView } from './ServiceDetailView';
 import { getWaLink } from './service-utils';
+import { PrintableServiceReceipt } from '@/components/shared/PrintableServiceReceipt';
 
 export interface ServicePreviewModalProps {
   selectedOrder: MockServiceOrder | null;
@@ -17,12 +19,30 @@ export function ServicePreviewModal({
   selectedOrder,
   setSelectedOrder,
 }: ServicePreviewModalProps) {
+  const { createWarrantyClaim } = useDataset();
   const [activeLightboxPhoto, setActiveLightboxPhoto] = useState<string | null>(null);
   const [copiedTracking, setCopiedTracking] = useState(false);
+  const [claimingItemId, setClaimingItemId] = useState<string | null>(null);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   useEffect(() => {
     setCopiedTracking(false);
+    setClaimError(null);
   }, [selectedOrder?.id]);
+
+  const handleCreateWarrantyClaim = async (orderId: string, itemId: string) => {
+    setClaimError(null);
+    setClaimingItemId(itemId);
+    const res = await createWarrantyClaim(orderId, itemId);
+    setClaimingItemId(null);
+    if (!res.ok) {
+      setClaimError(res.error || 'Gagal membuat order klaim garansi.');
+      return;
+    }
+    if (res.createdOrder) {
+      setSelectedOrder(res.createdOrder);
+    }
+  };
 
   useEffect(() => {
     if (!selectedOrder && !activeLightboxPhoto) return;
@@ -137,10 +157,20 @@ export function ServicePreviewModal({
 
             {/* Middle Scrollable Body */}
             <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+              {claimError && (
+                <div
+                  role="alert"
+                  className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
+                >
+                  {claimError}
+                </div>
+              )}
               <ServiceDetailView
                 editOrder={selectedOrder}
                 setSelectedOrder={setSelectedOrder}
                 setActiveLightboxPhoto={setActiveLightboxPhoto}
+                onCreateWarrantyClaim={handleCreateWarrantyClaim}
+                claimingItemId={claimingItemId}
                 hideFooter
               />
             </div>
@@ -177,6 +207,8 @@ export function ServicePreviewModal({
           </div>
         </div>
       )}
+
+      {selectedOrder && <PrintableServiceReceipt order={selectedOrder} />}
 
       {activeLightboxPhoto && (
         <div

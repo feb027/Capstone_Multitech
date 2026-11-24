@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   :root {
     --bg-system: #f2f2f7;
     --card-surface: #ffffff;
@@ -70,6 +78,17 @@
   }
 }
 
+@keyframes applePopoverIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 @keyframes appleBackdropFadeIn {
   0% {
     opacity: 0;
@@ -83,6 +102,16 @@
   animation: appleSheetSlideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+.animate-popover-in {
+  transform-origin: top right;
+  animation: applePopoverIn 0.18s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-popover-in-left {
+  transform-origin: top left;
+  animation: applePopoverIn 0.18s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
 .animate-backdrop-in {
   animation: appleBackdropFadeIn 0.25s ease-out forwards;
 }
@@ -90,6 +119,8 @@
 @media (prefers-reduced-motion: reduce) {
   .tap-bounce,
   .animate-sheet-in,
+  .animate-popover-in,
+  .animate-popover-in-left,
   .animate-backdrop-in,
   .transition-all,
   .transition-colors,
@@ -128,8 +159,8 @@
     rgba(255, 255, 255, 0.56) 55%,
     rgba(255, 255, 255, 0.72) 100%
   );
-  -webkit-backdrop-filter: blur(28px) saturate(185%);
-  backdrop-filter: blur(28px) saturate(185%);
+  -webkit-backdrop-filter: blur(12px) saturate(155%);
+  backdrop-filter: blur(12px) saturate(155%);
   border: 1px solid rgba(255, 255, 255, 0.88);
   box-shadow:
     0 10px 30px -8px rgba(15, 23, 42, 0.09),
@@ -144,8 +175,8 @@
     rgba(255, 255, 255, 0.025) 48%,
     rgba(255, 255, 255, 0.065) 100%
   );
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(155%);
+  backdrop-filter: blur(12px) saturate(155%);
   border: 1px solid rgba(255, 255, 255, 0.17);
   box-shadow:
     0 14px 36px -8px rgba(0, 0, 0, 0.85),
@@ -164,12 +195,28 @@
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
 }
 
+.print-only {
+  display: none;
+}
+
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
   body {
     background: #ffffff !important;
     color: #0f172a !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body:has(> .print-nota-portal) > :not(.print-nota-portal) {
     display: none !important;
   }
 }

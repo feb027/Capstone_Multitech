@@ -1,17 +1,19 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { MockServiceOrder } from '@/lib/frontend-mock';
+import { MockCustomerRow, MockServiceOrder } from '@/lib/frontend-mock';
 import { useDataset } from '@/lib/use-dataset';
-import { WORKSHOP_PROFILE, getStatusMeta } from '@/lib/status';
-import { BrandLogo } from '@/components/shared/BrandLogo';
+import { getStatusMeta } from '@/lib/status';
+import { escapeCsvCell } from '@/lib/business-rules';
 import { formatDate, formatRupiah } from '@/lib/utils';
 import {
   Printer,
+  Download,
   TrendingUp,
   DollarSign,
 } from 'lucide-react';
 import { GroupedBarChart } from './GroupedBarChart';
+import { PrintableReportsDocument } from './PrintableReportsDocument';
 
 const PERIODS = [
   { id: 'ALL', label: 'Semua Periode' },
@@ -33,41 +35,64 @@ function formatVehicleLabel(order: MockServiceOrder): string {
   return [order.vehicleBrand, order.vehicleModel].filter(Boolean).join(' ');
 }
 
-export function AdminReportsClient() {
-  const { orders } = useDataset();
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+export function AdminReportsClient({
+  initialOrders,
+  initialCustomers,
+}: {
+  initialOrders?: MockServiceOrder[];
+  initialCustomers?: MockCustomerRow[];
+}) {
+  const { orders } = useDataset(initialOrders, initialCustomers);
   const [period, setPeriod] = useState('ALL');
 
-  const currentMonthIdx = useMemo(() => {
-    const nowMonth = new Date().getMonth();
-    return orders.some((o) => new Date(o.receivedAt).getMonth() === nowMonth) ? nowMonth : 10;
+  const referenceDate = useMemo(() => {
+    let latest = new Date();
+    let hasValid = false;
+    for (const o of orders) {
+      const d = new Date(o.receivedAt);
+      if (Number.isNaN(d.getTime())) continue;
+      if (!hasValid || d.getTime() > latest.getTime()) {
+        latest = d;
+        hasValid = true;
+      }
+    }
+    return latest;
   }, [orders]);
 
-  const lastThreeMonthKeys = useMemo(
-    () =>
-      new Set([
-        String((currentMonthIdx + 10) % 12),
-        String((currentMonthIdx + 11) % 12),
-        String(currentMonthIdx),
-      ]),
-    [currentMonthIdx]
-  );
+  const currentYear = referenceDate.getFullYear();
+  const currentMonthIdx = referenceDate.getMonth();
+
+  const lastThreeMonthSet = useMemo(() => {
+    const keys = new Set<string>();
+    for (let offset = 0; offset < 3; offset += 1) {
+      const d = new Date(currentYear, currentMonthIdx - offset, 1);
+      keys.add(`${d.getFullYear()}-${d.getMonth()}`);
+    }
+    return keys;
+  }, [currentYear, currentMonthIdx]);
 
   // Filter order sesuai pilihan tab
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const orderDate = new Date(order.receivedAt);
+      if (Number.isNaN(orderDate.getTime())) return period === 'ALL';
 
       if (period === 'THIS_MONTH') {
-        return orderDate.getMonth() === currentMonthIdx;
+        return (
+          orderDate.getFullYear() === currentYear &&
+          orderDate.getMonth() === currentMonthIdx
+        );
       }
       if (period === 'LAST_3_MONTHS') {
-        return lastThreeMonthKeys.has(String(orderDate.getMonth()));
+        return lastThreeMonthSet.has(`${orderDate.getFullYear()}-${orderDate.getMonth()}`);
       }
       if (period === 'MITRA_B2B') return order.customerType === 'MITRA';
       if (period === 'PERORANGAN') return order.customerType === 'PERORANGAN';
       return true;
     });
-  }, [orders, period, currentMonthIdx, lastThreeMonthKeys]);
+  }, [orders, period, currentYear, currentMonthIdx, lastThreeMonthSet]);
 
   // Kalkulasi agregat keuangan
   const summary = useMemo(() => {
@@ -80,7 +105,7 @@ export function AdminReportsClient() {
     }
 
     const realizationPct =
-      totalBilling > 0 ? Math.min(100, Math.round((totalPaid / totalBilling) * 100)) : 100;
+      totalBilling > 0 ? Math.min(100, Math.round((totalPaid / totalBilling) * 100)) : 0;
 
     return {
       totalBilling,
@@ -91,61 +116,151 @@ export function AdminReportsClient() {
     };
   }, [filteredOrders]);
 
-  // Data Bulanan untuk Grafik 1 (Pemasukan & Tagihan) & Grafik 3 (Kepadatan Pelanggan)
-  const monthlyData = useMemo(() => {
-    const monthsMap: Record<
-      string,
-      {
-        label: string;
-        revenue: number;
-        billed: number;
-        mitraRevenue: number;
-        mitraBilled: number;
-        peroranganRevenue: number;
-        peroranganBilled: number;
-        count: number;
-        mitraCount: number;
-        peroranganCount: number;
-      }
-    > = {
-      '0': { label: 'Jan', revenue: 5200000, billed: 5800000, mitraRevenue: 2600000, mitraBilled: 2900000, peroranganRevenue: 2600000, peroranganBilled: 2900000, count: 4, mitraCount: 2, peroranganCount: 2 },
-      '1': { label: 'Feb', revenue: 7400000, billed: 8100000, mitraRevenue: 3700000, mitraBilled: 4050000, peroranganRevenue: 3700000, peroranganBilled: 4050000, count: 6, mitraCount: 3, peroranganCount: 3 },
-      '2': { label: 'Mar', revenue: 6300000, billed: 6900000, mitraRevenue: 2520000, mitraBilled: 2760000, peroranganRevenue: 3780000, peroranganBilled: 4140000, count: 5, mitraCount: 2, peroranganCount: 3 },
-      '3': { label: 'Apr', revenue: 8600000, billed: 9400000, mitraRevenue: 3685000, mitraBilled: 4029000, peroranganRevenue: 4915000, peroranganBilled: 5371000, count: 7, mitraCount: 3, peroranganCount: 4 },
-      '4': { label: 'Mei', revenue: 7500000, billed: 8200000, mitraRevenue: 2500000, mitraBilled: 2733000, peroranganRevenue: 5000000, peroranganBilled: 5467000, count: 6, mitraCount: 2, peroranganCount: 4 },
-      '5': { label: 'Jun', revenue: 6500000, billed: 7200000, mitraRevenue: 2600000, mitraBilled: 2880000, peroranganRevenue: 3900000, peroranganBilled: 4320000, count: 5, mitraCount: 2, peroranganCount: 3 },
-      '6': { label: 'Jul', revenue: 8400000, billed: 9100000, mitraRevenue: 3600000, mitraBilled: 3900000, peroranganRevenue: 4800000, peroranganBilled: 5200000, count: 7, mitraCount: 3, peroranganCount: 4 },
-      '7': { label: 'Agu', revenue: 7800000, billed: 8500000, mitraRevenue: 2600000, mitraBilled: 2833000, peroranganRevenue: 5200000, peroranganBilled: 5667000, count: 6, mitraCount: 2, peroranganCount: 4 },
-      '8': { label: 'Sep', revenue: 9900000, billed: 11200000, mitraRevenue: 4950000, mitraBilled: 5600000, peroranganRevenue: 4950000, peroranganBilled: 5600000, count: 8, mitraCount: 4, peroranganCount: 4 },
-      '9': { label: 'Okt', revenue: 11500000, billed: 12800000, mitraRevenue: 5111000, mitraBilled: 5689000, peroranganRevenue: 6389000, peroranganBilled: 7111000, count: 9, mitraCount: 4, peroranganCount: 5 },
-      '10': { label: 'Nov', revenue: 0, billed: 0, mitraRevenue: 0, mitraBilled: 0, peroranganRevenue: 0, peroranganBilled: 0, count: 0, mitraCount: 0, peroranganCount: 0 },
-      '11': { label: 'Des', revenue: 4900000, billed: 5400000, mitraRevenue: 2450000, mitraBilled: 2700000, peroranganRevenue: 2450000, peroranganBilled: 2700000, count: 4, mitraCount: 2, peroranganCount: 2 },
-    };
+  // Statistik Modul & Merek Terbanyak (FR-D04)
+  const topModuleStats = useMemo(() => {
+    const modMap = new Map<string, number>();
+    const brandMap = new Map<string, number>();
 
-    // Tambahkan kalkulasi aktual per tipe pelanggan dari seluruh order di dataset
-    for (const order of orders) {
-      const d = new Date(order.receivedAt);
-      const mKey = String(d.getMonth());
-      const bucket = monthsMap[mKey];
-      if (bucket) {
-        const paid = calcPaid(order);
-        const billed = calcBilling(order);
-        bucket.revenue += paid;
-        bucket.billed += billed;
-        bucket.count += 1;
-        if (order.customerType === 'MITRA') {
-          bucket.mitraCount += 1;
-          bucket.mitraRevenue += paid;
-          bucket.mitraBilled += billed;
-        } else {
-          bucket.peroranganCount += 1;
-          bucket.peroranganRevenue += paid;
-          bucket.peroranganBilled += billed;
-        }
+    for (const order of filteredOrders) {
+      const brand = (order.vehicleBrand || '').trim();
+      if (brand) {
+        brandMap.set(brand, (brandMap.get(brand) || 0) + 1);
+      }
+      for (const item of order.items) {
+        const modName = (item.moduleName || 'Lainnya').trim();
+        modMap.set(modName, (modMap.get(modName) || 0) + 1);
       }
     }
 
-    const mapped = Object.entries(monthsMap).map(([key, m]) => {
+    return {
+      modules: Array.from(modMap.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+      brands: Array.from(brandMap.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 4),
+    };
+  }, [filteredOrders]);
+
+  // Statistik Bengkel Mitra Teraktif (FR-D05)
+  const topPartnerStats = useMemo(() => {
+    const map = new Map<string, { orders: number; billing: number; paid: number }>();
+    for (const order of filteredOrders) {
+      if (order.customerType !== 'MITRA') continue;
+      const key = (order.workshopName || order.customerName || 'Bengkel Mitra').trim();
+      const prev = map.get(key) || { orders: 0, billing: 0, paid: 0 };
+      map.set(key, {
+        orders: prev.orders + 1,
+        billing: prev.billing + calcBilling(order),
+        paid: prev.paid + calcPaid(order),
+      });
+    }
+    return Array.from(map.entries())
+      .map(([name, val]) => ({ name, ...val }))
+      .sort((a, b) => b.orders - a.orders || b.billing - a.billing)
+      .slice(0, 5);
+  }, [filteredOrders]);
+
+  // Ekspor CSV Laporan Periode Aktif (FR-D07)
+  const handleExportCsv = () => {
+    const header = [
+      'Kode Nota',
+      'Tanggal Masuk',
+      'Pelanggan',
+      'Kategori',
+      'Bengkel Mitra',
+      'Unit / Kendaraan',
+      'Plat Nomor',
+      'Metode Masuk',
+      'No. Resi',
+      'Modul',
+      'Status Utama',
+      'Total Tagihan (Rp)',
+      'Kas Masuk (Rp)',
+      'Sisa Piutang (Rp)',
+    ];
+
+    const rows = filteredOrders.map((order) => {
+      const billing = calcBilling(order);
+      const paid = calcPaid(order);
+      const remaining = Math.max(0, billing - paid);
+      const primary = order.items[0];
+      const statusLabel = primary ? getStatusMeta(primary.status).label : '-';
+      const modulesText = order.items.map((it) => it.moduleName).join('; ');
+
+      return [
+        `#${order.code}`,
+        formatDate(order.receivedAt),
+        order.customerName,
+        order.customerType === 'MITRA' ? 'Bengkel Mitra' : 'Perorangan',
+        order.workshopName || '-',
+        formatVehicleLabel(order) || '-',
+        order.plateNumber || '-',
+        order.entryMethod === 'EKSPEDISI' ? 'Ekspedisi' : 'Datang Langsung',
+        order.trackingNumber || '-',
+        modulesText || '-',
+        statusLabel,
+        billing,
+        paid,
+        remaining,
+      ];
+    });
+
+    const csvLines = [header, ...rows].map((row) => row.map(escapeCsvCell).join(','));
+    const csvContent = `\uFEFF${csvLines.join('\r\n')}`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    link.download = `laporan-multitech-${period.toLowerCase()}-${dateStamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Data Bulanan aktual dari seluruh order (selaras dengan tabel dan ringkasan KPI)
+  const monthlyData = useMemo(() => {
+    const buckets = MONTH_LABELS.map((label, idx) => ({
+      key: String(idx),
+      label,
+      revenue: 0,
+      billed: 0,
+      mitraRevenue: 0,
+      mitraBilled: 0,
+      peroranganRevenue: 0,
+      peroranganBilled: 0,
+      count: 0,
+      mitraCount: 0,
+      peroranganCount: 0,
+    }));
+
+    for (const order of orders) {
+      const d = new Date(order.receivedAt);
+      if (Number.isNaN(d.getTime()) || d.getFullYear() !== currentYear) continue;
+      const bucket = buckets[d.getMonth()];
+      if (!bucket) continue;
+
+      const paid = calcPaid(order);
+      const billed = calcBilling(order);
+      bucket.revenue += paid;
+      bucket.billed += billed;
+      bucket.count += 1;
+      if (order.customerType === 'MITRA') {
+        bucket.mitraCount += 1;
+        bucket.mitraRevenue += paid;
+        bucket.mitraBilled += billed;
+      } else {
+        bucket.peroranganCount += 1;
+        bucket.peroranganRevenue += paid;
+        bucket.peroranganBilled += billed;
+      }
+    }
+
+    const mapped = buckets.map((m) => {
       let filteredRevenue = m.revenue;
       let filteredBilled = m.billed;
       let filteredCount = m.count;
@@ -165,7 +280,6 @@ export function AdminReportsClient() {
       }
 
       return {
-        key,
         ...m,
         revenue: filteredRevenue,
         billed: filteredBilled,
@@ -180,55 +294,52 @@ export function AdminReportsClient() {
       return mapped.filter((m) => m.key === String(currentMonthIdx));
     }
     if (period === 'LAST_3_MONTHS') {
-      return mapped.filter((m) => lastThreeMonthKeys.has(m.key));
+      const activeMonths = new Set([
+        String((currentMonthIdx + 10) % 12),
+        String((currentMonthIdx + 11) % 12),
+        String(currentMonthIdx),
+      ]);
+      return mapped.filter((m) => activeMonths.has(m.key));
     }
     return mapped;
-  }, [orders, period, currentMonthIdx, lastThreeMonthKeys]);
+  }, [orders, period, currentYear, currentMonthIdx]);
 
   const financeTicks = useMemo(() => {
     const maxValM = Math.max(
       ...monthlyData.map((m) => m.revenue / 1_000_000),
-      15
+      2
     );
-    const topTick = Math.ceil(maxValM / 5) * 5;
-    return [0, 1, 2, 3, 4, 5].map((i) => Math.round((topTick / 5) * i));
+    const topTick = Math.ceil(maxValM);
+    return [0, 1, 2, 3, 4, 5].map((i) => Number(((topTick / 5) * i).toFixed(1)));
   }, [monthlyData]);
 
   const billingSummaryTicks = useMemo(() => {
-    const maxValM = Math.max(summary.totalBilling / 1_000_000, 3);
+    const maxValM = Math.max(summary.totalBilling / 1_000_000, 2);
     const topTick = Math.ceil(maxValM);
     return [0, 1, 2, 3, 4, 5].map((i) => Number(((topTick / 5) * i).toFixed(1)));
   }, [summary.totalBilling]);
 
   const trafficTicks = useMemo(() => {
-    const maxCount = Math.max(...monthlyData.map((m) => m.count), 10);
+    const maxCount = Math.max(...monthlyData.map((m) => m.count), 5);
     const topTick = Math.ceil(maxCount / 5) * 5;
     return [0, 1, 2, 3, 4, 5].map((i) => Math.round((topTick / 5) * i));
   }, [monthlyData]);
 
-  return (
-    <div className="space-y-6">
-      {/* Print Kop Surat Resmi CV Multitech */}
-      <div className="print-only mb-6 border-b-2 border-slate-900 pb-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <BrandLogo href="" />
-            <div>
-              <h2 className="text-lg font-extrabold text-slate-900">{WORKSHOP_PROFILE.name}</h2>
-              <p className="text-xs text-slate-600">{WORKSHOP_PROFILE.focus}</p>
-              <p className="text-xs text-slate-600">{WORKSHOP_PROFILE.address}</p>
-            </div>
-          </div>
-          <div className="text-right text-xs text-slate-700">
-            <p className="font-bold">REKAP LAPORAN SERVIS & KEUANGAN</p>
-            <p>Periode: {PERIODS.find((p) => p.id === period)?.label}</p>
-            <p>Tanggal Cetak: {formatDate(new Date())}</p>
-          </div>
-        </div>
-      </div>
+  const periodLabel = PERIODS.find((p) => p.id === period)?.label || 'Semua Periode';
 
-      {/* Header Halaman Laporan */}
-      <div className="no-print flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  return (
+    <>
+      <PrintableReportsDocument
+        periodLabel={periodLabel}
+        currentYear={currentYear}
+        summary={summary}
+        monthlyData={monthlyData}
+        filteredOrders={filteredOrders}
+      />
+
+      <div className="no-print space-y-6">
+        {/* Header Halaman Laporan */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">
             Laporan Keuangan & Kepadatan Unit
@@ -238,14 +349,26 @@ export function AdminReportsClient() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-slate-900 px-5 text-xs font-bold text-white shadow-md transition-transform hover:bg-slate-800 tap-bounce dark:bg-white dark:text-black dark:hover:bg-slate-200"
-        >
-          <Printer className="h-4 w-4" aria-hidden="true" />
-          <span>Cetak Laporan / PDF</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={filteredOrders.length === 0}
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-xs font-bold text-slate-900 shadow-xs transition-colors hover:bg-slate-50 tap-bounce disabled:opacity-40 dark:border-white/[0.12] dark:bg-[#1C1C1E] dark:text-white dark:hover:bg-white/[0.08]"
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+            <span>Ekspor CSV</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-slate-900 px-5 text-xs font-bold text-white shadow-md transition-transform hover:bg-slate-800 tap-bounce dark:bg-white dark:text-black dark:hover:bg-slate-200"
+          >
+            <Printer className="h-4 w-4" aria-hidden="true" />
+            <span>Cetak Laporan / PDF</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Periode Terhubung Dinamis */}
@@ -257,7 +380,7 @@ export function AdminReportsClient() {
               key={p.id}
               type="button"
               onClick={() => setPeriod(p.id)}
-              className={`min-h-[40px] shrink-0 rounded-full px-4 text-xs font-bold transition-all tap-bounce ${
+              className={`min-h-[40px] shrink-0 rounded-full px-4 text-xs font-bold transition-colors transition-transform tap-bounce ${
                 isActive
                   ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-black'
                   : 'ios-glass-card text-slate-700 hover:bg-black/5 dark:text-zinc-200 dark:hover:bg-white/10'
@@ -410,6 +533,94 @@ export function AdminReportsClient() {
             </div>
           </section>
         </div>
+
+        {/* Statistik Modul/Merek & Bengkel Mitra Teraktif (Unified Hairline Panel) */}
+        <section className="ios-glass-card overflow-hidden rounded-[28px] shadow-sm">
+          <div className="grid grid-cols-1 divide-y divide-black/[0.06] lg:grid-cols-2 lg:divide-x lg:divide-y-0 dark:divide-white/[0.08]">
+            <div className="p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-black text-slate-900 dark:text-white">
+                    Modul &amp; Merek Terbanyak
+                  </h2>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                    Distribusi kerusakan komponen pada periode aktif
+                  </p>
+                </div>
+                {topModuleStats.brands.length > 0 && (
+                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                    Top Merek: {topModuleStats.brands.map((b) => `${b.name} (${b.count})`).join(', ')}
+                  </span>
+                )}
+              </div>
+
+              {topModuleStats.modules.length === 0 ? (
+                <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+                  Belum ada data modul pada periode ini.
+                </p>
+              ) : (
+                <div className="mt-3 divide-y divide-black/[0.05] border-t border-black/[0.05] dark:divide-white/[0.06] dark:border-white/[0.06]">
+                  {topModuleStats.modules.map((mod) => (
+                    <div
+                      key={mod.name}
+                      className="flex items-center justify-between py-2.5 text-xs"
+                    >
+                      <span className="truncate pr-3 font-semibold text-slate-800 dark:text-slate-200">
+                        {mod.name}
+                      </span>
+                      <span className="shrink-0 font-mono font-bold tabular-nums text-slate-900 dark:text-white">
+                        {mod.count} modul
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-5 sm:p-6">
+              <div>
+                <h2 className="text-sm font-black text-slate-900 dark:text-white">
+                  Bengkel Mitra Teraktif (B2B)
+                </h2>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  Volume order dan nilai tagihan per mitra bengkel
+                </p>
+              </div>
+
+              {topPartnerStats.length === 0 ? (
+                <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+                  Tidak ada transaksi bengkel mitra pada periode ini.
+                </p>
+              ) : (
+                <div className="mt-3 divide-y divide-black/[0.05] border-t border-black/[0.05] dark:divide-white/[0.06] dark:border-white/[0.06]">
+                  {topPartnerStats.map((partner) => (
+                    <div
+                      key={partner.name}
+                      className="flex items-center justify-between gap-3 py-2.5 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-slate-800 dark:text-slate-200">
+                          {partner.name}
+                        </p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                          {partner.orders} unit servis
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-mono font-bold tabular-nums text-slate-900 dark:text-white">
+                          {formatRupiah(partner.billing)}
+                        </p>
+                        <p className="font-mono text-[10px] tabular-nums text-emerald-700 dark:text-emerald-400">
+                          Kas: {formatRupiah(partner.paid)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
 
       {/* ============================================================== */}
@@ -428,17 +639,17 @@ export function AdminReportsClient() {
         </div>
 
         {/* Desktop Table View */}
-        <div className="hidden overflow-x-auto md:block">
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-black/[0.05] bg-black/[0.02] text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-slate-400">
-                <th className="px-5 py-3.5">Kode & Tgl</th>
-                <th className="px-5 py-3.5">Pelanggan</th>
-                <th className="px-5 py-3.5">Unit / Kendaraan</th>
-                <th className="px-5 py-3.5 text-right">Tagihan</th>
-                <th className="px-5 py-3.5 text-right">Kas Masuk</th>
-                <th className="px-5 py-3.5 text-right">Sisa</th>
-                <th className="px-5 py-3.5 text-center">Status</th>
+                <th className="px-3 py-3.5 xl:px-5">Kode & Tgl</th>
+                <th className="px-3 py-3.5 xl:px-5">Pelanggan</th>
+                <th className="px-3 py-3.5 xl:px-5">Unit / Kendaraan</th>
+                <th className="px-3 py-3.5 text-right xl:px-5">Tagihan</th>
+                <th className="px-3 py-3.5 text-right xl:px-5">Kas Masuk</th>
+                <th className="px-3 py-3.5 text-right xl:px-5">Sisa</th>
+                <th className="px-3 py-3.5 text-center xl:px-5">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
@@ -450,7 +661,7 @@ export function AdminReportsClient() {
 
                 return (
                   <tr key={order.id} className="transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
-                    <td className="px-5 py-3.5">
+                    <td className="whitespace-nowrap px-3 py-3.5 xl:px-5">
                       <p className="font-mono font-bold text-slate-900 dark:text-white">
                         #{order.code}
                       </p>
@@ -459,7 +670,7 @@ export function AdminReportsClient() {
                       </p>
                     </td>
 
-                    <td className="px-5 py-3.5">
+                    <td className="px-3 py-3.5 xl:px-5">
                       <p className="font-bold text-slate-900 dark:text-white">
                         {order.customerName}
                       </p>
@@ -470,29 +681,35 @@ export function AdminReportsClient() {
                       )}
                     </td>
 
-                    <td className="px-5 py-3.5 font-semibold text-slate-800 dark:text-slate-200">
+                    <td className="px-3 py-3.5 font-semibold text-slate-800 dark:text-slate-200 xl:px-5">
                       {formatVehicleLabel(order)}
                     </td>
 
-                    <td className="px-5 py-3.5 text-right font-mono font-bold text-slate-900 dark:text-white">
+                    <td className="whitespace-nowrap px-3 py-3.5 text-right font-mono font-bold text-slate-900 dark:text-white xl:px-5">
                       {formatRupiah(billing)}
                     </td>
 
-                    <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                    <td className="whitespace-nowrap px-3 py-3.5 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400 xl:px-5">
                       {formatRupiah(paid)}
                     </td>
 
                     <td
-                      className={`px-5 py-3.5 text-right font-mono font-bold ${
-                        outstanding === 0
-                          ? 'text-slate-400 dark:text-slate-500'
+                      className={`whitespace-nowrap px-3 py-3.5 text-right font-mono font-bold xl:px-5 ${
+                        billing === 0
+                          ? 'text-slate-500 dark:text-slate-400'
+                          : outstanding === 0
+                          ? 'text-emerald-700 dark:text-emerald-400'
                           : 'text-amber-700 dark:text-amber-300'
                       }`}
                     >
-                      {outstanding === 0 ? 'Lunas' : formatRupiah(outstanding)}
+                      {billing === 0
+                        ? 'Belum ditagih'
+                        : outstanding === 0
+                        ? 'Lunas'
+                        : formatRupiah(outstanding)}
                     </td>
 
-                    <td className="px-5 py-3.5 text-center">
+                    <td className="whitespace-nowrap px-3 py-3.5 text-center xl:px-5">
                       <span
                         className={`inline-flex min-w-[76px] items-center justify-center rounded-full border px-2.5 py-0.5 text-center text-[10px] font-bold leading-none ${meta.badgeClass}`}
                       >
@@ -506,8 +723,8 @@ export function AdminReportsClient() {
           </table>
         </div>
 
-        {/* Mobile Cards List */}
-        <div className="divide-y divide-black/[0.05] md:hidden dark:divide-white/[0.06]">
+        {/* Mobile & Tablet Cards List */}
+        <div className="divide-y divide-black/[0.05] lg:hidden dark:divide-white/[0.06]">
           {filteredOrders.map((order) => {
             const billing = calcBilling(order);
             const paid = calcPaid(order);
@@ -539,10 +756,18 @@ export function AdminReportsClient() {
                   </span>
                   <span
                     className={`font-bold ${
-                      outstanding === 0 ? 'text-slate-400' : 'text-amber-700 dark:text-amber-300'
+                      billing === 0
+                        ? 'text-slate-500 dark:text-slate-400'
+                        : outstanding === 0
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-amber-700 dark:text-amber-300'
                     }`}
                   >
-                    {outstanding === 0 ? 'Lunas' : `Sisa ${formatRupiah(outstanding)}`}
+                    {billing === 0
+                      ? 'Belum ditagih'
+                      : outstanding === 0
+                      ? 'Lunas'
+                      : `Sisa ${formatRupiah(outstanding)}`}
                   </span>
                 </div>
               </div>
@@ -550,6 +775,7 @@ export function AdminReportsClient() {
           })}
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }

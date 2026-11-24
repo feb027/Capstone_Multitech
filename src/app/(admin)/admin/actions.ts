@@ -31,11 +31,15 @@ export async function loginAdminAction(prevState: { error?: string } | null, for
         return { error: 'Email atau password salah.' };
       }
 
-      await setAdminSessionCookie({
-        id: admin.id,
-        name: admin.name,
-        email: admin.email,
-      });
+      try {
+        await setAdminSessionCookie({
+          id: admin.id,
+          name: admin.name,
+          email: admin.email,
+        });
+      } catch {
+        return { error: 'Konfigurasi sesi autentikasi server belum lengkap (AUTH_SECRET).' };
+      }
     } else {
       const adminCount = await prisma.admin.count();
       if (adminCount > 0) {
@@ -49,6 +53,14 @@ export async function loginAdminAction(prevState: { error?: string } | null, for
   }
 
   if (allowFallback) {
+    const fallbackEnabled =
+      process.env.NODE_ENV !== 'production' ||
+      process.env.ALLOW_OFFLINE_ADMIN_FALLBACK === 'true';
+
+    if (!fallbackEnabled) {
+      return { error: 'Database autentikasi tidak tersedia. Hubungi administrator.' };
+    }
+
     const fallbackEmail = (process.env.ADMIN_EMAIL || 'admin@multitech.com').trim().toLowerCase();
     const fallbackPassword = process.env.ADMIN_PASSWORD || 'admin123456';
 
@@ -56,11 +68,15 @@ export async function loginAdminAction(prevState: { error?: string } | null, for
       return { error: 'Email atau password salah.' };
     }
 
-    await setAdminSessionCookie({
-      id: 'admin-local',
-      name: 'Admin Multitech',
-      email: fallbackEmail,
-    });
+    try {
+      await setAdminSessionCookie({
+        id: 'admin-local',
+        name: 'Admin Multitech',
+        email: fallbackEmail,
+      });
+    } catch {
+      return { error: 'Konfigurasi sesi autentikasi server belum lengkap (AUTH_SECRET).' };
+    }
   }
 
   redirect('/admin/dashboard');

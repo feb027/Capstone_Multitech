@@ -1,10 +1,11 @@
-import { PrismaClient, ChargeKind, LogKind } from '@prisma/client';
+import { PrismaClient, ChargeKind, ItemStatus, LogKind } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import {
   INITIAL_CUSTOMERS,
   INITIAL_SERVICE_ORDERS,
   normalizePhone,
 } from '../src/lib/frontend-mock';
+import { computeWarrantyUntil } from '../src/lib/business-rules';
 
 const SEED_MODULE_TYPES = [
   { id: 'm1', name: 'ECU (Engine Control Unit)', description: 'Komputer utama mesin & injeksi', defaultWarrantyMonths: 3, isActive: true },
@@ -71,7 +72,13 @@ async function main() {
   console.log(`Seeded ${SEED_MODULE_TYPES.length} module types.`);
 
   // 3. Seed Customers & Vehicles
-  const customerMap = new Map<string, { customerId: string; primaryVehicleId: string | null }>();
+  const customerMap = new Map<
+    string,
+    {
+      customerId: string;
+      vehicles: Array<{ id: string; brand: string; model: string; plateNumber: string | null }>;
+    }
+  >();
 
   for (const cust of INITIAL_CUSTOMERS) {
     const phone = normalizePhone(cust.phone);
@@ -96,9 +103,9 @@ async function main() {
       where: { customerId: record.id },
     });
 
-    let primaryVehicleId = existingVehicles[0]?.id ?? null;
+    const seededVehicles = [...existingVehicles];
     for (const v of cust.vehicles) {
-      const alreadyExists = existingVehicles.find(
+      const alreadyExists = seededVehicles.find(
         (ev) =>
           (v.plateNumber && ev.plateNumber === v.plateNumber) ||
           (ev.brand === v.brand && ev.model === v.model)
@@ -113,11 +120,19 @@ async function main() {
             plateNumber: v.plateNumber,
           },
         });
-        if (!primaryVehicleId) primaryVehicleId = createdVehicle.id;
+        seededVehicles.push(createdVehicle);
       }
     }
 
-    customerMap.set(phone, { customerId: record.id, primaryVehicleId });
+    customerMap.set(phone, {
+      customerId: record.id,
+      vehicles: seededVehicles.map((v) => ({
+        id: v.id,
+        brand: v.brand,
+        model: v.model,
+        plateNumber: v.plateNumber,
+      })),
+    });
   }
   console.log(`Seeded ${INITIAL_CUSTOMERS.length} customers.`);
 
@@ -132,16 +147,26 @@ async function main() {
     const matchedCust = customerMap.get(phone);
     if (!matchedCust) continue;
 
+    const matchedVehicle =
+      matchedCust.vehicles.find(
+        (v) =>
+          (ord.plateNumber && v.plateNumber === ord.plateNumber) ||
+          (v.brand === ord.vehicleBrand && v.model === ord.vehicleModel)
+      ) || matchedCust.vehicles[0];
+
     await prisma.serviceOrder.create({
       data: {
         publicId: ord.publicId,
         code: ord.code,
         customerId: matchedCust.customerId,
-        vehicleId: matchedCust.primaryVehicleId,
+        vehicleId: matchedVehicle?.id ?? null,
         intakeType: ord.intakeType,
         entryMethod: ord.entryMethod,
+        unitCategory: ord.unitCategory,
         trackingNumber: ord.trackingNumber ?? null,
         conditionNotes: ord.conditionNotes ?? null,
+        priorityNote: ord.priorityNote ?? null,
+        customPhotoUrl: ord.customPhotoUrl ?? null,
         receivedAt: new Date(ord.receivedAt),
         estimatedDoneAt: ord.estimatedDoneAt ? new Date(ord.estimatedDoneAt) : null,
         items: {
@@ -150,6 +175,11 @@ async function main() {
               moduleIdMap.get(it.moduleTypeId) ||
               moduleIdMap.get(it.moduleName.toLowerCase()) ||
               fallbackModuleId;
+            const isFinishedOrReady =
+              it.status === ItemStatus.SELESAI || it.status === ItemStatus.SIAP_DIAMBIL;
+            const warrantyUntilIso = isFinishedOrReady
+              ? computeWarrantyUntil(ord.receivedAt, it.warrantyMonths)
+              : null;
 
             return {
               moduleTypeId: matchedModId,
@@ -157,10 +187,16 @@ async function main() {
               complaint: it.complaint,
               status: it.status,
               warrantyMonths: it.warrantyMonths,
+              warrantyUntil: warrantyUntilIso ? new Date(warrantyUntilIso) : null,
+              finishedAt: it.status === ItemStatus.SELESAI ? new Date(ord.receivedAt) : null,
+              beforePhotoUrl: it.beforePhotoUrl ?? null,
+              afterPhotoUrl: it.afterPhotoUrl ?? null,
+              beforeCaption: it.beforeCaption ?? null,
+              afterCaption: it.afterCaption ?? null,
               progressLogs: {
                 create: it.logs.map((lg) => ({
                   kind: LogKind.STATUS,
-                  toStatus: it.status,
+                  toStatus: lg.stage ?? it.status,
                   note: lg.note,
                   isPublic: lg.isPublic,
                   createdAt: new Date(lg.createdAt),

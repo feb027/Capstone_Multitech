@@ -6,17 +6,28 @@ import {
   INITIAL_SERVICE_ORDERS,
   MockCustomerRow,
   MockServiceOrder,
+  UpdateVehiclePayload,
   UpsertCustomerPayload,
+  DeleteVehiclePayload,
   applyAddVehicle,
+  applyDeleteCustomer,
   applyDeleteOrder,
+  applyDeleteVehicle,
+  applyUpdateVehicle,
   applyUpsertCustomer,
   applyUpsertOrder,
   synchronizeDataset,
 } from '@/lib/frontend-mock';
 
-interface DatasetState {
+export interface DatasetState {
   orders: MockServiceOrder[];
   customers: MockCustomerRow[];
+}
+
+export interface DatasetMutationResult extends DatasetState {
+  ok: boolean;
+  error?: string;
+  createdOrder?: MockServiceOrder;
 }
 
 const SYNC_EVENT = 'multitech-dataset-sync';
@@ -34,10 +45,9 @@ let hasFetchedFromServer = false;
 let activeFetchPromise: Promise<DatasetState | null> | null = null;
 
 function broadcastDataset(next: DatasetState) {
+  if (typeof window === 'undefined') return;
   memoryStore = next;
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent<DatasetState>(SYNC_EVENT, { detail: next }));
-  }
+  window.dispatchEvent(new CustomEvent<DatasetState>(SYNC_EVENT, { detail: next }));
 }
 
 function fetchDatasetOnce(): Promise<DatasetState | null> {
@@ -55,10 +65,9 @@ function fetchDatasetOnce(): Promise<DatasetState | null> {
         return null;
       }
       hasFetchedFromServer = true;
-      const synced = synchronizeDataset(data.orders, data.customers);
       const next: DatasetState = {
-        orders: synced.orders,
-        customers: synced.customers,
+        orders: data.orders,
+        customers: data.customers,
       };
       broadcastDataset(next);
       return next;
@@ -73,19 +82,25 @@ function fetchDatasetOnce(): Promise<DatasetState | null> {
 
 export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?: MockCustomerRow[]) {
   const [state, setState] = useState<DatasetState>(() => {
-    if (!hasFetchedFromServer && (initialOrders || initialCustomers)) {
-      const synced = synchronizeDataset(
-        initialOrders || memoryStore.orders,
-        initialCustomers || memoryStore.customers
-      );
+    if (typeof window === 'undefined') {
+      if (initialOrders && initialCustomers) {
+        return { orders: initialOrders, customers: initialCustomers };
+      }
+      return getInitialState();
+    }
+
+    if (!hasFetchedFromServer && initialOrders && initialCustomers) {
       memoryStore = {
-        orders: synced.orders,
-        customers: synced.customers,
+        orders: initialOrders,
+        customers: initialCustomers,
       };
+      hasFetchedFromServer = true;
     }
     return memoryStore;
   });
-  const [isLoaded, setIsLoaded] = useState(hasFetchedFromServer);
+  const [isLoaded, setIsLoaded] = useState(() =>
+    typeof window !== 'undefined' ? hasFetchedFromServer : false
+  );
 
   useEffect(() => {
     const handleSync = (event: Event) => {
@@ -98,6 +113,7 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
     window.addEventListener(SYNC_EVENT, handleSync);
 
     if (hasFetchedFromServer) {
+      setIsLoaded(true);
       return () => {
         window.removeEventListener(SYNC_EVENT, handleSync);
       };
@@ -118,65 +134,112 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
     };
   }, []);
 
-  const persistMutation = useCallback(async (action: string, payload: unknown) => {
-    try {
-      const res = await fetch('/api/dataset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, payload }),
-      });
-      if (!res.ok) return;
-      const serverState = (await res.json()) as DatasetState;
-      if (Array.isArray(serverState.orders) && Array.isArray(serverState.customers)) {
-        const synced = synchronizeDataset(serverState.orders, serverState.customers);
-        broadcastDataset({
-          orders: synced.orders,
-          customers: synced.customers,
+  const persistMutation = useCallback(
+    async (
+      action: string,
+      payload: unknown,
+      rollbackSnapshot: DatasetState
+    ): Promise<DatasetMutationResult> => {
+      try {
+        const res = await fetch('/api/dataset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, payload }),
         });
+        const body = (await res.json().catch(() => null)) as
+          | (DatasetState & { createdOrder?: MockServiceOrder; error?: string })
+          | null;
+
+        if (!res.ok) {
+          broadcastDataset(rollbackSnapshot);
+          return {
+            ...rollbackSnapshot,
+            ok: false,
+            error: body?.error || `Permintaan ditolak server (${res.status}).`,
+          };
+        }
+
+        if (body && Array.isArray(body.orders) && Array.isArray(body.customers)) {
+          hasFetchedFromServer = true;
+          const canonical: DatasetState = {
+            orders: body.orders,
+            customers: body.customers,
+          };
+          broadcastDataset(canonical);
+          return {
+            ...canonical,
+            ok: true,
+            createdOrder: body.createdOrder,
+          };
+        }
+
+        return { ...memoryStore, ok: true };
+      } catch {
+        broadcastDataset(rollbackSnapshot);
+        return {
+          ...rollbackSnapshot,
+          ok: false,
+          error: 'Gagal terhubung ke server database. Perubahan dibatalkan.',
+        };
       }
-    } catch {
-      // Optimistic in-memory store stays valid even if network request fails
-    }
-  }, []);
+    },
+    []
+  );
 
   const upsertOrder = useCallback(
-    async (order: MockServiceOrder) => {
+    async (order: MockServiceOrder): Promise<DatasetMutationResult> => {
+      const rollbackSnapshot = memoryStore;
       const synced = applyUpsertOrder(memoryStore.orders, memoryStore.customers, order);
       const next: DatasetState = {
         orders: synced.orders,
         customers: synced.customers,
       };
       broadcastDataset(next);
-      await persistMutation('upsertOrder', order);
-      return next;
+      return persistMutation('upsertOrder', order, rollbackSnapshot);
+    },
+    [persistMutation]
+  );
+
+  const createWarrantyClaim = useCallback(
+    async (
+      sourceOrderId: string,
+      sourceItemId: string,
+      complaint?: string
+    ): Promise<DatasetMutationResult> => {
+      const rollbackSnapshot = memoryStore;
+      return persistMutation(
+        'createWarrantyClaim',
+        { sourceOrderId, sourceItemId, complaint },
+        rollbackSnapshot
+      );
     },
     [persistMutation]
   );
 
   const deleteOrder = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<DatasetMutationResult> => {
+      const rollbackSnapshot = memoryStore;
       const synced = applyDeleteOrder(memoryStore.orders, memoryStore.customers, id);
       const next: DatasetState = {
         orders: synced.orders,
         customers: synced.customers,
       };
       broadcastDataset(next);
-      await persistMutation('deleteOrder', { id });
-      return next;
+      return persistMutation('deleteOrder', { id }, rollbackSnapshot);
     },
     [persistMutation]
   );
 
   const upsertCustomer = useCallback(
-    async (payload: UpsertCustomerPayload) => {
+    async (payload: UpsertCustomerPayload): Promise<DatasetMutationResult> => {
+      const rollbackSnapshot = memoryStore;
       const synced = applyUpsertCustomer(memoryStore.orders, memoryStore.customers, payload);
       const next: DatasetState = {
         orders: synced.orders,
         customers: synced.customers,
       };
       broadcastDataset(next);
-      await persistMutation('upsertCustomer', payload);
-      return next;
+      return persistMutation('upsertCustomer', payload, rollbackSnapshot);
     },
     [persistMutation]
   );
@@ -184,27 +247,85 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
   const addVehicle = useCallback(
     async (
       customerId: string,
-      vehicle: { brand: string; model: string; year: number | null; plateNumber: string | null }
-    ) => {
+      vehicle: {
+        brand: string;
+        model: string;
+        year: number | null;
+        plateNumber: string | null;
+        vin?: string | null;
+      }
+    ): Promise<DatasetMutationResult> => {
+      const rollbackSnapshot = memoryStore;
       const synced = applyAddVehicle(memoryStore.orders, memoryStore.customers, customerId, vehicle);
       const next: DatasetState = {
         orders: synced.orders,
         customers: synced.customers,
       };
       broadcastDataset(next);
-      await persistMutation('addVehicle', { customerId, vehicle });
-      return next;
+      return persistMutation('addVehicle', { customerId, vehicle }, rollbackSnapshot);
     },
     [persistMutation]
   );
+
+  const updateVehicle = useCallback(
+    async (payload: UpdateVehiclePayload): Promise<DatasetMutationResult> => {
+      const rollbackSnapshot = memoryStore;
+      const synced = applyUpdateVehicle(memoryStore.orders, memoryStore.customers, payload);
+      const next: DatasetState = {
+        orders: synced.orders,
+        customers: synced.customers,
+      };
+      broadcastDataset(next);
+      return persistMutation('updateVehicle', payload, rollbackSnapshot);
+    },
+    [persistMutation]
+  );
+
+  const deleteVehicle = useCallback(
+    async (payload: DeleteVehiclePayload): Promise<DatasetMutationResult> => {
+      const rollbackSnapshot = memoryStore;
+      const synced = applyDeleteVehicle(memoryStore.orders, memoryStore.customers, payload);
+      const next: DatasetState = {
+        orders: synced.orders,
+        customers: synced.customers,
+      };
+      broadcastDataset(next);
+      return persistMutation('deleteVehicle', payload, rollbackSnapshot);
+    },
+    [persistMutation]
+  );
+
+  const deleteCustomer = useCallback(
+    async (customerId: string): Promise<DatasetMutationResult> => {
+      const rollbackSnapshot = memoryStore;
+      const synced = applyDeleteCustomer(memoryStore.orders, memoryStore.customers, customerId);
+      const next: DatasetState = {
+        orders: synced.orders,
+        customers: synced.customers,
+      };
+      broadcastDataset(next);
+      return persistMutation('deleteCustomer', { customerId }, rollbackSnapshot);
+    },
+    [persistMutation]
+  );
+
+  const refreshDataset = useCallback(async () => {
+    hasFetchedFromServer = false;
+    return fetchDatasetOnce();
+  }, []);
 
   return {
     orders: state.orders,
     customers: state.customers,
     isLoaded,
     upsertOrder,
+    createWarrantyClaim,
     deleteOrder,
     upsertCustomer,
     addVehicle,
+    updateVehicle,
+    deleteVehicle,
+    deleteCustomer,
+    refreshDataset,
   };
 }

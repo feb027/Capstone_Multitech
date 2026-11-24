@@ -1,8 +1,16 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const SECRET_KEY = process.env.AUTH_SECRET || 'multitech_capstone_super_secret_jwt_key_2026_xyz';
-const key = new TextEncoder().encode(SECRET_KEY);
+function getSigningKey(): Uint8Array | null {
+  const envSecret = process.env.AUTH_SECRET?.trim();
+  if (envSecret) {
+    return new TextEncoder().encode(envSecret);
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    return new TextEncoder().encode('multitech_dev_local_secret_2026');
+  }
+  return null;
+}
 
 export const ADMIN_COOKIE_NAME = 'multitech_admin_session';
 
@@ -13,7 +21,11 @@ export interface AdminSessionPayload {
 }
 
 export async function signAdminSession(payload: AdminSessionPayload): Promise<string> {
-  return await new SignJWT({ ...payload })
+  const key = getSigningKey();
+  if (!key) {
+    throw new Error('AUTH_SECRET wajib dikonfigurasi pada environment production.');
+  }
+  return await new SignJWT({ ...payload, scope: 'admin' })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
@@ -21,13 +33,45 @@ export async function signAdminSession(payload: AdminSessionPayload): Promise<st
 }
 
 export async function verifyAdminSessionToken(token: string): Promise<AdminSessionPayload | null> {
+  const key = getSigningKey();
+  if (!key) return null;
   try {
     const { payload } = await jwtVerify(token, key, {
       algorithms: ['HS256'],
     });
+    if (payload.scope && payload.scope !== 'admin') return null;
     return payload as unknown as AdminSessionPayload;
   } catch {
     return null;
+  }
+}
+
+export async function signTrackSessionToken(publicId: string): Promise<string> {
+  const key = getSigningKey();
+  if (!key) {
+    throw new Error('AUTH_SECRET wajib dikonfigurasi pada environment production.');
+  }
+  return await new SignJWT({ publicId, scope: 'track' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('24h')
+    .sign(key);
+}
+
+export async function verifyTrackSessionToken(
+  token: string | undefined,
+  expectedPublicId: string
+): Promise<boolean> {
+  if (!token) return false;
+  const key = getSigningKey();
+  if (!key) return false;
+  try {
+    const { payload } = await jwtVerify(token, key, {
+      algorithms: ['HS256'],
+    });
+    return payload.scope === 'track' && payload.publicId === expectedPublicId;
+  } catch {
+    return false;
   }
 }
 

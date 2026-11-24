@@ -4,6 +4,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import Link from 'next/link';
 import { ItemStatus } from '@prisma/client';
 import { MockServiceOrder, getDefaultBeforeAfter } from '@/lib/frontend-mock';
+import { isWarrantyEligible } from '@/lib/business-rules';
 import {
   PROGRESS_STEPS,
   getProgressStepIndex,
@@ -11,7 +12,7 @@ import {
   getVehicleHeroImage,
 } from '@/lib/status';
 import { formatDate, formatRupiah } from '@/lib/utils';
-import { Check, Maximize2, ShieldCheck, Pencil, ExternalLink } from 'lucide-react';
+import { Check, Maximize2, ShieldCheck, Pencil, ExternalLink, RotateCcw } from 'lucide-react';
 import { calcTotalPaid, calcTotalCharges } from './service-utils';
 
 export interface ServiceDetailViewProps {
@@ -19,6 +20,8 @@ export interface ServiceDetailViewProps {
   setSelectedOrder: Dispatch<SetStateAction<MockServiceOrder | null>>;
   setModalMode?: Dispatch<SetStateAction<'DETAIL' | 'EDIT'>>;
   setActiveLightboxPhoto: Dispatch<SetStateAction<string | null>>;
+  onCreateWarrantyClaim?: (orderId: string, itemId: string) => Promise<void> | void;
+  claimingItemId?: string | null;
   editHref?: string;
   hideFooter?: boolean;
 }
@@ -28,6 +31,8 @@ export function ServiceDetailView({
   setSelectedOrder,
   setModalMode,
   setActiveLightboxPhoto,
+  onCreateWarrantyClaim,
+  claimingItemId,
   editHref,
   hideFooter = false,
 }: ServiceDetailViewProps) {
@@ -78,13 +83,23 @@ export function ServiceDetailView({
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white sm:text-lg">
-                  {editOrder.vehicleBrand} {editOrder.vehicleModel}
-                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white sm:text-lg">
+                    {editOrder.vehicleBrand} {editOrder.vehicleModel}
+                  </h3>
+                  {editOrder.isWarrantyClaim && (
+                    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      Klaim Garansi{editOrder.warrantySourceCode ? ` #${editOrder.warrantySourceCode}` : ''}
+                    </span>
+                  )}
+                </div>
                 <p className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
                   {editOrder.vehicleYear ? `Tahun ${editOrder.vehicleYear}` : 'Unit Servis'}
                   {editOrder.plateNumber ? ` · ${editOrder.plateNumber}` : ''}
                   {editOrder.workshopName ? ` · ${editOrder.workshopName}` : ''}
+                  {editOrder.entryMethod === 'EKSPEDISI'
+                    ? ` · Ekspedisi${editOrder.trackingNumber ? ` (${editOrder.trackingNumber})` : ''}`
+                    : ' · Datang Langsung'}
                 </p>
               </div>
               <div className="text-left sm:text-right">
@@ -185,12 +200,28 @@ export function ServiceDetailView({
                 </p>
               </div>
 
-              {item.warrantyMonths > 0 && (
-                <span className="inline-flex shrink-0 items-center justify-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-bold leading-none text-emerald-800 dark:text-emerald-300">
-                  <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-                  <span>Garansi {item.warrantyMonths} Bln</span>
-                </span>
-              )}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {item.warrantyMonths > 0 && (
+                  <span className="inline-flex shrink-0 items-center justify-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-bold leading-none text-emerald-800 dark:text-emerald-300">
+                    <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+                    <span>
+                      Garansi {item.warrantyMonths} Bln
+                      {item.warrantyUntil ? ` (s.d. ${formatDate(item.warrantyUntil)})` : ''}
+                    </span>
+                  </span>
+                )}
+                {onCreateWarrantyClaim && isWarrantyEligible(item) && (
+                  <button
+                    type="button"
+                    disabled={claimingItemId === item.id}
+                    onClick={() => onCreateWarrantyClaim(editOrder.id, item.id)}
+                    className="inline-flex min-h-[30px] shrink-0 items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 text-[10px] font-bold text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/40"
+                  >
+                    <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                    <span>{claimingItemId === item.id ? 'Memproses...' : 'Buat Klaim Garansi'}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Progress 6 Tahap Visual */}
@@ -243,7 +274,12 @@ export function ServiceDetailView({
               </div>
             ) : (
               <div className="rounded-xl bg-red-500/15 p-3 text-xs font-bold text-red-700 dark:text-red-300">
-                Pengerjaan modul ini dibatalkan.
+                <p>Pengerjaan modul ini dibatalkan.</p>
+                {item.cancelReason && (
+                  <p className="mt-1 font-normal text-red-600 dark:text-red-300/90">
+                    Alasan: {item.cancelReason}
+                  </p>
+                )}
               </div>
             )}
 
@@ -271,6 +307,11 @@ export function ServiceDetailView({
                             <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400">
                               {formatDate(log.createdAt)}
                             </span>
+                            {!log.isPublic && (
+                              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold text-amber-800 dark:text-amber-300">
+                                Privat (Internal)
+                              </span>
+                            )}
                           </div>
                           {log.note && (
                             <p className="text-slate-800 dark:text-slate-200">{log.note}</p>
@@ -390,14 +431,12 @@ export function ServiceDetailView({
           <span className="text-slate-600 dark:text-slate-400">
             Sudah Dibayar: {formatRupiah(totalPaid)}
           </span>
-          <span
-            className={
-              remaining <= 0
-                ? 'text-emerald-700 dark:text-emerald-400'
-                : 'text-amber-800 dark:text-amber-300'
-            }
-          >
-            {remaining <= 0 ? 'Lunas' : `Sisa ${formatRupiah(remaining)}`}
+          <span className={paymentSummary.textClass}>
+            {totalCharges === 0
+              ? 'Belum ditagih'
+              : remaining <= 0
+              ? 'Lunas'
+              : `Sisa ${formatRupiah(remaining)}`}
           </span>
         </div>
       </div>

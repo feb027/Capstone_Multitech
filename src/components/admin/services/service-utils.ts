@@ -6,6 +6,7 @@ export const STATUS_FILTER_OPTIONS: Array<{ value: 'ALL' | ItemStatus; label: st
   { value: 'ALL', label: 'Semua Status' },
   { value: ItemStatus.DITERIMA, label: 'Diterima' },
   { value: ItemStatus.DIAGNOSA, label: 'Diagnosa' },
+  { value: ItemStatus.MENUNGGU_PERSETUJUAN, label: 'Konfirmasi Biaya' },
   { value: ItemStatus.MENUNGGU_SPAREPART, label: 'Tunggu Komponen' },
   { value: ItemStatus.PERBAIKAN, label: 'Pengerjaan' },
   { value: ItemStatus.UJI_QC, label: 'Uji & QC' },
@@ -66,14 +67,101 @@ export function getActiveWorkInfo(order: MockServiceOrder) {
   };
 }
 
-export function readFileAsDataUrl(file: File, onDone: (dataUrl: string) => void) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    if (typeof reader.result === 'string') {
-      onDone(reader.result);
-    }
+async function compressImageFile(file: File): Promise<{ blob: Blob; filename: string; dataUrl: string }> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('File harus berupa gambar (JPG, PNG, atau WebP).');
+  }
+
+  const rawUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Gagal membaca file gambar.'));
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Gagal memproses file gambar.'));
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+
+  const compressedUrl = await new Promise<string>((resolve) => {
+    const img = new Image();
+    img.onerror = () => resolve(rawUrl);
+    img.onload = () => {
+      const maxDim = 1280;
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const targetW = Math.max(1, Math.round(img.width * scale));
+      const targetH = Math.max(1, Math.round(img.height * scale));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(rawUrl);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+      const webpUrl = canvas.toDataURL('image/webp', 0.78);
+      if (webpUrl.startsWith('data:image/webp') && webpUrl.length < rawUrl.length) {
+        resolve(webpUrl);
+        return;
+      }
+      const jpegUrl = canvas.toDataURL('image/jpeg', 0.78);
+      resolve(jpegUrl.length < rawUrl.length ? jpegUrl : rawUrl);
+    };
+    img.src = rawUrl;
+  });
+
+  const mimeMatch = compressedUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
+  const mime = mimeMatch?.[1] || file.type || 'image/webp';
+  const ext = mime === 'image/webp' ? 'webp' : mime === 'image/png' ? 'png' : 'jpg';
+  const baseName = file.name.replace(/\.[^.]+$/, '') || 'service-photo';
+
+  const res = await fetch(compressedUrl);
+  const blob = await res.blob();
+  return {
+    blob,
+    filename: `${baseName}.${ext}`,
+    dataUrl: compressedUrl,
   };
-  reader.readAsDataURL(file);
+}
+
+export function readFileAsDataUrl(
+  file: File,
+  onDone: (dataUrl: string) => void,
+  onError?: (message: string) => void
+) {
+  compressImageFile(file)
+    .then((result) => onDone(result.dataUrl))
+    .catch((err) => onError?.(err instanceof Error ? err.message : 'Gagal memproses file gambar.'));
+}
+
+export async function uploadServicePhoto(file: File): Promise<string> {
+  const { blob, filename } = await compressImageFile(file);
+  if (blob.size > 2 * 1024 * 1024) {
+    throw new Error('Ukuran gambar setelah kompresi masih melebihi 2 MB.');
+  }
+
+  const formData = new FormData();
+  formData.append('file', blob, filename);
+
+  const response = await fetch('/api/media', {
+    method: 'POST',
+    body: formData,
+  });
+
+  const data = (await response.json().catch(() => null)) as
+    | { url?: string; error?: string }
+    | null;
+
+  if (!response.ok || !data?.url) {
+    throw new Error(data?.error || 'Gagal mengunggah foto ke penyimpanan server.');
+  }
+
+  return data.url;
 }
 
 export function getWaLink(order: MockServiceOrder) {

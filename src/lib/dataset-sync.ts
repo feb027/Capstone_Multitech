@@ -1,11 +1,14 @@
 import { CustomerType } from '@prisma/client';
 import { INITIAL_CUSTOMERS } from './dataset-initial';
 import {
+  createUniqueId,
   getDefaultBeforeAfter,
   normalizePhone,
   normalizeWorkshopName,
+  type DeleteVehiclePayload,
   type MockCustomerRow,
   type MockServiceOrder,
+  type UpdateVehiclePayload,
   type UpsertCustomerPayload,
 } from './dataset-types';
 
@@ -19,12 +22,12 @@ function makeVehicleKey(brand: string, model: string, plateNumber?: string | nul
   return `model:${brand.trim().toLowerCase()}|${model.trim().toLowerCase()}`;
 }
 
-function getCustomerKey(phone?: string | null, name?: string | null): string {
-  const cleanName = (name || '').trim().toLowerCase();
-  if (cleanName) return `name:${cleanName}`;
+function getCustomerKey(phone?: string | null, name?: string | null, id?: string): string {
   const cleanPhone = normalizePhone(phone);
   if (cleanPhone) return `phone:${cleanPhone}`;
-  return 'unknown';
+  const cleanName = (name || '').trim().toLowerCase();
+  if (cleanName) return `name:${cleanName}`;
+  return id ? `id:${id}` : 'unknown';
 }
 
 export function synchronizeDataset(
@@ -65,15 +68,16 @@ export function synchronizeDataset(
   }
 
   const customerMap = new Map<string, MockCustomerRow>();
-  const nameToKey = new Map<string, string>();
   const seenGlobalPlates = new Set<string>();
   const baseIdByKey = new Map<string, string>();
 
   for (const base of baseCustomers) {
-    const k = getCustomerKey(base.phone, base.name);
+    const k = getCustomerKey(base.phone, base.name, base.id);
     if (k && !baseIdByKey.has(k)) baseIdByKey.set(k, base.id);
-    const nKey = base.name.trim().toLowerCase();
-    if (nKey && !baseIdByKey.has(`name:${nKey}`)) baseIdByKey.set(`name:${nKey}`, base.id);
+    const cleanPhone = normalizePhone(base.phone);
+    if (cleanPhone && !baseIdByKey.has(`phone:${cleanPhone}`)) {
+      baseIdByKey.set(`phone:${cleanPhone}`, base.id);
+    }
   }
 
   const registerCustomer = (
@@ -90,13 +94,7 @@ export function synchronizeDataset(
   ) => {
     const cleanName = incoming.name.trim();
     const cleanPhone = normalizePhone(incoming.phone);
-    const nameKey = cleanName.toLowerCase();
-    // Distinct customer name always maps to a separate customer record
-    const resolvedKey = nameKey
-      ? `name:${nameKey}`
-      : cleanPhone
-      ? `phone:${cleanPhone}`
-      : incoming.id;
+    const resolvedKey = getCustomerKey(cleanPhone, cleanName, incoming.id);
 
     const existing = customerMap.get(resolvedKey);
     const normalizedType = incoming.type || existing?.type || CustomerType.PERORANGAN;
@@ -116,15 +114,15 @@ export function synchronizeDataset(
     for (const v of vehiclePool) {
       const brand = (v.brand || '').trim();
       const model = (v.model || '').trim();
-      if (!brand && !model) continue;
+      if (!brand && !model && !v.plateNumber) continue;
       const plateUpper = v.plateNumber ? v.plateNumber.trim().toUpperCase() : null;
       const vKey = makeVehicleKey(brand, model, plateUpper);
       if (localVehicleKeys.has(vKey)) continue;
       localVehicleKeys.add(vKey);
       mergedVehicles.push({
         id: v.id,
-        brand,
-        model,
+        brand: brand || 'Unit',
+        model: model || plateUpper || 'Kendaraan',
         year: v.year ?? null,
         plateNumber: plateUpper,
       });
@@ -134,7 +132,7 @@ export function synchronizeDataset(
       id:
         existing?.id ||
         baseIdByKey.get(resolvedKey) ||
-        (nameKey ? baseIdByKey.get(`name:${nameKey}`) : undefined) ||
+        (cleanPhone ? baseIdByKey.get(`phone:${cleanPhone}`) : undefined) ||
         incoming.id,
       name: preferIncomingFields ? cleanName || existing?.name || 'Pelanggan' : existing?.name || cleanName || 'Pelanggan',
       phone: preferIncomingFields ? cleanPhone || existing?.phone || '' : existing?.phone || cleanPhone || '',
@@ -146,10 +144,8 @@ export function synchronizeDataset(
     };
 
     customerMap.set(resolvedKey, record);
-    if (nameKey) nameToKey.set(nameKey, resolvedKey);
   };
 
-  // Prioritize orders so latest edits/intakes win over stale base customer snapshots
   for (const ord of orders) {
     registerCustomer(
       {
@@ -160,7 +156,7 @@ export function synchronizeDataset(
         workshopName: ord.workshopName ?? null,
         address: null,
         vehicles:
-          ord.vehicleBrand || ord.vehicleModel
+          ord.vehicleBrand || ord.vehicleModel || ord.plateNumber
             ? [
                 {
                   id: `veh-${ord.id}`,
@@ -191,7 +187,6 @@ export function synchronizeDataset(
     );
   }
 
-  // Enforce global plate uniqueness & compute exact serviceOrders count per customer
   const customers: MockCustomerRow[] = Array.from(customerMap.values()).map((cust) => {
     const uniqueVehicles: MockCustomerRow['vehicles'] = [];
     for (const v of cust.vehicles) {
@@ -231,7 +226,6 @@ export function applyUpsertOrder(
   const newPhone = normalizePhone(incomingOrder.customerPhone);
   const filteredOrders = currentOrders.filter((o) => o.id !== incomingOrder.id);
 
-  // Sync phone/name change across other orders of the same customer if phone changed during edit
   const propagatedOrders =
     prevOrder && oldPhone && newPhone && oldPhone !== newPhone
       ? filteredOrders.map((o) =>
@@ -295,16 +289,24 @@ export function applyUpsertCustomer(
       (payload.id && c.id === payload.id) ||
       (oldPhone && normalizePhone(c.phone) === oldPhone) ||
       (cleanPhone && normalizePhone(c.phone) === cleanPhone) ||
-      c.name.trim().toLowerCase() === cleanName.toLowerCase()
+      (!cleanPhone && c.name.trim().toLowerCase() === cleanName.toLowerCase())
+  );
+
+  const hasVehicleInput = Boolean(
+    payload.vehicle &&
+      (payload.vehicle.brand.trim() || payload.vehicle.model.trim() || payload.vehicle.plateNumber?.trim())
   );
 
   const newVehicle =
-    payload.vehicle && payload.vehicle.brand.trim() && payload.vehicle.model.trim()
+    hasVehicleInput && payload.vehicle
       ? [
           {
-            id: `veh-${Date.now()}`,
-            brand: payload.vehicle.brand.trim(),
-            model: payload.vehicle.model.trim(),
+            id: createUniqueId('veh'),
+            brand: payload.vehicle.brand.trim() || 'Unit',
+            model:
+              payload.vehicle.model.trim() ||
+              payload.vehicle.plateNumber?.trim().toUpperCase() ||
+              'Kendaraan',
             year: payload.vehicle.year ?? null,
             plateNumber: payload.vehicle.plateNumber
               ? payload.vehicle.plateNumber.trim().toUpperCase()
@@ -314,7 +316,7 @@ export function applyUpsertCustomer(
       : [];
 
   const updatedCustomer: MockCustomerRow = {
-    id: matchedCustomer?.id || payload.id || `cust-${Date.now()}`,
+    id: matchedCustomer?.id || payload.id || createUniqueId('cust'),
     name: cleanName || matchedCustomer?.name || 'Pelanggan',
     phone: cleanPhone || matchedCustomer?.phone || '',
     type: resolvedType,
@@ -327,13 +329,12 @@ export function applyUpsertCustomer(
     _count: { serviceOrders: matchedCustomer?._count.serviceOrders || 0 },
   };
 
-  // Propagate customer updates to matching service orders so dashboard/services/reports stay in sync
   const updatedOrders = currentOrders.map((ord) => {
     const ordPhone = normalizePhone(ord.customerPhone);
     const sameCustomer =
       (oldPhone && ordPhone === oldPhone) ||
       (cleanPhone && ordPhone === cleanPhone) ||
-      (matchedCustomer && ord.customerName.trim().toLowerCase() === matchedCustomer.name.trim().toLowerCase());
+      (!oldPhone && !cleanPhone && matchedCustomer && ord.customerName.trim().toLowerCase() === matchedCustomer.name.trim().toLowerCase());
 
     if (!sameCustomer) return ord;
     return {
@@ -361,9 +362,9 @@ export function applyAddVehicle(
       ...c,
       vehicles: [
         {
-          id: `veh-${Date.now()}`,
-          brand: vehicle.brand.trim(),
-          model: vehicle.model.trim(),
+          id: createUniqueId('veh'),
+          brand: vehicle.brand.trim() || 'Unit',
+          model: vehicle.model.trim() || vehicle.plateNumber?.trim().toUpperCase() || 'Kendaraan',
           year: vehicle.year ?? null,
           plateNumber: vehicle.plateNumber ? vehicle.plateNumber.trim().toUpperCase() : null,
         },
@@ -374,3 +375,92 @@ export function applyAddVehicle(
   return synchronizeDataset(currentOrders, updatedCustomers);
 }
 
+export function applyUpdateVehicle(
+  currentOrders: MockServiceOrder[],
+  currentCustomers: MockCustomerRow[],
+  payload: UpdateVehiclePayload
+): { orders: MockServiceOrder[]; customers: MockCustomerRow[] } {
+  const targetCustomer = currentCustomers.find((c) => c.id === payload.customerId);
+  const oldVehicle = targetCustomer?.vehicles.find((v) => v.id === payload.vehicleId);
+  const nextPlate = payload.plateNumber ? payload.plateNumber.trim().toUpperCase() : null;
+  const nextBrand = payload.brand.trim() || 'Unit';
+  const nextModel = payload.model.trim() || nextPlate || 'Kendaraan';
+
+  const updatedCustomers = currentCustomers.map((c) => {
+    if (c.id !== payload.customerId) return c;
+    return {
+      ...c,
+      vehicles: c.vehicles.map((v) =>
+        v.id === payload.vehicleId
+          ? {
+              ...v,
+              brand: nextBrand,
+              model: nextModel,
+              year: payload.year ?? null,
+              plateNumber: nextPlate,
+            }
+          : v
+      ),
+    };
+  });
+
+  const custPhone = targetCustomer ? normalizePhone(targetCustomer.phone) : '';
+  const oldPlateKey = normalizePlateKey(oldVehicle?.plateNumber);
+  const updatedOrders = currentOrders.map((ord) => {
+    if (!custPhone || normalizePhone(ord.customerPhone) !== custPhone) return ord;
+    const ordPlateKey = normalizePlateKey(ord.plateNumber);
+    const sameByPlate = Boolean(oldPlateKey && ordPlateKey === oldPlateKey);
+    const sameByModel =
+      !oldPlateKey &&
+      oldVehicle &&
+      ord.vehicleBrand.toLowerCase() === oldVehicle.brand.toLowerCase() &&
+      ord.vehicleModel.toLowerCase() === oldVehicle.model.toLowerCase();
+    if (!sameByPlate && !sameByModel) return ord;
+    return {
+      ...ord,
+      vehicleBrand: nextBrand,
+      vehicleModel: nextModel,
+      vehicleYear: payload.year ?? ord.vehicleYear,
+      plateNumber: nextPlate,
+    };
+  });
+
+  return synchronizeDataset(updatedOrders, updatedCustomers);
+}
+
+export function applyDeleteVehicle(
+  currentOrders: MockServiceOrder[],
+  currentCustomers: MockCustomerRow[],
+  payload: DeleteVehiclePayload
+): { orders: MockServiceOrder[]; customers: MockCustomerRow[] } {
+  const updatedCustomers = currentCustomers.map((c) => {
+    if (c.id !== payload.customerId) return c;
+    return {
+      ...c,
+      vehicles: c.vehicles.filter((v) => v.id !== payload.vehicleId),
+    };
+  });
+  return synchronizeDataset(currentOrders, updatedCustomers);
+}
+
+export function applyDeleteCustomer(
+  currentOrders: MockServiceOrder[],
+  currentCustomers: MockCustomerRow[],
+  customerId: string
+): { orders: MockServiceOrder[]; customers: MockCustomerRow[] } {
+  const target = currentCustomers.find((c) => c.id === customerId);
+  if (!target) {
+    return synchronizeDataset(currentOrders, currentCustomers);
+  }
+  const targetPhone = normalizePhone(target.phone);
+  const hasOrders = currentOrders.some((ord) => {
+    const ordPhone = normalizePhone(ord.customerPhone);
+    if (targetPhone && ordPhone) return ordPhone === targetPhone;
+    return ord.customerName.trim().toLowerCase() === target.name.trim().toLowerCase();
+  });
+  if (hasOrders) {
+    return synchronizeDataset(currentOrders, currentCustomers);
+  }
+  const remaining = currentCustomers.filter((c) => c.id !== customerId);
+  return synchronizeDataset(currentOrders, remaining);
+}

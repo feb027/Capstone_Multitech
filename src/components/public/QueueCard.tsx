@@ -10,7 +10,6 @@ export interface QueueItem {
 
 export interface QueueCardProps {
   publicId: string;
-  code?: string;
   vehicleBrand?: string | null;
   vehicleModel?: string | null;
   vehicleYear?: number | null;

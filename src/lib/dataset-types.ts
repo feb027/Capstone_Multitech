@@ -12,6 +12,15 @@ export const PARTNER_WORKSHOPS = [
 ] as const;
 export type PartnerWorkshopName = (typeof PARTNER_WORKSHOPS)[number];
 
+export const NEW_WORKSHOP_OPTION = '__NEW_WORKSHOP__';
+
+export function createUniqueId(prefix: string): string {
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
+    return `${prefix}-${globalThis.crypto.randomUUID().slice(0, 12)}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function normalizePhone(phone?: string | null): string {
   const digits = (phone || '').replace(/\D/g, '');
   if (!digits) return '';
@@ -23,18 +32,40 @@ export function normalizePhone(phone?: string | null): string {
 export function normalizeWorkshopName(
   workshopName?: string | null,
   customerType?: CustomerType
-): PartnerWorkshopName | null {
+): string | null {
   if (customerType !== CustomerType.MITRA) return null;
-  const raw = (workshopName || '').trim().toLowerCase();
-  if (raw.includes('merdeka')) return 'Merdeka Motor';
-  if (raw.includes('kurnia')) return 'Kurnia';
-  if (raw.includes('edis')) return 'Edis Motor';
-  if (raw.includes('fals')) return 'Fals Motor';
-  if (raw.includes('tridaya')) return 'Tridaya Motor';
-  if (raw.includes('eko')) return 'Eko Motor';
-  if (raw.includes('aci')) return 'Aci Motor';
-  if (raw.includes('wahana')) return 'Wahana Retro';
-  return 'Wahana Retro';
+  const trimmed = (workshopName || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  const matchedPreset = PARTNER_WORKSHOPS.find(
+    (preset) => preset.toLowerCase() === lower
+  );
+  return matchedPreset || trimmed;
+}
+
+export function getWorkshopOptions(
+  customers: Array<{ type: CustomerType; workshopName?: string | null }> = [],
+  orders: Array<{ customerType: CustomerType; workshopName?: string | null }> = []
+): string[] {
+  const seen = new Map<string, string>();
+  for (const preset of PARTNER_WORKSHOPS) {
+    seen.set(preset.toLowerCase(), preset);
+  }
+  for (const c of customers) {
+    if (c.type !== CustomerType.MITRA || !c.workshopName) continue;
+    const clean = c.workshopName.trim().replace(/\s+/g, ' ');
+    if (clean && !seen.has(clean.toLowerCase())) {
+      seen.set(clean.toLowerCase(), clean);
+    }
+  }
+  for (const o of orders) {
+    if (o.customerType !== CustomerType.MITRA || !o.workshopName) continue;
+    const clean = o.workshopName.trim().replace(/\s+/g, ' ');
+    if (clean && !seen.has(clean.toLowerCase())) {
+      seen.set(clean.toLowerCase(), clean);
+    }
+  }
+  return Array.from(seen.values());
 }
 
 export interface MockProgressLog {
@@ -54,6 +85,10 @@ export interface MockServiceItem {
   complaint: string;
   status: ItemStatus;
   warrantyMonths: number;
+  warrantyUntil?: string | null;
+  cancelReason?: string | null;
+  overrideReason?: string | null;
+  finishedAt?: string | null;
   beforePhotoUrl?: string | null;
   afterPhotoUrl?: string | null;
   beforeCaption?: string | null;
@@ -149,6 +184,10 @@ export interface MockServiceOrder {
   customPhotoUrl?: string | null;
   receivedAt: string;
   estimatedDoneAt: string | null;
+  handedOverAt?: string | null;
+  isWarrantyClaim?: boolean;
+  warrantySourceItemId?: string | null;
+  warrantySourceCode?: string | null;
   items: MockServiceItem[];
   charges: MockChargeLine[];
   payments: MockPayment[];
@@ -167,6 +206,7 @@ export interface MockCustomerRow {
     model: string;
     year: number | null;
     plateNumber: string | null;
+    vin?: string | null;
   }>;
   _count: { serviceOrders: number };
 }
@@ -184,5 +224,21 @@ export interface UpsertCustomerPayload {
     model: string;
     year: number | null;
     plateNumber: string | null;
+    vin?: string | null;
   } | null;
+}
+
+export interface UpdateVehiclePayload {
+  customerId: string;
+  vehicleId: string;
+  brand: string;
+  model: string;
+  year: number | null;
+  plateNumber: string | null;
+  vin?: string | null;
+}
+
+export interface DeleteVehiclePayload {
+  customerId: string;
+  vehicleId: string;
 }

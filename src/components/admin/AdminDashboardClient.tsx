@@ -322,10 +322,10 @@ export function AdminDashboardClient({
       </div>
 
       {/* Compact 4-Card KPI Strip */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 lg:gap-4">
         <Link
           href="/admin/services"
-          className="ios-glass-card group flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-black/[0.12] hover:shadow-md dark:hover:border-white/[0.18] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card group flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-transform transition-shadow hover:-translate-y-0.5 hover:border-black/[0.12] hover:shadow-md dark:hover:border-white/[0.18] sm:rounded-[22px] sm:p-4"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -351,7 +351,7 @@ export function AdminDashboardClient({
 
         <Link
           href="/admin/services?status=SIAP_DIAMBIL"
-          className="ios-glass-card group flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-black/[0.12] hover:shadow-md dark:hover:border-white/[0.18] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card group flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-transform transition-shadow hover:-translate-y-0.5 hover:border-black/[0.12] hover:shadow-md dark:hover:border-white/[0.18] sm:rounded-[22px] sm:p-4"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -377,7 +377,7 @@ export function AdminDashboardClient({
 
         <Link
           href="/admin/reports"
-          className="ios-glass-card group flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-black/[0.12] hover:shadow-md dark:hover:border-white/[0.18] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card group flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-transform transition-shadow hover:-translate-y-0.5 hover:border-black/[0.12] hover:shadow-md dark:hover:border-white/[0.18] sm:rounded-[22px] sm:p-4"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -403,7 +403,7 @@ export function AdminDashboardClient({
 
         <Link
           href="/admin/customers"
-          className="ios-glass-card group flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-black/[0.12] hover:shadow-md dark:hover:border-white/[0.18] sm:rounded-[22px] sm:p-4"
+          className="ios-glass-card group flex min-w-0 flex-col justify-between rounded-[20px] p-3.5 shadow-sm transition-transform transition-shadow hover:-translate-y-0.5 hover:border-black/[0.12] hover:shadow-md dark:hover:border-white/[0.18] sm:rounded-[22px] sm:p-4"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -449,7 +449,7 @@ export function AdminDashboardClient({
             </Link>
           </div>
 
-          <div className="grid grid-cols-12 items-center gap-2 border-b border-black/[0.06] pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-white/[0.08] dark:text-slate-400">
+          <div className="hidden grid-cols-12 items-center gap-2 border-b border-black/[0.06] pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-white/[0.08] dark:text-slate-400 sm:grid">
             <span className="col-span-5">Unit</span>
             <span className="col-span-3">Pelanggan &amp; Bayar</span>
             <span className="col-span-4 text-right">Modul &amp; Penanganan</span>
@@ -471,10 +471,10 @@ export function AdminDashboardClient({
                     type="button"
                     onClick={() => setSelectedOrder(order)}
                     aria-label={`Lihat detail servis #${order.code} ${order.vehicleBrand} ${order.vehicleModel}`}
-                    className="grid w-full grid-cols-12 items-center gap-2 py-2.5 text-left transition-colors first:pt-2 last:pb-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+                    className="flex w-full flex-col gap-1.5 py-2.5 text-left transition-colors first:pt-2 last:pb-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] sm:grid sm:grid-cols-12 sm:items-center sm:gap-2"
                   >
                     {/* Col 1: Unit */}
-                    <div className="col-span-5 min-w-0">
+                    <div className="min-w-0 sm:col-span-5">
                       <div className="flex items-center gap-1.5">
                         <span className="shrink-0 rounded-md bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white dark:bg-white dark:text-slate-900">
                           #{order.code}
@@ -491,7 +491,7 @@ export function AdminDashboardClient({
                     </div>
 
                     {/* Col 2: Pelanggan + Status Bayar */}
-                    <div className="col-span-3 min-w-0">
+                    <div className="min-w-0 sm:col-span-3">
                       <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
                         {order.customerName}
                       </p>
@@ -506,7 +506,7 @@ export function AdminDashboardClient({
                     </div>
 
                     {/* Col 3: Modul & Penanganan (Teks center di dalam setiap pill) */}
-                    <div className="col-span-4 flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:col-span-4 sm:justify-end">
                       {order.items.map((item) => {
                         const meta = getStatusMeta(item.status);
                         return (

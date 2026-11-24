@@ -14,6 +14,7 @@ export interface CustomerRow {
     model: string;
     year: number | null;
     plateNumber: string | null;
+    vin?: string | null;
   }>;
   _count: { serviceOrders: number };
 }
@@ -25,6 +26,14 @@ export function getCustomerInitials(name: string): string {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
+function getCustomerLookupKey(phone?: string | null, name?: string | null, id?: string): string {
+  const cleanPhone = normalizePhone(phone);
+  if (cleanPhone) return `phone:${cleanPhone}`;
+  const cleanName = (name || '').trim().toLowerCase();
+  if (cleanName) return `name:${cleanName}`;
+  return id ? `id:${id}` : 'unknown';
+}
+
 export function buildAllCustomers(
   customers: CustomerRow[],
   orders: MockServiceOrder[]
@@ -32,18 +41,19 @@ export function buildAllCustomers(
   const map = new Map<string, CustomerRow>();
 
   for (const c of customers) {
-    const k = c.name.trim().toLowerCase() || c.id;
+    const k = getCustomerLookupKey(c.phone, c.name, c.id);
     map.set(k, { ...c, vehicles: [...c.vehicles] });
   }
 
   for (const ord of orders) {
     const cleanName = (ord.customerName || '').trim();
-    const nKey = cleanName.toLowerCase();
-    if (!nKey) continue;
+    const cleanPhone = normalizePhone(ord.customerPhone);
+    if (!cleanName && !cleanPhone) continue;
+    const key = getCustomerLookupKey(cleanPhone, cleanName, ord.id);
 
-    const existing = map.get(nKey);
+    const existing = map.get(key);
     if (existing) {
-      if (ord.vehicleBrand || ord.vehicleModel) {
+      if (ord.vehicleBrand || ord.vehicleModel || ord.plateNumber) {
         const hasVeh = existing.vehicles.some((v) => {
           const samePlate =
             ord.plateNumber &&
@@ -57,28 +67,28 @@ export function buildAllCustomers(
         if (!hasVeh) {
           existing.vehicles.push({
             id: `veh-${ord.id}`,
-            brand: ord.vehicleBrand,
-            model: ord.vehicleModel,
+            brand: ord.vehicleBrand || 'Unit',
+            model: ord.vehicleModel || ord.plateNumber || 'Kendaraan',
             year: ord.vehicleYear,
             plateNumber: ord.plateNumber || null,
           });
         }
       }
     } else {
-      map.set(nKey, {
+      map.set(key, {
         id: `cust-${ord.id}`,
-        name: cleanName,
-        phone: ord.customerPhone || '',
+        name: cleanName || 'Pelanggan',
+        phone: cleanPhone,
         type: ord.customerType || CustomerType.PERORANGAN,
         workshopName: ord.workshopName || null,
         address: null,
         vehicles:
-          ord.vehicleBrand || ord.vehicleModel
+          ord.vehicleBrand || ord.vehicleModel || ord.plateNumber
             ? [
                 {
                   id: `veh-${ord.id}`,
-                  brand: ord.vehicleBrand,
-                  model: ord.vehicleModel,
+                  brand: ord.vehicleBrand || 'Unit',
+                  model: ord.vehicleModel || ord.plateNumber || 'Kendaraan',
                   year: ord.vehicleYear,
                   plateNumber: ord.plateNumber || null,
                 },
@@ -90,18 +100,10 @@ export function buildAllCustomers(
   }
 
   return Array.from(map.values()).map((cust) => {
-    const custName = cust.name.trim().toLowerCase();
-    const custPhone = normalizePhone(cust.phone);
-    const count = orders.filter((ord) => {
-      const ordName = (ord.customerName || '').trim().toLowerCase();
-      if (ordName === custName) return true;
-      const ordPhone = normalizePhone(ord.customerPhone);
-      return Boolean(custPhone && ordPhone && ordPhone === custPhone);
-    }).length;
-
+    const count = getCustomerOrders(cust, orders).length;
     return {
       ...cust,
-      _count: { serviceOrders: Math.max(cust._count?.serviceOrders || 0, count) },
+      _count: { serviceOrders: count },
     };
   });
 }
@@ -115,10 +117,12 @@ export function getCustomerOrders(
 
   return orders
     .filter((ord) => {
-      const ordName = (ord.customerName || '').trim().toLowerCase();
-      if (ordName === targetName) return true;
       const ordPhone = normalizePhone(ord.customerPhone);
-      return Boolean(targetPhone && ordPhone && ordPhone === targetPhone);
+      if (targetPhone && ordPhone) return ordPhone === targetPhone;
+      if (!targetPhone && !ordPhone) {
+        return (ord.customerName || '').trim().toLowerCase() === targetName;
+      }
+      return false;
     })
     .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
 }

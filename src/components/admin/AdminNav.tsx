@@ -19,6 +19,7 @@ import {
 import { logoutAdminAction } from '@/app/(admin)/admin/actions';
 import { BrandLogo } from '@/components/shared/BrandLogo';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
+import { MockCustomerRow, MockServiceOrder } from '@/lib/frontend-mock';
 import { useDataset } from '@/lib/use-dataset';
 
 export const ADMIN_PRIMARY_NAV = [
@@ -33,13 +34,22 @@ const SIDEBAR_STORAGE_KEY = 'mt_admin_sidebar_collapsed';
 
 export function AdminSidebar({
   session,
+  initialOrders,
+  initialCustomers,
 }: {
   session?: { name?: string; email?: string } | null;
+  initialOrders?: MockServiceOrder[];
+  initialCustomers?: MockCustomerRow[];
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { orders, customers } = useDataset();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const { orders, customers } = useDataset(initialOrders, initialCustomers);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   useEffect(() => {
     try {
@@ -98,7 +108,7 @@ export function AdminSidebar({
     icon: typeof LayoutDashboard;
   }) => {
     const Icon = item.icon;
-    const isActive = pathname.startsWith(item.href);
+    const isActive = (pendingHref ?? pathname).startsWith(item.href);
     const badge = getBadgeForRoute(item.href);
 
     return (
@@ -106,6 +116,9 @@ export function AdminSidebar({
         key={item.href}
         href={item.href}
         prefetch={true}
+        onClick={() => {
+          if (pathname !== item.href) setPendingHref(item.href);
+        }}
         title={
           isCollapsed
             ? badge?.ariaSuffix
@@ -114,7 +127,7 @@ export function AdminSidebar({
             : undefined
         }
         aria-current={isActive ? 'page' : undefined}
-        className={`group relative flex min-h-[44px] items-center rounded-2xl text-xs font-bold transition-all tap-bounce ${
+        className={`group relative flex min-h-[44px] items-center rounded-2xl text-xs font-bold transition-colors transition-transform tap-bounce ${
           isCollapsed ? 'justify-center px-2' : 'justify-between gap-2.5 px-3.5'
         } ${
           isActive
@@ -241,14 +254,14 @@ export function AdminSidebar({
         <form action={logoutAdminAction}>
           <button
             type="submit"
-            title={isCollapsed ? 'Keluar Akun Admin' : undefined}
-            aria-label="Keluar Akun Admin"
+            title={isCollapsed ? 'Keluar' : undefined}
+            aria-label="Keluar"
             className={`flex min-h-[44px] w-full items-center rounded-2xl text-xs font-bold text-red-700 transition-colors hover:bg-red-50 tap-bounce dark:text-red-400 dark:hover:bg-red-950/40 ${
               isCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3.5'
             }`}
           >
             <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {!isCollapsed && <span>Keluar Akun Admin</span>}
+            {!isCollapsed && <span>Keluar</span>}
           </button>
         </form>
       </div>
@@ -258,18 +271,13 @@ export function AdminSidebar({
 
 export function AdminMobileNav({ session }: { session?: { name?: string; email?: string } | null }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMenuOpen(false);
+    setPendingHref(null);
   }, [pathname]);
-
-  useEffect(() => {
-    for (const item of ADMIN_PRIMARY_NAV) {
-      router.prefetch(item.href);
-    }
-  }, [router]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -289,13 +297,16 @@ export function AdminMobileNav({ session }: { session?: { name?: string; email?:
         <div className="mx-auto grid max-w-lg grid-cols-4 gap-1.5">
           {ADMIN_MOBILE_TABS.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname.startsWith(item.href);
+            const isActive = (pendingHref ?? pathname).startsWith(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 prefetch={true}
-                className={`flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-bold transition-all tap-bounce ${
+                onClick={() => {
+                  if (pathname !== item.href) setPendingHref(item.href);
+                }}
+                className={`flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-bold transition-colors transition-transform tap-bounce ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900'
                     : 'text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
@@ -312,8 +323,8 @@ export function AdminMobileNav({ session }: { session?: { name?: string; email?:
             onClick={() => setIsMenuOpen(true)}
             aria-label="Buka Menu Laporan dan Keluar"
             aria-expanded={isMenuOpen}
-            className={`flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-bold transition-all tap-bounce ${
-              isMenuOpen || pathname.startsWith('/admin/reports')
+            className={`flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-bold transition-colors transition-transform tap-bounce ${
+              isMenuOpen || (pendingHref ?? pathname).startsWith('/admin/reports')
                 ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900'
                 : 'text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
             }`}
@@ -388,7 +399,7 @@ export function AdminMobileNav({ session }: { session?: { name?: string; email?:
                   className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-2xl bg-red-700 py-3 text-xs font-bold text-white shadow-md tap-bounce dark:bg-red-600"
                 >
                   <LogOut className="h-4 w-4" aria-hidden="true" />
-                  <span>Keluar Akun Admin</span>
+                  <span>Keluar</span>
                 </button>
               </form>
             </div>

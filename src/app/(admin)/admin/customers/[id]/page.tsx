@@ -1,4 +1,4 @@
-import { getServerDataset } from '@/lib/dataset-store';
+import { getCachedServerDataset } from '@/lib/dataset-store';
 import type { CustomerRow } from '../customer-utils';
 import { CustomerDetailClient } from './CustomerDetailClient';
 
@@ -10,7 +10,7 @@ export default async function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const dataset = getServerDataset();
+  const dataset = await getCachedServerDataset();
 
   return (
     <CustomerDetailClient

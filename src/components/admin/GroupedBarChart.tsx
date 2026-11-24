@@ -159,7 +159,7 @@ export function GroupedBarChart({
                             )
                           }
                           style={{ height: `${heightPct}%` }}
-                          className={`relative cursor-pointer rounded-t-[3px] outline-none transition-all duration-200 ${barWidthClass} ${
+                          className={`relative cursor-pointer rounded-t-[3px] outline-none transition-opacity duration-200 ${barWidthClass} ${
                             s.colorClass
                           } ${
                             isHovered
@@ -172,12 +172,24 @@ export function GroupedBarChart({
                           {isHovered && (
                             <div
                               role="tooltip"
-                              className="pointer-events-none absolute -top-9 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg dark:bg-white dark:text-slate-900"
+                              className={`pointer-events-none absolute -top-9 z-30 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg dark:bg-white dark:text-slate-900 ${
+                                categories.length > 2 && catIdx === 0
+                                  ? 'left-0 translate-x-0'
+                                  : categories.length > 2 && catIdx === categories.length - 1
+                                  ? 'right-0 left-auto translate-x-0'
+                                  : 'left-1/2 -translate-x-1/2'
+                              }`}
                             >
                               {tooltipText}
                               <span
                                 aria-hidden="true"
-                                className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-slate-900 dark:bg-white"
+                                className={`absolute -bottom-1 h-2 w-2 rotate-45 bg-slate-900 dark:bg-white ${
+                                  categories.length > 2 && catIdx === 0
+                                    ? 'left-3'
+                                    : categories.length > 2 && catIdx === categories.length - 1
+                                    ? 'right-3'
+                                    : 'left-1/2 -translate-x-1/2'
+                                }`}
                               />
                             </div>
                           )}
@@ -197,7 +209,7 @@ export function GroupedBarChart({
               return (
                 <div key={`x-cat-${cat.label}`} className="min-w-0 flex-1 text-center">
                   <span
-                    className={`block truncate text-[10px] transition-colors sm:text-xs ${
+                    className={`block truncate text-[9px] transition-colors sm:text-xs ${
                       isCatHovered
                         ? 'font-bold text-blue-700 dark:text-blue-300'
                         : 'font-medium text-slate-800 dark:text-slate-200'

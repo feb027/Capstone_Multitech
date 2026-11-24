@@ -8,6 +8,7 @@ import { X, ArrowRight } from 'lucide-react';
 interface CheckCodeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  expectedPublicId?: string;
   initialCode?: string;
   unitLabel?: string;
 }
@@ -15,6 +16,7 @@ interface CheckCodeModalProps {
 export function CheckCodeModal({
   isOpen,
   onClose,
+  expectedPublicId = '',
   initialCode = '',
   unitLabel = '',
 }: CheckCodeModalProps) {
@@ -34,7 +36,7 @@ export function CheckCodeModal({
       setCode(initialCode || '');
       setPhoneLast4('');
     }
-  }, [isOpen, initialCode]);
+  }, [isOpen, initialCode, expectedPublicId]);
 
   const handleSmoothClose = useCallback(() => {
     setVisible(false);
@@ -46,6 +48,8 @@ export function CheckCodeModal({
 
   useEffect(() => {
     if (isOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
       setMounted(true);
       setError(null);
       const frame = requestAnimationFrame(() => {
@@ -68,6 +72,7 @@ export function CheckCodeModal({
       window.addEventListener('keydown', onKeyDown);
 
       return () => {
+        document.body.style.overflow = prevOverflow;
         cancelAnimationFrame(frame);
         clearTimeout(focusTimer);
         window.removeEventListener('keydown', onKeyDown);
@@ -109,6 +114,9 @@ export function CheckCodeModal({
       const formData = new FormData();
       formData.set('code', code);
       formData.set('phoneLast4', phoneLast4);
+      if (expectedPublicId) {
+        formData.set('expectedPublicId', expectedPublicId);
+      }
 
       try {
         const res = await verifyCustomerAccessAction(null, formData);

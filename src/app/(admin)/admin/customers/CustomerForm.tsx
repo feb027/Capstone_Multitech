@@ -1,71 +1,120 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { createCustomerAction } from './actions';
+import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { CustomerType } from '@prisma/client';
-import { PARTNER_WORKSHOPS } from '@/lib/frontend-mock';
+import {
+  PARTNER_WORKSHOPS,
+  createUniqueId,
+  getWorkshopOptions,
+  normalizePhone,
+  normalizeWorkshopName,
+} from '@/lib/frontend-mock';
 import { useDataset } from '@/lib/use-dataset';
+import { WorkshopSelectField } from '@/components/admin/WorkshopSelectField';
 import { Plus, X } from 'lucide-react';
 
 export function CustomerForm() {
-  const { upsertCustomer } = useDataset();
+  const { customers, orders, upsertCustomer } = useDataset();
+  const workshopOptions = useMemo(
+    () => getWorkshopOptions(customers, orders),
+    [customers, orders]
+  );
+
   const [isOpen, setIsOpen] = useState(false);
   const [type, setType] = useState<CustomerType>(CustomerType.PERORANGAN);
+  const [workshopName, setWorkshopName] = useState<string>(PARTNER_WORKSHOPS[0]);
   const [error, setError] = useState<string | null>(null);
+  const [duplicateCustomerId, setDuplicateCustomerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const openModal = () => {
+    setError(null);
+    setDuplicateCustomerId(null);
+    setType(CustomerType.PERORANGAN);
+    setWorkshopName(workshopOptions[0] || PARTNER_WORKSHOPS[0]);
+    setIsOpen(true);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsOpen(false);
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [isOpen]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setDuplicateCustomerId(null);
 
     const formData = new FormData(e.currentTarget);
     formData.set('type', type);
 
     const name = String(formData.get('name') || '').trim();
-    const phone = String(formData.get('phone') || '').trim();
-    const workshopName =
-      type === CustomerType.MITRA
-        ? String(formData.get('workshopName') || PARTNER_WORKSHOPS[0])
-        : null;
+    const rawPhone = String(formData.get('phone') || '').trim();
+    const cleanPhone = normalizePhone(rawPhone);
+    const resolvedWorkshop = normalizeWorkshopName(workshopName, type);
     const address = String(formData.get('address') || '').trim() || null;
     const brand = String(formData.get('brand') || '').trim();
     const model = String(formData.get('model') || '').trim();
     const yearStr = String(formData.get('year') || '').trim();
     const plateNumber = String(formData.get('plateNumber') || '').trim() || null;
+    const vin = String(formData.get('vin') || '').trim() || null;
 
-    if (!name || !phone) {
-      setError('Nama dan nomor telepon wajib diisi.');
+    if (!name || cleanPhone.length < 9) {
+      setError('Nama lengkap dan nomor WhatsApp aktif (min. 9 digit) wajib diisi.');
       return;
     }
 
+    if (type === CustomerType.MITRA && !resolvedWorkshop) {
+      setError('Nama bengkel mitra wajib diisi.');
+      return;
+    }
+
+    const duplicate = customers.find((c) => normalizePhone(c.phone) === cleanPhone);
+    if (duplicate) {
+      setDuplicateCustomerId(duplicate.id);
+      setError(`Nomor WA +${cleanPhone} sudah terdaftar atas nama ${duplicate.name}.`);
+      return;
+    }
+
+    const parsedYear = yearStr ? parseInt(yearStr, 10) : null;
+    const hasVehicle = Boolean(brand || model || plateNumber || vin);
+
     setLoading(true);
-    await upsertCustomer({
+    const mutationRes = await upsertCustomer({
+      id: createUniqueId('cust'),
       name,
-      phone,
+      phone: cleanPhone,
       type,
-      workshopName,
+      workshopName: resolvedWorkshop,
       address,
-      vehicle:
-        brand && model
-          ? {
-              brand,
-              model,
-              year: yearStr ? parseInt(yearStr, 10) : null,
-              plateNumber,
-            }
-          : null,
+      vehicle: hasVehicle
+        ? {
+            brand: brand || 'Unit',
+            model: model || plateNumber?.toUpperCase() || 'Kendaraan',
+            year: parsedYear && !Number.isNaN(parsedYear) ? parsedYear : null,
+            plateNumber: plateNumber ? plateNumber.toUpperCase() : null,
+            vin: vin ? vin.toUpperCase() : null,
+          }
+        : null,
     });
-    await createCustomerAction(formData).catch(() => null);
     setLoading(false);
+
+    if (!mutationRes.ok) {
+      setError(mutationRes.error || 'Gagal menyimpan data pelanggan ke database.');
+      return;
+    }
+
     setIsOpen(false);
   }
 
@@ -73,7 +122,7 @@ export function CustomerForm() {
     return (
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={openModal}
         className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full bg-slate-900 px-5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-slate-800 tap-bounce dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
@@ -116,7 +165,16 @@ export function CustomerForm() {
               role="alert"
               className="rounded-2xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-300"
             >
-              {error}
+              <p>{error}</p>
+              {duplicateCustomerId && (
+                <Link
+                  href={`/admin/customers/${encodeURIComponent(duplicateCustomerId)}`}
+                  onClick={() => setIsOpen(false)}
+                  className="mt-1.5 inline-block font-bold underline"
+                >
+                  Buka profil pelanggan tersebut
+                </Link>
+              )}
             </div>
           )}
 
@@ -159,7 +217,7 @@ export function CustomerForm() {
                 id="cust-name"
                 name="name"
                 required
-                placeholder="Nama pelanggan"
+                placeholder="Nama pelanggan atau PIC"
                 className="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 text-sm text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400"
               />
             </div>
@@ -170,32 +228,28 @@ export function CustomerForm() {
               <input
                 id="cust-phone"
                 name="phone"
+                type="tel"
+                inputMode="tel"
                 required
-                placeholder="0812xxxxxxxx"
+                placeholder="08xxxxxxxxxx"
                 className="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 font-mono text-sm text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400"
               />
             </div>
           </div>
 
           {type === CustomerType.MITRA && (
-            <div>
-              <label htmlFor="cust-workshop" className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                Bengkel Mitra (Dropdown) *
-              </label>
-              <select
-                id="cust-workshop"
-                name="workshopName"
-                defaultValue={PARTNER_WORKSHOPS[0]}
-                required
-                className="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 text-sm font-semibold text-slate-900 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-[#2C2C2E] dark:text-white"
-              >
-                {PARTNER_WORKSHOPS.map((w) => (
-                  <option key={w} value={w}>
-                    {w}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <WorkshopSelectField
+              id="cust-workshop"
+              name="workshopName"
+              label="Nama Bengkel Mitra *"
+              required
+              value={workshopName}
+              onChange={setWorkshopName}
+              options={workshopOptions}
+              labelClassName="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
+              selectClassName="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 text-sm font-semibold text-slate-900 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-[#2C2C2E] dark:text-white"
+              inputClassName="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 text-sm font-semibold text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400"
+            />
           )}
 
           <div>
@@ -205,7 +259,7 @@ export function CustomerForm() {
             <input
               id="cust-address"
               name="address"
-              placeholder="Kota atau alamat singkat"
+              placeholder="Kecamatan, kota, atau alamat singkat"
               className="mt-1.5 h-11 w-full rounded-2xl border border-black/[0.06] bg-[#F2F2F7] px-3.5 text-sm text-slate-900 placeholder-slate-500 focus:border-slate-900 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-white dark:placeholder-slate-400"
             />
           </div>
@@ -214,31 +268,37 @@ export function CustomerForm() {
             <span className="text-xs font-bold text-slate-900 dark:text-white">
               Data Kendaraan / Unit Awal (Opsional)
             </span>
-            <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+            <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <input
                 name="brand"
                 aria-label="Merek kendaraan"
-                placeholder="Merek (Toyota)"
+                placeholder="Merek (mis. Toyota)"
                 className="h-10 rounded-xl border border-black/[0.06] bg-white px-3 text-xs text-slate-900 placeholder-slate-500 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-400"
               />
               <input
                 name="model"
                 aria-label="Model kendaraan"
-                placeholder="Model (Avanza)"
+                placeholder="Model (mis. Avanza)"
                 className="h-10 rounded-xl border border-black/[0.06] bg-white px-3 text-xs text-slate-900 placeholder-slate-500 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-400"
               />
               <input
                 name="year"
                 type="number"
                 aria-label="Tahun kendaraan"
-                placeholder="Tahun (2018)"
+                placeholder="Tahun (mis. 2018)"
                 className="h-10 rounded-xl border border-black/[0.06] bg-white px-3 font-mono text-xs text-slate-900 placeholder-slate-500 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-400"
               />
               <input
                 name="plateNumber"
                 aria-label="Plat nomor"
-                placeholder="Plat Polisi (Privat)"
-                className="h-10 rounded-xl border border-black/[0.06] bg-white px-3 font-mono text-xs text-slate-900 placeholder-slate-500 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-400"
+                placeholder="Plat Nomor (Privat)"
+                className="h-10 rounded-xl border border-black/[0.06] bg-white px-3 font-mono text-xs uppercase text-slate-900 placeholder-slate-500 focus:outline-none dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-400"
+              />
+              <input
+                name="vin"
+                aria-label="Nomor rangka kendaraan"
+                placeholder="Nomor Rangka / VIN (Opsional)"
+                className="h-10 rounded-xl border border-black/[0.06] bg-white px-3 font-mono text-xs uppercase text-slate-900 placeholder-slate-500 focus:outline-none sm:col-span-2 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-white dark:placeholder-slate-400"
               />
             </div>
           </div>

@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import { CustomerType, IntakeType, ItemStatus, PaymentMethod } from '@prisma/client';
+import { CustomerType, EntryMethod, IntakeType, ItemStatus, PaymentMethod } from '@prisma/client';
 import {
   MockProgressLog,
   MockServiceItem,
   MockServiceOrder,
   PARTNER_WORKSHOPS,
-  normalizeWorkshopName,
+  createUniqueId,
 } from '@/lib/frontend-mock';
+import { areAllItemsFinal, isValidStatusTransition } from '@/lib/business-rules';
 import {
   PROGRESS_STEPS,
   SPECIAL_STAGE_STATUSES,
@@ -27,18 +28,24 @@ import {
   AlertCircle,
   ChevronRight,
   Image as ImageIcon,
+  Eye,
+  EyeOff,
+  Lock,
 } from 'lucide-react';
 import {
   IntakeChoice,
   calcTotalPaid,
   calcTotalCharges,
-  readFileAsDataUrl,
+  uploadServicePhoto,
 } from './service-utils';
+import { WorkshopSelectField } from '@/components/admin/WorkshopSelectField';
 
 export interface ServiceEditFormProps {
   formId?: string;
   editOrder: MockServiceOrder;
+  savedOrder?: MockServiceOrder | null;
   setEditOrder: Dispatch<SetStateAction<MockServiceOrder | null>>;
+  workshopOptions: string[];
   setActiveLightboxPhoto: Dispatch<SetStateAction<string | null>>;
   newChargeKind: 'JASA' | 'SPAREPART' | 'DIAGNOSA';
   setNewChargeKind: Dispatch<SetStateAction<'JASA' | 'SPAREPART' | 'DIAGNOSA'>>;
@@ -56,6 +63,7 @@ export interface ServiceEditFormProps {
   handleAddPayment: () => void;
   handleDeleteLog: (itemIdx: number, logId: string) => void;
   handleAddModuleToOrder: () => void;
+  onDeleteOrder?: (orderId: string) => Promise<void> | void;
 }
 
 type EditTab = 'work' | 'billing' | 'unit';
@@ -82,7 +90,9 @@ function findStageLog(item: MockServiceItem, stage: ItemStatus): MockProgressLog
 export function ServiceEditForm({
   formId = 'service-edit-form',
   editOrder,
+  savedOrder,
   setEditOrder,
+  workshopOptions,
   setActiveLightboxPhoto,
   newChargeKind,
   setNewChargeKind,
@@ -100,13 +110,21 @@ export function ServiceEditForm({
   handleAddPayment,
   handleDeleteLog,
   handleAddModuleToOrder,
+  onDeleteOrder,
 }: ServiceEditFormProps) {
   const [activeTab, setActiveTab] = useState<EditTab>('work');
   const [selectedModuleIdx, setSelectedModuleIdx] = useState(0);
+  const [confirmDeleteOrder, setConfirmDeleteOrder] = useState(false);
+  const [uploadingStagePhoto, setUploadingStagePhoto] = useState(false);
+  const [uploadingUnitPhoto, setUploadingUnitPhoto] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const safeModuleIdx =
     selectedModuleIdx >= 0 && selectedModuleIdx < editOrder.items.length ? selectedModuleIdx : 0;
   const activeItem = editOrder.items[safeModuleIdx];
+  const savedBaselineItem = savedOrder?.items.find((it) => it.id === activeItem?.id);
+  const baselineStatus = savedBaselineItem?.status ?? ItemStatus.DITERIMA;
+  const chargesLocked = areAllItemsFinal((savedOrder || editOrder).items);
 
   const [focusedStage, setFocusedStage] = useState<ItemStatus>(
     () => activeItem?.status ?? ItemStatus.DITERIMA
@@ -131,6 +149,7 @@ export function ServiceEditForm({
   };
 
   const selectStage = (itemIdx: number, stage: ItemStatus) => {
+    if (!isValidStatusTransition(baselineStatus, stage)) return;
     setFocusedStage(stage);
     updateItemAt(itemIdx, (prev) => ({ ...prev, status: stage }));
   };
@@ -138,12 +157,14 @@ export function ServiceEditForm({
   const upsertStageEntry = (
     itemIdx: number,
     stage: ItemStatus,
-    patch: { note?: string; photoUrl?: string | null }
+    patch: { note?: string; photoUrl?: string | null; isPublic?: boolean }
   ) => {
     updateItemAt(itemIdx, (prev) => {
       const existing = findStageLog(prev, stage);
       const nextNote = patch.note !== undefined ? patch.note : existing?.note || '';
       const nextPhoto = patch.photoUrl !== undefined ? patch.photoUrl : existing?.photoUrl ?? null;
+      const nextIsPublic =
+        patch.isPublic !== undefined ? patch.isPublic : existing?.isPublic ?? true;
 
       let nextLogs: MockProgressLog[];
       if (!nextNote.trim() && !nextPhoto) {
@@ -151,33 +172,53 @@ export function ServiceEditForm({
       } else if (existing) {
         nextLogs = prev.logs.map((l) =>
           l.id === existing.id
-            ? { ...l, stage, note: nextNote, photoUrl: nextPhoto }
+            ? { ...l, stage, note: nextNote, photoUrl: nextPhoto, isPublic: nextIsPublic }
             : l
         );
       } else {
         const created: MockProgressLog = {
-          id: `log-${Date.now()}`,
+          id: createUniqueId('log'),
           createdAt: new Date().toISOString(),
           stage,
           note: nextNote,
-          isPublic: true,
+          isPublic: nextIsPublic,
           photoUrl: nextPhoto,
         };
         nextLogs = [created, ...prev.logs];
       }
 
-      const nextBeforePhoto =
-        stage === ItemStatus.DITERIMA && patch.photoUrl !== undefined
-          ? patch.photoUrl
-          : prev.beforePhotoUrl;
-      const nextAfterPhoto =
-        (stage === ItemStatus.PERBAIKAN ||
-          stage === ItemStatus.UJI_QC ||
-          stage === ItemStatus.SIAP_DIAMBIL ||
-          stage === ItemStatus.SELESAI) &&
-        patch.photoUrl !== undefined
-          ? patch.photoUrl
-          : prev.afterPhotoUrl;
+      const syncPhotoMirror = (
+        currentMirror: string | null | undefined,
+        photoCandidate: string | null,
+        isStageTarget: boolean,
+        isPublicEntry: boolean,
+        previousStagePhoto: string | null | undefined
+      ): string | null | undefined => {
+        if (!isStageTarget) return currentMirror;
+        if (isPublicEntry) return photoCandidate;
+        if (previousStagePhoto && currentMirror === previousStagePhoto) return null;
+        return currentMirror === photoCandidate ? null : currentMirror;
+      };
+
+      const nextBeforePhoto = syncPhotoMirror(
+        prev.beforePhotoUrl,
+        nextPhoto,
+        stage === ItemStatus.DITERIMA,
+        nextIsPublic,
+        existing?.photoUrl
+      );
+      const isAfterStage =
+        stage === ItemStatus.PERBAIKAN ||
+        stage === ItemStatus.UJI_QC ||
+        stage === ItemStatus.SIAP_DIAMBIL ||
+        stage === ItemStatus.SELESAI;
+      const nextAfterPhoto = syncPhotoMirror(
+        prev.afterPhotoUrl,
+        nextPhoto,
+        isAfterStage,
+        nextIsPublic,
+        existing?.photoUrl
+      );
 
       return {
         ...prev,
@@ -353,6 +394,11 @@ export function ServiceEditForm({
                 <option value="6">6 Bulan</option>
                 <option value="12">12 Bulan</option>
               </select>
+              {activeItem.warrantyMonths > 0 && activeItem.warrantyUntil && (
+                <p className="mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  Berlaku s.d. {formatDate(activeItem.warrantyUntil)}
+                </p>
+              )}
             </div>
 
             <div className="sm:col-span-3">
@@ -385,10 +431,10 @@ export function ServiceEditForm({
                   Tahap Pengerjaan
                 </p>
                 <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                  Klik tahap untuk memperbarui status dan menambahkan catatan atau foto opsional.
+                  Status mengikuti urutan pengerjaan (BR-03). Klik tahap yang diizinkan untuk memperbarui progres.
                 </p>
               </div>
-              {nextPipelineStep && (
+              {nextPipelineStep && isValidStatusTransition(baselineStatus, nextPipelineStep.key) && (
                 <button
                   type="button"
                   onClick={() => selectStage(safeModuleIdx, nextPipelineStep.key)}
@@ -404,6 +450,7 @@ export function ServiceEditForm({
               {PROGRESS_STEPS.map((step, sIdx) => {
                 const isStatusActive = activeItem.status === step.key;
                 const isFocused = currentStageInView === step.key;
+                const canTransition = isValidStatusTransition(baselineStatus, step.key);
                 const isDone =
                   !isSpecialStageStatus(activeItem.status) &&
                   (activeItem.status === ItemStatus.SELESAI || sIdx < activeStepIdx);
@@ -413,9 +460,17 @@ export function ServiceEditForm({
                   <button
                     key={step.key}
                     type="button"
+                    disabled={!canTransition}
+                    title={
+                      canTransition
+                        ? step.label
+                        : `Tahap "${step.label}" belum dapat dipilih langsung dari ${getStatusMeta(baselineStatus).label} (BR-03)`
+                    }
                     onClick={() => selectStage(safeModuleIdx, step.key)}
                     className={`relative flex min-h-[54px] flex-col items-center justify-center rounded-xl border px-1.5 py-2 text-center transition-colors ${
-                      isStatusActive || isFocused
+                      !canTransition
+                        ? 'cursor-not-allowed border-black/[0.05] bg-slate-50/60 text-slate-400 opacity-50 dark:border-white/[0.06] dark:bg-white/[0.02] dark:text-slate-500'
+                        : isStatusActive || isFocused
                         ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
                         : isDone
                         ? 'border-emerald-600/30 bg-emerald-500/12 text-emerald-800 hover:bg-emerald-500/20 dark:border-emerald-400/25 dark:text-emerald-300'
@@ -455,14 +510,18 @@ export function ServiceEditForm({
               {SPECIAL_STAGE_STATUSES.map((sp) => {
                 const isSelected = activeItem.status === sp.key;
                 const isCancel = sp.key === ItemStatus.BATAL;
+                const canSelectSpecial = isValidStatusTransition(baselineStatus, sp.key);
                 return (
                   <button
                     key={sp.key}
                     type="button"
-                    title={sp.description}
+                    disabled={!canSelectSpecial}
+                    title={canSelectSpecial ? sp.description : 'Status ini tidak tersedia pada tahap final.'}
                     onClick={() => selectStage(safeModuleIdx, sp.key)}
                     className={`min-h-[34px] rounded-full border px-3 text-[11px] font-bold transition-colors ${
-                      isSelected
+                      !canSelectSpecial
+                        ? 'cursor-not-allowed border-black/[0.05] bg-slate-50 text-slate-400 opacity-50 dark:border-white/[0.06] dark:bg-white/[0.02]'
+                        : isSelected
                         ? isCancel
                           ? 'border-red-600 bg-red-600 text-white'
                           : 'border-amber-700 bg-amber-700 text-white'
@@ -474,6 +533,59 @@ export function ServiceEditForm({
                 );
               })}
             </div>
+
+            {activeItem.status === ItemStatus.BATAL && (
+              <div className="space-y-1.5 rounded-2xl border border-red-200 bg-red-50/70 p-3.5 dark:border-red-900/40 dark:bg-red-950/30">
+                <label
+                  htmlFor="mod-cancel-reason"
+                  className="block text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-300"
+                >
+                  Alasan Pembatalan Modul (Wajib — FR-S10) *
+                </label>
+                <input
+                  id="mod-cancel-reason"
+                  type="text"
+                  required
+                  value={activeItem.cancelReason || ''}
+                  onChange={(e) =>
+                    updateItemAt(safeModuleIdx, (prev) => ({
+                      ...prev,
+                      cancelReason: e.target.value,
+                    }))
+                  }
+                  placeholder="Contoh: Biaya komponen melebihi anggaran pelanggan / PCB korosi parah"
+                  className="h-10 w-full rounded-xl border border-red-200 bg-white px-3 text-xs text-slate-900 placeholder-slate-400 focus:border-red-500 focus:outline-none dark:border-red-900/50 dark:bg-black/40 dark:text-white"
+                />
+              </div>
+            )}
+
+            {activeItem.status === ItemStatus.SELESAI && totalCharges > 0 && remaining > 0 && (
+              <div className="space-y-1.5 rounded-2xl border border-amber-300/80 bg-amber-50/80 p-3.5 dark:border-amber-700/50 dark:bg-amber-950/30">
+                <label
+                  htmlFor="mod-override-reason"
+                  className="block text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300"
+                >
+                  Alasan Override Belum Lunas (Wajib — BR-06) *
+                </label>
+                <p className="text-[11px] text-amber-800 dark:text-amber-200">
+                  Masih ada sisa tagihan {formatRupiah(remaining)}. Isi alasan resmi jika unit diserahkan sebelum lunas.
+                </p>
+                <input
+                  id="mod-override-reason"
+                  type="text"
+                  required
+                  value={activeItem.overrideReason || ''}
+                  onChange={(e) =>
+                    updateItemAt(safeModuleIdx, (prev) => ({
+                      ...prev,
+                      overrideReason: e.target.value,
+                    }))
+                  }
+                  placeholder="Contoh: Bengkel mitra sistem tempo 14 hari / disetujui owner"
+                  className="h-10 w-full rounded-xl border border-amber-300 bg-white px-3 text-xs text-slate-900 placeholder-slate-400 focus:border-amber-600 focus:outline-none dark:border-amber-800/60 dark:bg-black/40 dark:text-white"
+                />
+              </div>
+            )}
 
             {/* Clean Per-Stage Optional Note + Photo Editor */}
             <div className="space-y-3 rounded-2xl border border-black/[0.07] bg-slate-50/80 p-3.5 dark:border-white/[0.08] dark:bg-white/[0.03]">
@@ -490,23 +602,78 @@ export function ServiceEditForm({
                   </span>
                 </div>
 
-                <label className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 text-[11px] font-bold text-slate-800 transition-colors hover:bg-slate-100 tap-bounce dark:border-white/[0.12] dark:bg-white/[0.08] dark:text-white">
-                  <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>{currentStageLog?.photoUrl ? 'Ganti Foto' : 'Upload Foto'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      readFileAsDataUrl(file, (url) =>
-                        upsertStageEntry(safeModuleIdx, currentStageInView, { photoUrl: url })
-                      );
-                    }}
-                  />
-                </label>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      upsertStageEntry(safeModuleIdx, currentStageInView, {
+                        isPublic: !(currentStageLog?.isPublic ?? true),
+                      })
+                    }
+                    className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold transition-colors ${
+                      (currentStageLog?.isPublic ?? true)
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        : 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-300'
+                    }`}
+                    title="Atur apakah catatan dan foto tahap ini terlihat pelanggan di halaman tracking"
+                  >
+                    {(currentStageLog?.isPublic ?? true) ? (
+                      <>
+                        <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Tampil ke Pelanggan</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Internal Saja</span>
+                      </>
+                    )}
+                  </button>
+
+                  <label className="inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 text-[11px] font-bold text-slate-800 transition-colors hover:bg-slate-100 tap-bounce dark:border-white/[0.12] dark:bg-white/[0.08] dark:text-white">
+                    <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>
+                      {uploadingStagePhoto
+                        ? 'Mengunggah...'
+                        : currentStageLog?.photoUrl
+                        ? 'Ganti Foto'
+                        : 'Upload Foto'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingStagePhoto}
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setUploadError(null);
+                        setUploadingStagePhoto(true);
+                        try {
+                          const url = await uploadServicePhoto(file);
+                          upsertStageEntry(safeModuleIdx, currentStageInView, { photoUrl: url });
+                        } catch (err) {
+                          setUploadError(
+                            err instanceof Error ? err.message : 'Gagal mengunggah foto tahap.'
+                          );
+                        } finally {
+                          setUploadingStagePhoto(false);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
+
+              {uploadError && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
+                >
+                  {uploadError}
+                </div>
+              )}
 
               <textarea
                 rows={2}
@@ -598,15 +765,67 @@ export function ServiceEditForm({
                             {log.note || 'Dokumentasi foto tahap.'}
                           </p>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteLog(safeModuleIdx, log.id)}
-                          aria-label="Hapus catatan tahap ini"
-                          title="Hapus catatan"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateItemAt(safeModuleIdx, (prev) => {
+                                const nextPublic = !log.isPublic;
+                                const nextLogs = prev.logs.map((entry) =>
+                                  entry.id === log.id ? { ...entry, isPublic: nextPublic } : entry
+                                );
+                                let nextBefore = prev.beforePhotoUrl;
+                                let nextAfter = prev.afterPhotoUrl;
+                                if (!nextPublic && log.photoUrl) {
+                                  if (nextBefore === log.photoUrl) nextBefore = null;
+                                  if (nextAfter === log.photoUrl) nextAfter = null;
+                                } else if (nextPublic && log.photoUrl) {
+                                  if (log.stage === ItemStatus.DITERIMA) nextBefore = log.photoUrl;
+                                  if (
+                                    log.stage === ItemStatus.PERBAIKAN ||
+                                    log.stage === ItemStatus.UJI_QC ||
+                                    log.stage === ItemStatus.SIAP_DIAMBIL ||
+                                    log.stage === ItemStatus.SELESAI
+                                  ) {
+                                    nextAfter = log.photoUrl;
+                                  }
+                                }
+                                return {
+                                  ...prev,
+                                  logs: nextLogs,
+                                  beforePhotoUrl: nextBefore,
+                                  afterPhotoUrl: nextAfter,
+                                };
+                              })
+                            }
+                            className={`inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[10px] font-bold transition-colors ${
+                              log.isPublic
+                                ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                : 'bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300'
+                            }`}
+                            title={
+                              log.isPublic
+                                ? 'Terlihat oleh pelanggan. Klik untuk ubah menjadi internal.'
+                                : 'Hanya terlihat admin. Klik untuk tampilkan ke pelanggan.'
+                            }
+                          >
+                            {log.isPublic ? (
+                              <Eye className="h-3 w-3" aria-hidden="true" />
+                            ) : (
+                              <EyeOff className="h-3 w-3" aria-hidden="true" />
+                            )}
+                            <span>{log.isPublic ? 'Publik' : 'Privat'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLog(safeModuleIdx, log.id)}
+                            aria-label="Hapus catatan tahap ini"
+                            title="Hapus catatan"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -644,12 +863,18 @@ export function ServiceEditForm({
               </span>
               <p
                 className={`mt-0.5 font-mono text-sm font-black ${
-                  remaining <= 0
+                  totalCharges === 0
+                    ? 'text-slate-600 dark:text-slate-400'
+                    : remaining <= 0
                     ? 'text-emerald-700 dark:text-emerald-400'
                     : 'text-amber-800 dark:text-amber-300'
                 }`}
               >
-                {remaining <= 0 ? 'Lunas' : formatRupiah(remaining)}
+                {totalCharges === 0
+                  ? 'Belum ditagih'
+                  : remaining <= 0
+                  ? 'Lunas'
+                  : formatRupiah(remaining)}
               </p>
             </div>
           </div>
@@ -679,57 +904,68 @@ export function ServiceEditForm({
                       <span className="font-mono font-bold text-slate-900 dark:text-white">
                         {formatRupiah(chg.unitPrice * chg.qty)}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCharge(chg.id)}
-                        aria-label={`Hapus biaya ${chg.description}`}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
+                      {!chargesLocked && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCharge(chg.id)}
+                          aria-label={`Hapus biaya ${chg.description}`}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="flex flex-col gap-2 pt-1 sm:flex-row">
-              <select
-                aria-label="Jenis biaya"
-                value={newChargeKind}
-                onChange={(e) =>
-                  setNewChargeKind(e.target.value as 'JASA' | 'SPAREPART' | 'DIAGNOSA')
-                }
-                className="h-10 rounded-xl border border-black/[0.08] bg-slate-50 px-2.5 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#2C2C2E] dark:text-white sm:w-32"
-              >
-                <option value="JASA">Jasa</option>
-                <option value="SPAREPART">Sparepart</option>
-                <option value="DIAGNOSA">Diagnosa</option>
-              </select>
-              <input
-                type="text"
-                aria-label="Deskripsi biaya"
-                value={newChargeDesc}
-                onChange={(e) => setNewChargeDesc(e.target.value)}
-                placeholder="Deskripsi biaya atau komponen..."
-                className="h-10 flex-1 rounded-xl border border-black/[0.08] bg-slate-50 px-3 text-xs text-slate-900 dark:border-white/10 dark:bg-white/[0.04] dark:text-white"
-              />
-              <input
-                type="number"
-                aria-label="Harga"
-                value={newChargePrice}
-                onChange={(e) => setNewChargePrice(e.target.value)}
-                placeholder="Harga (Rp)"
-                className="h-10 rounded-xl border border-black/[0.08] bg-slate-50 px-3 font-mono text-xs text-slate-900 dark:border-white/10 dark:bg-white/[0.04] dark:text-white sm:w-32"
-              />
-              <button
-                type="button"
-                onClick={handleAddCharge}
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-900 px-4 text-xs font-bold text-white tap-bounce dark:bg-white dark:text-slate-900"
-              >
-                Tambah Biaya
-              </button>
-            </div>
+            {chargesLocked ? (
+              <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] bg-slate-50 px-3 py-2.5 text-[11px] font-medium text-slate-600 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-slate-300">
+                <Lock className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden="true" />
+                <span>
+                  Daftar biaya terkunci karena seluruh modul sudah berstatus final (BR-07). Pencatatan pembayaran tetap dibuka di bawah.
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+                <select
+                  aria-label="Jenis biaya"
+                  value={newChargeKind}
+                  onChange={(e) =>
+                    setNewChargeKind(e.target.value as 'JASA' | 'SPAREPART' | 'DIAGNOSA')
+                  }
+                  className="h-10 rounded-xl border border-black/[0.08] bg-slate-50 px-2.5 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#2C2C2E] dark:text-white sm:w-32"
+                >
+                  <option value="JASA">Jasa</option>
+                  <option value="SPAREPART">Sparepart</option>
+                  <option value="DIAGNOSA">Diagnosa</option>
+                </select>
+                <input
+                  type="text"
+                  aria-label="Deskripsi biaya"
+                  value={newChargeDesc}
+                  onChange={(e) => setNewChargeDesc(e.target.value)}
+                  placeholder="Deskripsi biaya atau komponen..."
+                  className="h-10 flex-1 rounded-xl border border-black/[0.08] bg-slate-50 px-3 text-xs text-slate-900 dark:border-white/10 dark:bg-white/[0.04] dark:text-white"
+                />
+                <input
+                  type="number"
+                  aria-label="Harga"
+                  value={newChargePrice}
+                  onChange={(e) => setNewChargePrice(e.target.value)}
+                  placeholder="Harga (Rp)"
+                  className="h-10 rounded-xl border border-black/[0.08] bg-slate-50 px-3 font-mono text-xs text-slate-900 dark:border-white/10 dark:bg-white/[0.04] dark:text-white sm:w-32"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCharge}
+                  className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-900 px-4 text-xs font-bold text-white tap-bounce dark:bg-white dark:text-slate-900"
+                >
+                  Tambah Biaya
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Input Pembayaran Kas */}
@@ -795,17 +1031,28 @@ export function ServiceEditForm({
             </div>
             <label className="inline-flex min-h-[40px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3.5 text-xs font-bold text-slate-800 hover:bg-slate-100 dark:border-white/10 dark:bg-white/10 dark:text-white">
               <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Ganti Foto</span>
+              <span>{uploadingUnitPhoto ? 'Mengunggah...' : 'Ganti Foto'}</span>
               <input
                 type="file"
                 accept="image/*"
+                disabled={uploadingUnitPhoto}
                 className="hidden"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  readFileAsDataUrl(file, (url) =>
-                    setEditOrder({ ...editOrder, customPhotoUrl: url })
-                  );
+                  setUploadError(null);
+                  setUploadingUnitPhoto(true);
+                  try {
+                    const url = await uploadServicePhoto(file);
+                    setEditOrder({ ...editOrder, customPhotoUrl: url });
+                  } catch (err) {
+                    setUploadError(
+                      err instanceof Error ? err.message : 'Gagal mengunggah foto unit.'
+                    );
+                  } finally {
+                    setUploadingUnitPhoto(false);
+                    e.target.value = '';
+                  }
                 }}
               />
             </label>
@@ -900,6 +1147,42 @@ export function ServiceEditForm({
 
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Metode Penyerahan Unit
+              </label>
+              <select
+                value={editOrder.entryMethod}
+                onChange={(e) =>
+                  setEditOrder({
+                    ...editOrder,
+                    entryMethod: e.target.value as EntryMethod,
+                  })
+                }
+                className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-slate-50 px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#2C2C2E] dark:text-white"
+              >
+                <option value={EntryMethod.DATANG}>Datang Langsung</option>
+                <option value={EntryMethod.EKSPEDISI}>Kirim Ekspedisi</option>
+              </select>
+            </div>
+
+            {editOrder.entryMethod === EntryMethod.EKSPEDISI && (
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  Nomor Resi Ekspedisi
+                </label>
+                <input
+                  type="text"
+                  value={editOrder.trackingNumber || ''}
+                  onChange={(e) =>
+                    setEditOrder({ ...editOrder, trackingNumber: e.target.value })
+                  }
+                  placeholder="JNE / J&T / Cargo..."
+                  className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-slate-50 px-3 font-mono text-xs font-bold uppercase text-slate-900 dark:border-white/10 dark:bg-white/[0.04] dark:text-white"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Tipe Pelanggan
               </label>
               <select
@@ -909,7 +1192,10 @@ export function ServiceEditForm({
                   setEditOrder({
                     ...editOrder,
                     customerType: nextType,
-                    workshopName: normalizeWorkshopName(editOrder.workshopName, nextType),
+                    workshopName:
+                      nextType === CustomerType.MITRA
+                        ? editOrder.workshopName || workshopOptions[0] || PARTNER_WORKSHOPS[0]
+                        : null,
                   });
                 }}
                 className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-slate-50 px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#2C2C2E] dark:text-white"
@@ -945,23 +1231,16 @@ export function ServiceEditForm({
 
             {editOrder.customerType === CustomerType.MITRA && (
               <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                  Bengkel Mitra
-                </label>
-                <select
-                  value={
-                    normalizeWorkshopName(editOrder.workshopName, CustomerType.MITRA) ||
-                    PARTNER_WORKSHOPS[0]
-                  }
-                  onChange={(e) => setEditOrder({ ...editOrder, workshopName: e.target.value })}
-                  className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-slate-50 px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#2C2C2E] dark:text-white"
-                >
-                  {PARTNER_WORKSHOPS.map((w) => (
-                    <option key={w} value={w}>
-                      {w}
-                    </option>
-                  ))}
-                </select>
+                <WorkshopSelectField
+                  id="edit-order-workshop"
+                  label="Nama Bengkel Mitra"
+                  required
+                  value={editOrder.workshopName || workshopOptions[0] || PARTNER_WORKSHOPS[0]}
+                  onChange={(val) => setEditOrder({ ...editOrder, workshopName: val })}
+                  options={workshopOptions}
+                  selectClassName="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-slate-50 px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#2C2C2E] dark:text-white"
+                  inputClassName="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-slate-50 px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-white/[0.04] dark:text-white"
+                />
               </div>
             )}
 
@@ -1013,6 +1292,42 @@ export function ServiceEditForm({
               />
             </div>
           </div>
+
+          {onDeleteOrder && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-3 text-xs">
+              <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                Salah input unit? Hapus order servis #{editOrder.code} dari daftar antrean.
+              </span>
+              {confirmDeleteOrder ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onDeleteOrder(editOrder.id)}
+                    className="inline-flex min-h-[38px] items-center gap-1 rounded-full bg-red-600 px-3.5 text-xs font-bold text-white hover:bg-red-700"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Konfirmasi Hapus</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteOrder(false)}
+                    className="inline-flex min-h-[38px] items-center rounded-full px-3 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                  >
+                    Batal
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteOrder(true)}
+                  className="inline-flex min-h-[38px] items-center gap-1 rounded-full border border-red-500/25 px-3.5 text-xs font-bold text-red-700 hover:bg-red-500/10 dark:text-red-300"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Hapus Order</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </form>

@@ -8,7 +8,6 @@ export async function middleware(req: NextRequest) {
   const isAdminSubdomain = host.startsWith('admin.');
   const isAdminPath = pathname.startsWith('/admin');
 
-  // Skip static assets, internal Next.js requests, favicon
   if (
     pathname.startsWith('/_next') ||
     pathname.includes('.') ||
@@ -17,7 +16,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Guard dataset API endpoints with admin session cookie
   if (pathname.startsWith('/api/dataset')) {
     const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
     const session = token ? await verifyAdminSessionToken(token) : null;
@@ -31,30 +29,31 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle Admin Subdomain rewrite: if visiting admin.multitech.xxx/dashboard -> /admin/dashboard
-  if (isAdminSubdomain && !isAdminPath) {
-    const url = req.nextUrl.clone();
-    url.pathname = `/admin${pathname === '/' ? '/dashboard' : pathname}`;
-    return NextResponse.rewrite(url);
-  }
+  const effectiveAdminPath = isAdminSubdomain && !isAdminPath
+    ? `/admin${pathname === '/' ? '/dashboard' : pathname}`
+    : pathname;
 
-  // Admin authentication guard
-  if (isAdminPath) {
-    const isLoginPage = pathname === '/admin/login';
+  if (isAdminSubdomain || isAdminPath) {
+    const isLoginPage = effectiveAdminPath === '/admin/login';
     const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
     const session = token ? await verifyAdminSessionToken(token) : null;
 
     if (!session && !isLoginPage) {
-      // Redirect to login if unauthenticated
-      const loginUrl = new URL('/admin/login', req.url);
-      loginUrl.searchParams.set('from', pathname);
+      const loginUrl = new URL(isAdminSubdomain ? '/login' : '/admin/login', req.url);
+      loginUrl.searchParams.set('from', effectiveAdminPath);
       return NextResponse.redirect(loginUrl);
     }
 
     if (session && isLoginPage) {
-      // If already logged in, redirect away from login page to admin dashboard
-      return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+      const targetPath = isAdminSubdomain ? '/dashboard' : '/admin/dashboard';
+      return NextResponse.redirect(new URL(targetPath, req.url));
     }
+  }
+
+  if (isAdminSubdomain && !isAdminPath) {
+    const url = req.nextUrl.clone();
+    url.pathname = effectiveAdminPath;
+    return NextResponse.rewrite(url);
   }
 
   return NextResponse.next();

@@ -1,14 +1,16 @@
 'use client';
 
 import type { ChangeEvent, Dispatch, FormEvent, RefObject, SetStateAction } from 'react';
-import { CustomerType } from '@prisma/client';
-import { MockCustomerRow, PARTNER_WORKSHOPS, normalizeWorkshopName } from '@/lib/frontend-mock';
+import { CustomerType, EntryMethod } from '@prisma/client';
+import { MockCustomerRow, PARTNER_WORKSHOPS } from '@/lib/frontend-mock';
 import { getVehicleHeroImage } from '@/lib/status';
 import { Plus, Search, X, User, Camera, Car, ChevronDown } from 'lucide-react';
 import { INTAKE_CHOICES, IntakeChoice, VEHICLE_PRESETS } from './service-utils';
+import { WorkshopSelectField } from '@/components/admin/WorkshopSelectField';
 
 export interface ServiceIntakeModalProps {
   customers: MockCustomerRow[];
+  workshopOptions: string[];
   activeLightboxPhoto: string | null;
   setActiveLightboxPhoto: Dispatch<SetStateAction<string | null>>;
   isIntakeOpen: boolean;
@@ -37,6 +39,12 @@ export interface ServiceIntakeModalProps {
   setIntakeComplaint: Dispatch<SetStateAction<string>>;
   intakeCustomPhoto: string | null;
   setIntakeCustomPhoto: Dispatch<SetStateAction<string | null>>;
+  intakeEntryMethod: EntryMethod;
+  setIntakeEntryMethod: Dispatch<SetStateAction<EntryMethod>>;
+  intakeTrackingNumber: string;
+  setIntakeTrackingNumber: Dispatch<SetStateAction<string>>;
+  intakeError?: string | null;
+  isUploadingIntakePhoto?: boolean;
   intakePhotoInputRef: RefObject<HTMLInputElement | null>;
   isCustomerPickerOpen: boolean;
   setIsCustomerPickerOpen: Dispatch<SetStateAction<boolean>>;
@@ -52,6 +60,7 @@ export interface ServiceIntakeModalProps {
 
 export function ServiceIntakeModal({
   customers,
+  workshopOptions,
   activeLightboxPhoto,
   setActiveLightboxPhoto,
   isIntakeOpen,
@@ -80,6 +89,12 @@ export function ServiceIntakeModal({
   setIntakeComplaint,
   intakeCustomPhoto,
   setIntakeCustomPhoto,
+  intakeEntryMethod,
+  setIntakeEntryMethod,
+  intakeTrackingNumber,
+  setIntakeTrackingNumber,
+  intakeError,
+  isUploadingIntakePhoto,
   intakePhotoInputRef,
   isCustomerPickerOpen,
   setIsCustomerPickerOpen,
@@ -97,6 +112,9 @@ export function ServiceIntakeModal({
       {/* MODAL PENERIMAAN UNIT BARU (INTAKE) */}
       {isIntakeOpen && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="intake-modal-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
           onClick={() => setIsIntakeOpen(false)}
         >
@@ -136,7 +154,7 @@ export function ServiceIntakeModal({
                   <p className="text-[10px] font-bold uppercase tracking-wider text-white/75">
                     Tambah Unit Servis
                   </p>
-                  <h2 className="truncate text-lg font-black tracking-tight text-white sm:text-xl">
+                  <h2 id="intake-modal-title" className="truncate text-lg font-black tracking-tight text-white sm:text-xl">
                     {intakeBrand || intakeModel
                       ? `${intakeBrand} ${intakeModel}`.trim()
                       : 'Unit Kendaraan / Genset Baru'}
@@ -162,17 +180,33 @@ export function ServiceIntakeModal({
                   )}
                   <button
                     type="button"
+                    disabled={isUploadingIntakePhoto}
                     onClick={() => intakePhotoInputRef.current?.click()}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/25 bg-white/90 px-3 text-[11px] font-bold text-slate-900 shadow-sm transition-colors hover:bg-white"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/25 bg-white/90 px-3 text-[11px] font-bold text-slate-900 shadow-sm transition-colors hover:bg-white disabled:opacity-60"
                   >
                     <Camera className="h-3.5 w-3.5" />
-                    <span>{intakeCustomPhoto ? 'Ganti Foto' : 'Upload Foto'}</span>
+                    <span>
+                      {isUploadingIntakePhoto
+                        ? 'Mengunggah...'
+                        : intakeCustomPhoto
+                        ? 'Ganti Foto'
+                        : 'Upload Foto'}
+                    </span>
                   </button>
                 </div>
               </div>
             </div>
   
             <form onSubmit={handleCreateIntake} className="space-y-4 p-5 sm:p-6">
+              {intakeError && (
+                <div
+                  role="alert"
+                  className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
+                >
+                  {intakeError}
+                </div>
+              )}
+
               {/* Preset Cepat Unit Populer */}
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -255,6 +289,56 @@ export function ServiceIntakeModal({
                   </div>
                 </div>
   
+                {/* Pilihan Metode Penyerahan Unit */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      Metode Penyerahan
+                    </label>
+                    <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                      {[
+                        { value: EntryMethod.DATANG, label: 'Datang Langsung' },
+                        { value: EntryMethod.EKSPEDISI, label: 'Kirim Ekspedisi' },
+                      ].map((opt) => {
+                        const active = intakeEntryMethod === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setIntakeEntryMethod(opt.value)}
+                            className={`h-10 rounded-xl border px-2.5 text-[11px] font-bold transition-colors ${
+                              active
+                                ? 'border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-black'
+                                : 'border-black/[0.08] bg-white text-slate-700 hover:bg-black/[0.03] dark:border-white/10 dark:bg-black/40 dark:text-slate-300 dark:hover:bg-white/[0.06]'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {intakeEntryMethod === EntryMethod.EKSPEDISI && (
+                    <div>
+                      <label
+                        htmlFor="intake-tracking"
+                        className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
+                      >
+                        Nomor Resi Ekspedisi (Opsional)
+                      </label>
+                      <input
+                        id="intake-tracking"
+                        type="text"
+                        value={intakeTrackingNumber}
+                        onChange={(e) => setIntakeTrackingNumber(e.target.value)}
+                        placeholder="JNE / J&T / Cargo..."
+                        className="mt-1.5 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 font-mono text-xs font-bold uppercase text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -432,8 +516,7 @@ export function ServiceIntakeModal({
                                   setIntakeCustomerType(c.type);
                                   if (c.type === CustomerType.MITRA) {
                                     setIntakeWorkshop(
-                                      normalizeWorkshopName(c.workshopName, CustomerType.MITRA) ||
-                                        PARTNER_WORKSHOPS[0]
+                                      c.workshopName || workshopOptions[0] || PARTNER_WORKSHOPS[0]
                                     );
                                   }
                                   setIsCustomerPickerOpen(false);
@@ -482,7 +565,7 @@ export function ServiceIntakeModal({
                       required
                       value={intakeName}
                       onChange={(e) => setIntakeName(e.target.value)}
-                      placeholder="Contoh: Budi Santoso"
+                      placeholder="Contoh: Nama pelanggan atau PIC"
                       className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
                     />
                   </div>
@@ -522,8 +605,7 @@ export function ServiceIntakeModal({
                         onClick={() => {
                           setIntakeCustomerType(CustomerType.MITRA);
                           setIntakeWorkshop(
-                            normalizeWorkshopName(intakeWorkshop, CustomerType.MITRA) ||
-                              PARTNER_WORKSHOPS[0]
+                            intakeWorkshop.trim() || workshopOptions[0] || PARTNER_WORKSHOPS[0]
                           );
                         }}
                         className={`h-10 rounded-xl border px-3 text-xs font-bold transition-colors ${
@@ -536,27 +618,19 @@ export function ServiceIntakeModal({
                       </button>
                     </div>
                   </div>
-  
+
                   {intakeCustomerType === CustomerType.MITRA && (
                     <div className="sm:col-span-2">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                        Bengkel Mitra (Dropdown)
-                      </label>
-                      <select
+                      <WorkshopSelectField
+                        id="intake-workshop"
+                        label="Nama Bengkel Mitra"
                         required
-                        value={
-                          normalizeWorkshopName(intakeWorkshop, CustomerType.MITRA) ||
-                          PARTNER_WORKSHOPS[0]
-                        }
-                        onChange={(e) => setIntakeWorkshop(e.target.value)}
-                        className="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
-                      >
-                        {PARTNER_WORKSHOPS.map((w) => (
-                          <option key={w} value={w}>
-                            {w}
-                          </option>
-                        ))}
-                      </select>
+                        value={intakeWorkshop}
+                        onChange={setIntakeWorkshop}
+                        options={workshopOptions}
+                        selectClassName="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-white"
+                        inputClassName="mt-1 h-10 w-full rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white"
+                      />
                     </div>
                   )}
                 </div>
@@ -591,16 +665,23 @@ export function ServiceIntakeModal({
       {/* LIGHTBOX FOTO PREVIEW */}
       {activeLightboxPhoto && (
         <div
-          className="fixed inset-0 z-60 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pratinjau foto unit"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
           onClick={() => setActiveLightboxPhoto(null)}
         >
-          <div className="relative max-w-2xl overflow-hidden rounded-2xl bg-black">
+          <div
+            className="relative max-w-2xl overflow-hidden rounded-2xl bg-black"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               onClick={() => setActiveLightboxPhoto(null)}
-              className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white"
+              aria-label="Tutup pratinjau foto"
+              className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/70 text-white"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
             <img src={activeLightboxPhoto} alt="Preview" className="max-h-[85vh] w-auto object-contain" />
           </div>

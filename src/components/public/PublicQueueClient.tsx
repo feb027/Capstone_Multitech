@@ -20,7 +20,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedOrderCode, setSelectedOrderCode] = useState('');
+  const [selectedPublicId, setSelectedPublicId] = useState('');
   const [selectedUnitLabel, setSelectedUnitLabel] = useState('');
   const filterContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -83,7 +83,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
   }, [initialOrders, selectedCategory, searchQuery]);
 
   const handleCardClick = (order: QueueCardProps) => {
-    setSelectedOrderCode(order.code || '');
+    setSelectedPublicId(order.publicId || '');
     const label =
       order.vehicleBrand && order.vehicleModel
         ? `${order.vehicleBrand} ${order.vehicleModel}`
@@ -214,7 +214,6 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
             <QueueCard
               key={order.publicId}
               publicId={order.publicId}
-              code={order.code}
               vehicleBrand={order.vehicleBrand}
               vehicleModel={order.vehicleModel}
               vehicleYear={order.vehicleYear}
@@ -234,7 +233,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
           <button
             type="button"
             onClick={() => {
-              setSelectedOrderCode('');
+              setSelectedPublicId('');
               setSelectedUnitLabel('');
               setIsModalOpen(true);
             }}
@@ -249,7 +248,7 @@ export function PublicQueueClient({ initialOrders }: { initialOrders: QueueCardP
       <CheckCodeModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        initialCode={selectedOrderCode}
+        expectedPublicId={selectedPublicId}
         unitLabel={selectedUnitLabel}
       />
     </div>

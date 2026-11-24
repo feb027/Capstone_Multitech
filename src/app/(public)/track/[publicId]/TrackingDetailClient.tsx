@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { ItemStatus } from '@prisma/client';
-import { BrandLogo } from '@/components/shared/BrandLogo';
+import { PrintableServiceReceipt } from '@/components/shared/PrintableServiceReceipt';
 import {
   PROGRESS_STEPS,
   WORKSHOP_PROFILE,
@@ -40,7 +40,12 @@ interface TrackingOrderProp {
     year: number | null;
   } | null;
   intakeType: string;
+  entryMethod?: string;
+  trackingNumber?: string | null;
   unitCategory?: string;
+  customPhotoUrl?: string | null;
+  isWarrantyClaim?: boolean;
+  warrantySourceCode?: string | null;
   receivedAt: string | Date;
   estimatedDoneAt: string | Date | null;
   conditionNotes: string | null;
@@ -51,6 +56,8 @@ interface TrackingOrderProp {
     complaint: string;
     status: string;
     warrantyMonths: number | null;
+    warrantyUntil?: string | Date | null;
+    cancelReason?: string | null;
     beforePhotoUrl?: string | null;
     afterPhotoUrl?: string | null;
     beforeCaption?: string | null;
@@ -135,6 +142,7 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
     order.vehicle?.model,
     order.unitCategory
   );
+  const heroPhotoSrc = order.customPhotoUrl || heroVehiclePhoto.src;
 
   const intakeLabel =
     order.unitCategory === 'GENSET_INDUSTRI'
@@ -143,6 +151,13 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
       ? 'Mobil Utuh'
       : 'Modul Saja';
 
+  const entryLabel =
+    order.entryMethod === 'EKSPEDISI'
+      ? order.trackingNumber
+        ? `Kirim Ekspedisi (Resi: ${order.trackingNumber})`
+        : 'Kirim Ekspedisi'
+      : 'Datang Langsung';
+
   const waMessage = encodeURIComponent(
     `Halo CV Multitech Tasikmalaya, saya ingin konfirmasi progres servis unit *${order.vehicle?.brand || ''} ${order.vehicle?.model || ''}* (Kode Nota: *#${order.code}*).`
   );
@@ -150,14 +165,45 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
 
   return (
     <div className="mx-auto max-w-lg space-y-4 pb-20 pt-1">
-      {/* Header Nota Khusus Cetak */}
-      <div className="hidden border-b border-slate-200 pb-4 print:flex print:items-center print:justify-between">
-        <BrandLogo href="" />
-        <div className="text-right text-xs">
-          <p className="font-bold text-slate-900">Nota Servis #{order.code}</p>
-          <p className="max-w-xs text-slate-600">{WORKSHOP_PROFILE.address}</p>
-        </div>
-      </div>
+      <PrintableServiceReceipt
+        isCustomerCopy
+        order={{
+          code: order.code,
+          publicId: order.publicId,
+          customerName: order.customer.name,
+          customerPhone: order.customer.phone,
+          customerType: order.customer.type,
+          workshopName: order.customer.workshopName,
+          vehicleBrand: order.vehicle?.brand || '',
+          vehicleModel: order.vehicle?.model || '',
+          vehicleYear: order.vehicle?.year ?? null,
+          intakeType: order.intakeType,
+          entryMethod: order.entryMethod,
+          trackingNumber: order.trackingNumber,
+          unitCategory: order.unitCategory,
+          isWarrantyClaim: order.isWarrantyClaim,
+          warrantySourceCode: order.warrantySourceCode,
+          conditionNotes: order.conditionNotes,
+          receivedAt: order.receivedAt,
+          estimatedDoneAt: order.estimatedDoneAt,
+          items: order.items.map((item) => ({
+            id: item.id,
+            moduleName: item.moduleType.name,
+            moduleDetail: item.moduleDetail,
+            complaint: item.complaint,
+            status: item.status,
+            warrantyMonths: item.warrantyMonths,
+            warrantyUntil: item.warrantyUntil,
+          })),
+          charges: order.charges.map((chg) => ({
+            id: chg.id,
+            description: chg.description,
+            qty: chg.qty,
+            unitPrice: chg.unitPrice,
+          })),
+          payments: order.payments,
+        }}
+      />
 
       {/* Top Bar Navigation */}
       <div className="no-print flex items-center justify-between">
@@ -199,13 +245,13 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
           type="button"
           onClick={() => {
             setPhotoError(false);
-            setActivePhoto(heroVehiclePhoto.src);
+            setActivePhoto(heroPhotoSrc);
           }}
           aria-label={`Perbesar foto ${heroVehiclePhoto.caption}`}
           className="group relative mb-4 block w-full overflow-hidden rounded-2xl border border-black/[0.05] bg-slate-100 text-left tap-bounce dark:border-white/[0.08] dark:bg-black/30"
         >
           <img
-            src={heroVehiclePhoto.src}
+            src={heroPhotoSrc}
             alt={`Foto ${heroVehiclePhoto.caption}`}
             className="h-44 w-full object-cover transition-transform duration-300 group-hover:scale-105 sm:h-48"
           />
@@ -218,9 +264,16 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
         </button>
 
         <div>
-          <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
-            {order.vehicle?.brand} {order.vehicle?.model}
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+              {order.vehicle?.brand} {order.vehicle?.model}
+            </h1>
+            {order.isWarrantyClaim && (
+              <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                Klaim Garansi{order.warrantySourceCode ? ` · Nota #${order.warrantySourceCode}` : ''}
+              </span>
+            )}
+          </div>
 
           <div className="mt-1 flex items-center justify-between gap-2">
             <div className="space-y-0.5">
@@ -229,7 +282,7 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
                 {order.customer.workshopName ? ` · ${order.customer.workshopName}` : ''}
               </p>
               <p className="text-xs text-slate-600 dark:text-slate-400">
-                {intakeLabel}
+                {intakeLabel} · {entryLabel}
               </p>
             </div>
 
@@ -316,7 +369,10 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
                 {item.warrantyMonths ? (
                   <div className="flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-white/10 dark:text-slate-300">
                     <ShieldCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                    <span>Garansi {item.warrantyMonths} Bln</span>
+                    <span>
+                      Garansi {item.warrantyMonths} Bln
+                      {item.warrantyUntil ? ` (s.d. ${formatDateIndo(item.warrantyUntil)})` : ''}
+                    </span>
                   </div>
                 ) : null}
               </div>
@@ -361,7 +417,12 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
                 </div>
               ) : (
                 <div className="rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
-                  Pengerjaan modul ini dibatalkan.
+                  <p>Pengerjaan modul ini dibatalkan.</p>
+                  {item.cancelReason && (
+                    <p className="mt-1 font-normal text-red-600 dark:text-red-300/90">
+                      Alasan: {item.cancelReason}
+                    </p>
+                  )}
                 </div>
               )}
 

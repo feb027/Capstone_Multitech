@@ -10,17 +10,12 @@ function isOrderActive(statuses: ItemStatus[]): boolean {
   return statuses.some((s) => s !== ItemStatus.SELESAI && s !== ItemStatus.BATAL);
 }
 
-function getDatasetQueueSnapshot(): {
-  activeOrders: QueueCardProps[];
-  allPublicIds: Set<string>;
-} {
-  const allOrders = getServerDataset().orders;
-  const allPublicIds = new Set(allOrders.map((o) => o.publicId));
-  const activeOrders = allOrders
+async function getDatasetQueueSnapshot(): Promise<QueueCardProps[]> {
+  const allOrders = (await getServerDataset()).orders;
+  return allOrders
     .filter((o) => isOrderActive(o.items.map((i) => i.status)))
     .map((o) => ({
       publicId: o.publicId,
-      code: o.code,
       vehicleBrand: o.vehicleBrand,
       vehicleModel: o.vehicleModel,
       vehicleYear: o.vehicleYear,
@@ -33,12 +28,12 @@ function getDatasetQueueSnapshot(): {
         status: i.status,
       })),
     }));
-
-  return { activeOrders, allPublicIds };
 }
 
 async function getActiveOrders(): Promise<QueueCardProps[]> {
-  const { activeOrders: datasetActive, allPublicIds } = getDatasetQueueSnapshot();
+  if (!process.env.DATABASE_URL) {
+    return getDatasetQueueSnapshot();
+  }
 
   try {
     const orders = await prisma.serviceOrder.findMany({
@@ -53,8 +48,8 @@ async function getActiveOrders(): Promise<QueueCardProps[]> {
       },
       select: {
         publicId: true,
-        code: true,
         intakeType: true,
+        unitCategory: true,
         receivedAt: true,
         vehicle: {
           select: {
@@ -81,29 +76,26 @@ async function getActiveOrders(): Promise<QueueCardProps[]> {
       take: 50,
     });
 
-    const dbOnlyOrders: QueueCardProps[] = orders
-      .filter((o) => !allPublicIds.has(o.publicId))
-      .map((o) => ({
-        publicId: o.publicId,
-        code: o.code,
-        intakeType: o.intakeType,
-        unitCategory: o.items.some((i) => i.moduleType.name.toLowerCase().includes('genset'))
+    return orders.map((o) => ({
+      publicId: o.publicId,
+      intakeType: o.intakeType,
+      unitCategory:
+        o.unitCategory === 'GENSET_INDUSTRI' ||
+        o.items.some((i) => i.moduleType.name.toLowerCase().includes('genset'))
           ? 'GENSET_INDUSTRI'
           : 'OTOMOTIF',
-        receivedAt: o.receivedAt,
-        vehicleBrand: o.vehicle?.brand || null,
-        vehicleModel: o.vehicle?.model || null,
-        vehicleYear: o.vehicle?.year || null,
-        items: o.items.map((i) => ({
-          id: i.id,
-          moduleName: i.moduleType.name,
-          status: i.status,
-        })),
-      }));
-
-    return [...datasetActive, ...dbOnlyOrders];
+      receivedAt: o.receivedAt,
+      vehicleBrand: o.vehicle?.brand || null,
+      vehicleModel: o.vehicle?.model || null,
+      vehicleYear: o.vehicle?.year || null,
+      items: o.items.map((i) => ({
+        id: i.id,
+        moduleName: i.moduleType.name,
+        status: i.status,
+      })),
+    }));
   } catch {
-    return datasetActive;
+    return getDatasetQueueSnapshot();
   }
 }
 

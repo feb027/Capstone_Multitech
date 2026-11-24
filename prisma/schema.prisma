@@ -121,13 +121,17 @@ model ServiceOrder {
   vehicle              Vehicle?     @relation(fields: [vehicleId], references: [id])
   intakeType           IntakeType   @default(MOBIL_UTUH) @map("intake_type")
   entryMethod          EntryMethod  @default(DATANG) @map("entry_method")
+  unitCategory         String       @default("OTOMOTIF") @map("unit_category")
   trackingNumber       String?      @map("tracking_number")
   conditionNotes       String?      @map("condition_notes")
+  priorityNote         String?      @map("priority_note")
+  customPhotoUrl       String?      @map("custom_photo_url")
   receivedAt           DateTime     @default(now()) @map("received_at")
   estimatedDoneAt      DateTime?    @map("estimated_done_at")
   handedOverAt         DateTime?    @map("handed_over_at")
   isWarrantyClaim      Boolean      @default(false) @map("is_warranty_claim")
   warrantySourceItemId String?      @map("warranty_source_item_id")
+  warrantySourceItem   ServiceItem? @relation("WarrantyClaims", fields: [warrantySourceItemId], references: [id], onDelete: SetNull)
   createdBy            String?      @map("created_by")
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
@@ -155,9 +159,14 @@ model ServiceItem {
   cancelReason   String?     @map("cancel_reason")
   overrideReason String?     @map("override_reason")
   finishedAt     DateTime?   @map("finished_at")
+  beforePhotoUrl String?     @map("before_photo_url")
+  afterPhotoUrl  String?     @map("after_photo_url")
+  beforeCaption  String?     @map("before_caption")
+  afterCaption   String?     @map("after_caption")
 
-  progressLogs ProgressLog[]
-  charges      ChargeLine[]
+  progressLogs   ProgressLog[]
+  charges        ChargeLine[]
+  warrantyClaims ServiceOrder[] @relation("WarrantyClaims")
 
   @@index([status])
   @@index([orderId])

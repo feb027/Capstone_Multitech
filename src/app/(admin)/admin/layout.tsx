@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getAdminSession } from '@/lib/auth';
+import { getCachedServerDataset } from '@/lib/dataset-store';
 import { BrandLogo } from '@/components/shared/BrandLogo';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import { AdminSidebar, AdminMobileNav } from '@/components/admin/AdminNav';
@@ -16,9 +17,15 @@ export default async function AdminLayout({
     return <>{children}</>;
   }
 
+  const dataset = await getCachedServerDataset();
+
   return (
     <div className="ios-ambient-backdrop flex min-h-screen w-full flex-col transition-colors md:flex-row">
-      <AdminSidebar session={session} />
+      <AdminSidebar
+        session={session}
+        initialOrders={dataset.orders}
+        initialCustomers={dataset.customers}
+      />
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="no-print sticky top-0 z-40 border-b border-black/[0.06] bg-white/80 backdrop-blur-2xl backdrop-saturate-150 transition-colors dark:border-white/[0.08] dark:bg-black/80 md:hidden">

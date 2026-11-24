@@ -1,7 +1,13 @@
 import { Suspense } from 'react';
 import { AdminServicesClient } from '@/components/admin/AdminServicesClient';
+import { getCachedServerDataset } from '@/lib/dataset-store';
+import { MockCustomerRow, MockServiceOrder } from '@/lib/frontend-mock';
 
-export default function AdminServicesPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function AdminServicesPage() {
+  const dataset = await getCachedServerDataset();
+
   return (
     <Suspense
       fallback={
@@ -10,7 +16,10 @@ export default function AdminServicesPage() {
         </div>
       }
     >
-      <AdminServicesClient />
+      <AdminServicesClient
+        initialOrders={dataset.orders as MockServiceOrder[]}
+        initialCustomers={dataset.customers as MockCustomerRow[]}
+      />
     </Suspense>
   );
 }

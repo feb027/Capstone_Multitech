@@ -1,35 +1,64 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CustomerType, EntryMethod, IntakeType, ItemStatus, PaymentMethod } from '@prisma/client';
 import {
   MockServiceOrder,
+  MockCustomerRow,
   MockChargeLine,
   MockPayment,
   PARTNER_WORKSHOPS,
+  createUniqueId,
+  getWorkshopOptions,
   normalizePhone,
   normalizeWorkshopName,
   getDefaultBeforeAfter,
 } from '@/lib/frontend-mock';
 import { useDataset } from '@/lib/use-dataset';
+import { validateOrderRules } from '@/lib/business-rules';
 import { ITEM_STATUS_LIST, getVehicleHeroImage } from '@/lib/status';
-import { generate4DigitCode } from '@/lib/utils';
+import { generate4DigitCode, generatePublicId } from '@/lib/utils';
 import { Plus, X, Check, MessageCircle, Printer, Eye, Pencil, Save } from 'lucide-react';
-import { IntakeChoice, readFileAsDataUrl, getWaLink } from './services/service-utils';
+import { IntakeChoice, uploadServicePhoto, getWaLink } from './services/service-utils';
 import { ServicesTableSection } from './services/ServicesTableSection';
 import { ServiceDetailView } from './services/ServiceDetailView';
 import { ServiceEditForm } from './services/ServiceEditForm';
 import { ServiceIntakeModal } from './services/ServiceIntakeModal';
+import { PrintableServiceReceipt } from '@/components/shared/PrintableServiceReceipt';
+import {
+  buildAllCustomers,
+  findCustomerByIdentifier,
+} from '@/app/(admin)/admin/customers/customer-utils';
 
-export function AdminServicesClient() {
+export function AdminServicesClient({
+  initialOrders,
+  initialCustomers,
+}: {
+  initialOrders?: MockServiceOrder[];
+  initialCustomers?: MockCustomerRow[];
+} = {}) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialStatusParam = searchParams.get('status') as ItemStatus | null;
   const initialOrderParam = searchParams.get('orderId') || searchParams.get('order');
   const initialSearchParam = searchParams.get('search') || searchParams.get('customer') || '';
+  const initialCustomerId = searchParams.get('customerId') || '';
   const shouldOpenNew = searchParams.get('new') === '1';
 
-  const { orders, customers, upsertOrder } = useDataset();
+  const { orders, customers, upsertOrder, createWarrantyClaim, deleteOrder } = useDataset(
+    initialOrders,
+    initialCustomers
+  );
+  const workshopOptions = useMemo(
+    () => getWorkshopOptions(customers, orders),
+    [customers, orders]
+  );
+  const allCustomers = useMemo(
+    () => buildAllCustomers(customers, orders),
+    [customers, orders]
+  );
+
   const [searchQuery, setSearchQuery] = useState(initialSearchParam);
   const [statusFilter, setStatusFilter] = useState<'ALL' | ItemStatus>(
     initialStatusParam && ITEM_STATUS_LIST.some((s) => s.key === initialStatusParam)
@@ -38,12 +67,16 @@ export function AdminServicesClient() {
   );
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const prefilledCustomerRef = useRef<string | null>(null);
 
   // Modal Detail / Edit Order
   const [selectedOrder, setSelectedOrder] = useState<MockServiceOrder | null>(null);
   const [editOrder, setEditOrder] = useState<MockServiceOrder | null>(null);
   const [modalMode, setModalMode] = useState<'DETAIL' | 'EDIT'>('DETAIL');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [claimingItemId, setClaimingItemId] = useState<string | null>(null);
   const [activeLightboxPhoto, setActiveLightboxPhoto] = useState<string | null>(null);
 
   // Form penerimaan unit baru (Intake)
@@ -55,6 +88,10 @@ export function AdminServicesClient() {
   const [intakeCustomerType, setIntakeCustomerType] = useState<CustomerType>(CustomerType.PERORANGAN);
   const [intakeWorkshop, setIntakeWorkshop] = useState<string>(PARTNER_WORKSHOPS[0]);
   const [intakeChoice, setIntakeChoice] = useState<IntakeChoice>('MOBIL_UTUH');
+  const [intakeEntryMethod, setIntakeEntryMethod] = useState<EntryMethod>(EntryMethod.DATANG);
+  const [intakeTrackingNumber, setIntakeTrackingNumber] = useState('');
+  const [intakeError, setIntakeError] = useState<string | null>(null);
+  const [isUploadingIntakePhoto, setIsUploadingIntakePhoto] = useState(false);
   const [intakeBrand, setIntakeBrand] = useState('');
   const [intakeModel, setIntakeModel] = useState('');
   const [intakeYear, setIntakeYear] = useState('2019');
@@ -78,10 +115,20 @@ export function AdminServicesClient() {
   );
   const activeIntakePhotoSrc = intakeCustomPhoto || intakeHeroPreview.src;
 
-  const handleIntakePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIntakePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    readFileAsDataUrl(file, (url) => setIntakeCustomPhoto(url));
+    setIntakeError(null);
+    setIsUploadingIntakePhoto(true);
+    try {
+      const url = await uploadServicePhoto(file);
+      setIntakeCustomPhoto(url);
+    } catch (err) {
+      setIntakeError(err instanceof Error ? err.message : 'Gagal mengunggah foto unit.');
+    } finally {
+      setIsUploadingIntakePhoto(false);
+      e.target.value = '';
+    }
   };
 
   // Input biaya baru di dalam edit order
@@ -93,7 +140,7 @@ export function AdminServicesClient() {
   const [newPayAmount, setNewPayAmount] = useState('');
   const [newPayMethod, setNewPayMethod] = useState<PaymentMethod>(PaymentMethod.TRANSFER);
 
-  // Inisialisasi selectedOrder dari query param jika ada
+  // Inisialisasi selectedOrder & prefill customer dari query param jika ada
   useEffect(() => {
     if (initialOrderParam) {
       const found = orders.find((o) => o.id === initialOrderParam || o.code === initialOrderParam);
@@ -104,6 +151,67 @@ export function AdminServicesClient() {
       }
     }
   }, [initialOrderParam, orders]);
+
+  useEffect(() => {
+    if (!shouldOpenNew) {
+      prefilledCustomerRef.current = null;
+      return;
+    }
+    setIsIntakeOpen(true);
+
+    if (initialCustomerId && prefilledCustomerRef.current !== initialCustomerId) {
+      const matched = findCustomerByIdentifier(allCustomers, initialCustomerId);
+      if (matched) {
+        prefilledCustomerRef.current = initialCustomerId;
+        setIntakeName(matched.name);
+        setIntakePhone(matched.phone);
+        setIntakeCustomerType(matched.type);
+        if (matched.type === CustomerType.MITRA && matched.workshopName) {
+          setIntakeWorkshop(matched.workshopName);
+        }
+        const firstVehicle = matched.vehicles[0];
+        if (firstVehicle) {
+          setIntakeBrand(firstVehicle.brand);
+          setIntakeModel(firstVehicle.model);
+          if (firstVehicle.year) setIntakeYear(String(firstVehicle.year));
+          setIntakePlate(firstVehicle.plateNumber || '');
+        }
+      }
+    }
+  }, [shouldOpenNew, initialCustomerId, allCustomers]);
+
+  const closeIntakeModal = () => {
+    setIsIntakeOpen(false);
+    if (shouldOpenNew || initialCustomerId) {
+      router.replace('/admin/services', { scroll: false });
+    }
+  };
+
+  useEffect(() => {
+    const hasOpenModal = Boolean(isIntakeOpen || selectedOrder || activeLightboxPhoto);
+    if (!hasOpenModal) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (activeLightboxPhoto) {
+        setActiveLightboxPhoto(null);
+      } else if (selectedOrder) {
+        setSelectedOrder(null);
+      } else if (isIntakeOpen) {
+        closeIntakeModal();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isIntakeOpen, selectedOrder, activeLightboxPhoto]);
 
   // Tutup dropdown filter saat klik di luar
   useEffect(() => {
@@ -166,12 +274,15 @@ export function AdminServicesClient() {
     setEditOrder(JSON.parse(JSON.stringify(order)));
     setModalMode(mode);
     setSaveSuccess(false);
+    setSaveError(null);
   };
 
-  // Simpan perubahan order yang diedit admin (sinkron ke dataset)
+  // Simpan perubahan order yang diedit admin (sinkron ke dataset PostgreSQL)
   const handleSaveOrderChanges = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editOrder) return;
+    if (!editOrder || isSavingOrder) return;
+    setSaveError(null);
+    setSaveSuccess(false);
 
     const normalizedOrder: MockServiceOrder = {
       ...editOrder,
@@ -179,13 +290,48 @@ export function AdminServicesClient() {
       customerPhone: normalizePhone(editOrder.customerPhone),
       workshopName: normalizeWorkshopName(editOrder.workshopName, editOrder.customerType),
       plateNumber: editOrder.plateNumber ? editOrder.plateNumber.trim().toUpperCase() : null,
+      trackingNumber:
+        editOrder.entryMethod === EntryMethod.EKSPEDISI && editOrder.trackingNumber?.trim()
+          ? editOrder.trackingNumber.trim().toUpperCase()
+          : null,
     };
 
-    await upsertOrder(normalizedOrder);
-    setEditOrder(normalizedOrder);
-    setSelectedOrder(normalizedOrder);
+    const ruleError = validateOrderRules(normalizedOrder);
+    if (ruleError) {
+      setSaveError(ruleError);
+      return;
+    }
+
+    setIsSavingOrder(true);
+    const mutationRes = await upsertOrder(normalizedOrder);
+    setIsSavingOrder(false);
+
+    if (!mutationRes.ok) {
+      setSaveError(mutationRes.error || 'Gagal menyimpan perubahan data servis.');
+      return;
+    }
+
+    const canonicalOrder =
+      mutationRes.orders.find((o) => o.code === normalizedOrder.code || o.id === normalizedOrder.id) ||
+      normalizedOrder;
+    setEditOrder(JSON.parse(JSON.stringify(canonicalOrder)));
+    setSelectedOrder(canonicalOrder);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
+  };
+
+  const handleCreateWarrantyClaim = async (sourceOrderId: string, sourceItemId: string) => {
+    setSaveError(null);
+    setClaimingItemId(sourceItemId);
+    const res = await createWarrantyClaim(sourceOrderId, sourceItemId);
+    setClaimingItemId(null);
+    if (!res.ok) {
+      setSaveError(res.error || 'Gagal membuat order klaim garansi.');
+      return;
+    }
+    if (res.createdOrder) {
+      handleOpenDetail(res.createdOrder, 'EDIT');
+    }
   };
 
   // Tambah biaya (charge) ke order yang sedang diedit
@@ -193,7 +339,7 @@ export function AdminServicesClient() {
     if (!editOrder || !newChargeDesc.trim() || !newChargePrice) return;
     const price = parseInt(newChargePrice.replace(/\D/g, ''), 10) || 0;
     const newChargeItem: MockChargeLine = {
-      id: `chg-${Date.now()}`,
+      id: createUniqueId('chg'),
       kind: newChargeKind,
       description: newChargeDesc.trim(),
       qty: 1,
@@ -221,7 +367,7 @@ export function AdminServicesClient() {
     if (!editOrder || !newPayAmount) return;
     const amount = parseInt(newPayAmount.replace(/\D/g, ''), 10) || 0;
     const newPayItem: MockPayment = {
-      id: `pay-${Date.now()}`,
+      id: createUniqueId('pay'),
       amount,
       method: newPayMethod,
       paidAt: new Date().toISOString(),
@@ -255,7 +401,7 @@ export function AdminServicesClient() {
     if (!editOrder) return;
     const defaults = getDefaultBeforeAfter('Modul Baru', editOrder.unitCategory);
     const newModuleItem = {
-      id: `item-${Date.now()}`,
+      id: createUniqueId('item'),
       moduleTypeId: `mod-${editOrder.items.length + 1}`,
       moduleName: 'Modul Baru',
       moduleDetail: '',
@@ -268,7 +414,7 @@ export function AdminServicesClient() {
       afterCaption: defaults.afterCaption,
       logs: [
         {
-          id: `log-${Date.now()}`,
+          id: createUniqueId('log'),
           createdAt: new Date().toISOString(),
           stage: ItemStatus.DITERIMA,
           note: 'Modul ditambahkan pada data servis.',
@@ -283,6 +429,12 @@ export function AdminServicesClient() {
     });
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    await deleteOrder(orderId);
+    setSelectedOrder(null);
+    setEditOrder(null);
+  };
+
   // Submit penerimaan unit baru (informasi unit & pelanggan saja)
   const handleCreateIntake = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,6 +445,13 @@ export function AdminServicesClient() {
       guard += 1;
     }
 
+    let nextPublicId = generatePublicId();
+    let pubGuard = 0;
+    while (orders.some((o) => o.publicId === nextPublicId) && pubGuard < 20) {
+      nextPublicId = generatePublicId();
+      pubGuard += 1;
+    }
+
     const isGenset = intakeChoice === 'GENSET_INDUSTRI';
     const isMobilUtuh = intakeChoice === 'MOBIL_UTUH';
     const resolvedCondition =
@@ -301,15 +460,19 @@ export function AdminServicesClient() {
     const defaultBA = getDefaultBeforeAfter(defaultModName, isGenset ? 'GENSET_INDUSTRI' : 'OTOMOTIF');
 
     const newOrder: MockServiceOrder = {
-      id: `ord-${Date.now()}`,
-      publicId: `${(intakeModel || 'unit').toLowerCase().replace(/\s+/g, '-')}-${newCode}`,
+      id: createUniqueId('ord'),
+      publicId: nextPublicId,
       code: newCode,
       customerName: intakeName.trim(),
       customerPhone: normalizePhone(intakePhone),
       customerType: intakeCustomerType,
       workshopName: normalizeWorkshopName(intakeWorkshop, intakeCustomerType),
       intakeType: isMobilUtuh ? IntakeType.MOBIL_UTUH : IntakeType.MODUL_SAJA,
-      entryMethod: EntryMethod.DATANG,
+      entryMethod: intakeEntryMethod,
+      trackingNumber:
+        intakeEntryMethod === EntryMethod.EKSPEDISI && intakeTrackingNumber.trim()
+          ? intakeTrackingNumber.trim().toUpperCase()
+          : null,
       unitCategory: isGenset ? 'GENSET_INDUSTRI' : 'OTOMOTIF',
       vehicleBrand: intakeBrand.trim() || (isGenset ? 'Deep Sea' : 'Toyota'),
       vehicleModel: intakeModel.trim() || (isGenset ? 'Genset Controller DSE' : 'Avanza'),
@@ -323,7 +486,7 @@ export function AdminServicesClient() {
         : new Date(Date.now() + 86400000 * 2).toISOString(),
       items: [
         {
-          id: `item-${Date.now()}`,
+          id: createUniqueId('item'),
           moduleTypeId: 'mod-1',
           moduleName: defaultModName,
           moduleDetail: '',
@@ -336,7 +499,7 @@ export function AdminServicesClient() {
           afterCaption: defaultBA.afterCaption,
           logs: [
             {
-              id: `log-${Date.now()}`,
+              id: createUniqueId('log'),
               createdAt: new Date().toISOString(),
               stage: ItemStatus.DITERIMA,
               note: 'Unit masuk antrean penerimaan servis CV Multitech.',
@@ -350,17 +513,28 @@ export function AdminServicesClient() {
       payments: [],
     };
 
-    await upsertOrder(newOrder);
-    setIsIntakeOpen(false);
-    setSelectedOrder(newOrder);
-    setEditOrder(JSON.parse(JSON.stringify(newOrder)));
+    setIntakeError(null);
+    const mutationRes = await upsertOrder(newOrder);
+    if (!mutationRes.ok) {
+      setIntakeError(mutationRes.error || 'Gagal menyimpan penerimaan unit ke database.');
+      return;
+    }
+
+    const canonicalCreated =
+      mutationRes.orders.find((o) => o.code === newOrder.code) || newOrder;
+    closeIntakeModal();
+    setSelectedOrder(canonicalCreated);
+    setEditOrder(JSON.parse(JSON.stringify(canonicalCreated)));
     setModalMode('EDIT');
     setSaveSuccess(false);
+    setSaveError(null);
 
     // Reset Form
     setIntakeName('');
     setIntakePhone('');
-    setIntakeWorkshop(PARTNER_WORKSHOPS[0]);
+    setIntakeWorkshop(workshopOptions[0] || PARTNER_WORKSHOPS[0]);
+    setIntakeEntryMethod(EntryMethod.DATANG);
+    setIntakeTrackingNumber('');
     setIntakeBrand('');
     setIntakeModel('');
     setIntakePlate('');
@@ -452,6 +626,9 @@ export function AdminServicesClient() {
       {/* MODAL DETAIL & EDIT SERVIS (2 Mode Terpisah: Detail & Edit yang Saling Sinkron) */}
       {selectedOrder && editOrder && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="service-modal-title"
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-0 backdrop-blur-md sm:items-center sm:p-4"
           onClick={() => setSelectedOrder(null)}
         >
@@ -462,7 +639,10 @@ export function AdminServicesClient() {
             {/* Top Bar Header Modal + Switcher Mode Detail / Edit */}
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] bg-white px-5 py-3.5 sm:px-6 dark:border-white/[0.08] dark:bg-[#1C1C1E]">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-sm font-black text-slate-900 dark:text-white sm:text-base">
+                <span
+                  id="service-modal-title"
+                  className="font-mono text-sm font-black text-slate-900 dark:text-white sm:text-base"
+                >
                   #{editOrder.code}
                 </span>
                 <div className="inline-flex rounded-full bg-black/[0.05] p-0.5 dark:bg-white/[0.08]">
@@ -525,6 +705,14 @@ export function AdminServicesClient() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+              {saveError && (
+                <div
+                  role="alert"
+                  className="mb-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
+                >
+                  {saveError}
+                </div>
+              )}
               {/* Banner Sukses Simpan */}
               {saveSuccess && (
                 <div className="mb-3 flex items-center gap-2 rounded-2xl bg-emerald-500/15 p-3 text-xs font-bold text-emerald-700 dark:text-emerald-300">
@@ -539,13 +727,18 @@ export function AdminServicesClient() {
                   setSelectedOrder={setSelectedOrder}
                   setModalMode={setModalMode}
                   setActiveLightboxPhoto={setActiveLightboxPhoto}
+                  onCreateWarrantyClaim={handleCreateWarrantyClaim}
+                  claimingItemId={claimingItemId}
                   hideFooter
                 />
               ) : (
                 <ServiceEditForm
+                  key={editOrder.id}
                   formId="service-edit-form"
                   editOrder={editOrder}
+                  savedOrder={selectedOrder}
                   setEditOrder={setEditOrder}
+                  workshopOptions={workshopOptions}
                   setActiveLightboxPhoto={setActiveLightboxPhoto}
                   newChargeKind={newChargeKind}
                   setNewChargeKind={setNewChargeKind}
@@ -563,6 +756,7 @@ export function AdminServicesClient() {
                   handleAddPayment={handleAddPayment}
                   handleDeleteLog={handleDeleteLog}
                   handleAddModuleToOrder={handleAddModuleToOrder}
+                  onDeleteOrder={handleDeleteOrder}
                 />
               )}
             </div>
@@ -607,10 +801,11 @@ export function AdminServicesClient() {
                   <button
                     type="submit"
                     form="service-edit-form"
-                    className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-slate-900 px-5 text-xs font-bold text-white shadow-md transition-transform tap-bounce hover:bg-black dark:bg-white dark:text-black dark:hover:bg-slate-200"
+                    disabled={isSavingOrder}
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-slate-900 px-5 text-xs font-bold text-white shadow-md transition-transform tap-bounce hover:bg-black disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-slate-200"
                   >
                     <Save className="h-4 w-4" aria-hidden="true" />
-                    <span>Simpan Perubahan</span>
+                    <span>{isSavingOrder ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
                   </button>
                 </div>
               </div>
@@ -619,12 +814,22 @@ export function AdminServicesClient() {
         </div>
       )}
 
+      {selectedOrder && editOrder && <PrintableServiceReceipt order={editOrder} />}
+
       <ServiceIntakeModal
-        customers={customers}
+        customers={allCustomers}
+        workshopOptions={workshopOptions}
         activeLightboxPhoto={activeLightboxPhoto}
         setActiveLightboxPhoto={setActiveLightboxPhoto}
         isIntakeOpen={isIntakeOpen}
-        setIsIntakeOpen={setIsIntakeOpen}
+        setIsIntakeOpen={(val) => {
+          const next = typeof val === 'function' ? val(isIntakeOpen) : val;
+          if (!next) {
+            closeIntakeModal();
+          } else {
+            setIsIntakeOpen(true);
+          }
+        }}
         intakeName={intakeName}
         setIntakeName={setIntakeName}
         intakePhone={intakePhone}
@@ -649,6 +854,12 @@ export function AdminServicesClient() {
         setIntakeComplaint={setIntakeComplaint}
         intakeCustomPhoto={intakeCustomPhoto}
         setIntakeCustomPhoto={setIntakeCustomPhoto}
+        intakeEntryMethod={intakeEntryMethod}
+        setIntakeEntryMethod={setIntakeEntryMethod}
+        intakeTrackingNumber={intakeTrackingNumber}
+        setIntakeTrackingNumber={setIntakeTrackingNumber}
+        intakeError={intakeError}
+        isUploadingIntakePhoto={isUploadingIntakePhoto}
         intakePhotoInputRef={intakePhotoInputRef}
         isCustomerPickerOpen={isCustomerPickerOpen}
         setIsCustomerPickerOpen={setIsCustomerPickerOpen}

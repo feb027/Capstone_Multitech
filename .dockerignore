@@ -1,0 +1,18 @@
+# Dependencies & build artifacts
+node_modules
+.next
+.git
+.tmp_diagrams
+.env
+.env.*
+
+# Runtime user data (mounted via volume in docker-compose)
+media
+postgres_data
+data
+*.log
+
+# Documentation source intermediates
+docs/diagrams/src/*.aux
+docs/diagrams/src/*.log
+docs/diagrams/src/*.pdf

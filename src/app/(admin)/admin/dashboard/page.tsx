@@ -1,12 +1,12 @@
 import { ItemStatus } from '@prisma/client';
 import { AdminDashboardClient } from '@/components/admin/AdminDashboardClient';
-import { getServerDataset } from '@/lib/dataset-store';
+import { getCachedServerDataset } from '@/lib/dataset-store';
 import { MockCustomerRow, MockServiceOrder } from '@/lib/frontend-mock';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
-  const dataset = getServerDataset();
+  const dataset = await getCachedServerDataset();
   const totalActive = dataset.orders.filter((o) =>
     o.items.some((i) => i.status !== ItemStatus.SELESAI && i.status !== ItemStatus.BATAL)
   ).length;

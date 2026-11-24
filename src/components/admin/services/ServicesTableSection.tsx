@@ -51,7 +51,7 @@ export function ServicesTableSection({
     <>
       {/* Unified Search Bar dengan Icon Filter di Sisi Kanan */}
       <div ref={filterDropdownRef} className="relative z-30">
-        <div className="ios-glass-card flex h-12 items-center rounded-2xl pl-3.5 pr-1.5 transition-all focus-within:ring-2 focus-within:ring-black/15 dark:focus-within:ring-white/25">
+        <div className="ios-glass-card flex h-12 items-center rounded-2xl pl-3.5 pr-1.5 transition-shadow focus-within:ring-2 focus-within:ring-black/15 dark:focus-within:ring-white/25">
           <Search className="h-4 w-4 shrink-0 text-slate-500 dark:text-zinc-300" aria-hidden="true" />
           <input
             type="text"
@@ -86,7 +86,7 @@ export function ServicesTableSection({
             aria-label={`Filter status (${STATUS_FILTER_OPTIONS.find((s) => s.value === statusFilter)?.label || 'Semua'})`}
             aria-expanded={isFilterOpen}
             aria-haspopup="listbox"
-            className={`relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all tap-bounce ${
+            className={`relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors transition-transform tap-bounce ${
               statusFilter !== 'ALL' || isFilterOpen
                 ? 'bg-slate-900 text-white dark:bg-white dark:text-black'
                 : 'text-slate-700 hover:bg-black/5 dark:text-zinc-200 dark:hover:bg-white/10'
@@ -107,7 +107,7 @@ export function ServicesTableSection({
           <div
             role="listbox"
             aria-label="Pilih filter status servis"
-            className="ios-glass-card absolute right-0 top-14 z-40 w-56 space-y-1 rounded-2xl p-1.5 shadow-2xl animate-sheet-in"
+            className="ios-glass-card absolute right-0 top-[calc(100%+6px)] z-40 w-56 space-y-1 rounded-2xl p-1.5 shadow-2xl animate-popover-in"
           >
             {STATUS_FILTER_OPTIONS.map((opt) => {
               const isActive = statusFilter === opt.value;
@@ -159,7 +159,7 @@ export function ServicesTableSection({
       ) : (
         <div className="ios-glass-card overflow-hidden rounded-[26px] shadow-sm">
           {/* Tampilan Tabel Desktop (Ringkas, Rapih, Tidak Menumpuk) */}
-          <div className="hidden overflow-x-auto md:block">
+          <div className="hidden overflow-x-auto lg:block">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-black/[0.06] bg-black/[0.02] text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-slate-400">
@@ -278,9 +278,9 @@ export function ServicesTableSection({
                         </p>
                       </td>
   
-                      {/* Col 6: 2 Tombol Aksi Icon Only Atas-Bawah (Detail & Edit) */}
+                      {/* Col 6: 2 Tombol Aksi Icon Only (Detail & Edit) */}
                       <td className="whitespace-nowrap px-4 py-3 text-right align-middle">
-                        <div className="inline-flex flex-col items-end justify-center gap-1.5">
+                        <div className="inline-flex items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -289,11 +289,11 @@ export function ServicesTableSection({
                             }}
                             title="Lihat Detail"
                             aria-label={`Lihat detail #${order.code}`}
-                            className="ios-glass-inner inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
+                            className="ios-glass-inner inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
                           >
-                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                            <Eye className="h-4 w-4" aria-hidden="true" />
                           </button>
-  
+
                           <button
                             type="button"
                             onClick={(e) => {
@@ -302,9 +302,9 @@ export function ServicesTableSection({
                             }}
                             title="Edit Servis"
                             aria-label={`Edit servis #${order.code}`}
-                            className="ios-glass-inner inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
+                            className="ios-glass-inner inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-black/5 tap-bounce dark:text-white dark:hover:bg-white/10"
                           >
-                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                            <Pencil className="h-4 w-4" aria-hidden="true" />
                           </button>
                         </div>
                       </td>
@@ -314,13 +314,13 @@ export function ServicesTableSection({
               </tbody>
             </table>
           </div>
-  
-          {/* Tampilan Kartu List Mobile */}
-          <div className="divide-y divide-black/[0.05] md:hidden dark:divide-white/[0.06]">
+
+          {/* Tampilan Kartu List Mobile & Tablet */}
+          <div className="divide-y divide-black/[0.05] lg:hidden dark:divide-white/[0.06]">
             {filteredOrders.map((order) => {
               const { activeItem, workText } = getActiveWorkInfo(order);
               const totalCharges = calcTotalCharges(order);
-  
+
               return (
                 <div
                   key={order.id}
@@ -342,7 +342,7 @@ export function ServicesTableSection({
                       </p>
                     </div>
                   </div>
-  
+
                   {/* Pengerjaan yang sedang dilakukan */}
                   <div className="rounded-xl bg-black/[0.02] p-2.5 dark:bg-white/[0.03]">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -352,7 +352,7 @@ export function ServicesTableSection({
                       {workText}
                     </p>
                   </div>
-  
+
                   <div className="flex items-center justify-between gap-2 border-t border-black/[0.05] pt-2.5 dark:border-white/[0.06]">
                     <div className="min-w-0">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -362,8 +362,8 @@ export function ServicesTableSection({
                         {totalCharges > 0 ? formatRupiah(totalCharges) : '-'}
                       </p>
                     </div>
-  
-                    <div className="flex shrink-0 flex-col items-end justify-center gap-1.5">
+
+                    <div className="flex shrink-0 items-center justify-end gap-1.5">
                       <button
                         type="button"
                         onClick={(e) => {
@@ -372,9 +372,9 @@ export function ServicesTableSection({
                         }}
                         title="Lihat Detail"
                         aria-label={`Lihat detail #${order.code}`}
-                        className="ios-glass-inner inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-800 dark:text-white"
+                        className="ios-glass-inner inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-800 dark:text-white"
                       >
-                        <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                        <Eye className="h-4 w-4" aria-hidden="true" />
                       </button>
                       <button
                         type="button"
@@ -384,9 +384,9 @@ export function ServicesTableSection({
                         }}
                         title="Edit Servis"
                         aria-label={`Edit servis #${order.code}`}
-                        className="ios-glass-inner inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-800 dark:text-white"
+                        className="ios-glass-inner inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-800 dark:text-white"
                       >
-                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
