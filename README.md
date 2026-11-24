@@ -305,7 +305,7 @@ erDiagram
     service_orders ||--o{ charge_lines : "menagihkan"
     service_items |o--o{ charge_lines : "rincian per modul"
     service_orders ||--o{ payments : "menerima pembayaran"
-    admins ..o{ service_orders : "created_by (audit string)"
+    admins |o..o{ service_orders : "created_by (audit string)"
 ```
 
 ### 3. Alur Proses Operasional & State Machine Status Modul (`BR-03`)
