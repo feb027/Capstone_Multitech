@@ -2,41 +2,39 @@
 
 ## 1. Diagram Use Case
 
-GitHub tidak mendukung diagram use case UML secara native, jadi diagram di bawah memakai Mermaid flowchart. Versi UML formalnya (PlantUML, untuk laporan) ada di [`diagrams/use-case.puml`](diagrams/use-case.puml).
+Diagram di bawah mengikuti sintaks Mermaid serta selaras dengan sumber PlantUML pada [`diagrams/use-case.puml`](diagrams/use-case.puml).
 
 ```mermaid
 flowchart LR
-    V(["👤 Pengunjung"])
-    C(["👤 Pelanggan<br/>(Perorangan / Mitra)"])
-    A(["👤 Admin"])
+    V(["Pengunjung"])
+    C(["Pelanggan / Mitra"])
+    A(["Admin"])
 
     subgraph PUB["Web Pelanggan"]
         UC01(("UC-01 Melihat papan antrean"))
         UC02(("UC-02 Mencari/filter papan"))
         UC03(("UC-03 Verifikasi kode servis"))
         UC04(("UC-04 Melihat detail progres"))
-        UC05(("UC-05 Mengunduh nota/invoice"))
-        UC06(("UC-06 Melihat garansi"))
+        UC05(("UC-05 Cetak / simpan nota PDF"))
+        UC06(("UC-06 Melihat status garansi"))
     end
 
-    subgraph INT["Web Internal"]
-        UC10(("UC-10 Login/Logout"))
+    subgraph INT["Web Internal (Admin)"]
+        UC10(("UC-10 Login / Logout"))
         UC11(("UC-11 Kelola pelanggan"))
-        UC12(("UC-12 Kelola kendaraan"))
-        UC13(("UC-13 Kelola jenis modul"))
+        UC12(("UC-12 Kelola kendaraan & VIN"))
         UC14(("UC-14 Penerimaan servis"))
         UC15(("UC-15 Update status modul"))
-        UC16(("UC-16 Tambah catatan & media"))
-        UC17(("UC-17 Kelola biaya"))
-        UC18(("UC-18 Catat pembayaran"))
+        UC16(("UC-16 Tambah catatan & foto"))
+        UC17(("UC-17 Kelola rincian biaya"))
+        UC18(("UC-18 Catat pembayaran kas"))
         UC19(("UC-19 Tetapkan garansi"))
-        UC20(("UC-20 Klaim garansi"))
+        UC20(("UC-20 Buat klaim garansi"))
         UC21(("UC-21 Batalkan modul"))
-        UC22(("UC-22 Cetak nota/invoice PDF"))
-        UC23(("UC-23 Kirim via WhatsApp"))
-        UC24(("UC-24 Lihat dashboard"))
-        UC25(("UC-25 Lihat laporan"))
-        UC26(("UC-26 Kelola akun admin"))
+        UC22(("UC-22 Cetak nota / PDF"))
+        UC23(("UC-23 Kirim pesan WhatsApp"))
+        UC24(("UC-24 Pantau dashboard KPI"))
+        UC25(("UC-25 Laporan & Ekspor CSV"))
     end
 
     V --- UC01
@@ -45,12 +43,11 @@ flowchart LR
     C --- UC04
     C --- UC05
     C --- UC06
-    UC03 -. "«extend»" .-> UC04
+    UC04 -. "&laquo;include&raquo;" .-> UC03
 
     A --- UC10
     A --- UC11
     A --- UC12
-    A --- UC13
     A --- UC14
     A --- UC15
     A --- UC16
@@ -63,12 +60,14 @@ flowchart LR
     A --- UC23
     A --- UC24
     A --- UC25
-    A --- UC26
-    UC14 -. "«include»" .-> UC22
-    UC20 -. "«include»" .-> UC14
+    UC14 -. "&laquo;include&raquo;" .-> UC10
+    UC15 -. "&laquo;include&raquo;" .-> UC10
+    UC20 -. "&laquo;include&raquo;" .-> UC14
+    UC19 -. "&laquo;extend&raquo;" .-> UC15
+    UC21 -. "&laquo;extend&raquo;" .-> UC15
 ```
 
-> Pelanggan adalah Pengunjung yang sudah lolos UC-03 (generalisasi). Semua use case internal mensyaratkan UC-10 (login).
+> Pelanggan adalah Pengunjung yang sudah lolos verifikasi UC-03. Fitur `Kelola Jenis Modul` (`UC-13`) dan `Kelola Akun Admin` (`UC-26`) pada rancangan awal dikecualikan dari UI final dan digantikan oleh mekanisme *database seeding*. Seluruh use case internal mensyaratkan sesi login `UC-10`.
 
 ## 2. Skenario Use Case Utama
 
@@ -77,8 +76,8 @@ flowchart LR
 |---|---|
 | Aktor | Pengunjung |
 | Prakondisi | Servis dengan kode tersebut ada |
-| Pemicu | Klik kartu di papan / buka link `/cek/{kode}` dari QR atau WhatsApp |
-| Alur utama | 1. Sistem menampilkan form kode (4 digit) & 4 digit akhir HP (kode terisi otomatis bila dari link). 2. Pengunjung mengisi lalu menekan **Cek Progres**. 3. Sistem mencocokkan kode + 4 digit akhir HP. 4. Sistem menyimpan sesi verifikasi (cookie) dan mengarahkan ke halaman detail (UC-04) |
+| Pemicu | Klik kartu di papan / buka tautan `/cek/[code]` dari pesan WhatsApp atau nota cetak |
+| Alur utama | 1. Sistem menampilkan form kode (4 digit) & 4 digit akhir HP (kode terisi otomatis bila berasal dari `/cek/[code]` atau `/cek?code=`). 2. Pengunjung mengisi lalu menekan **Buka Progres**. 3. Sistem mencocokkan kode + 4 digit akhir HP pada `service_orders`. 4. Sistem menetapkan cookie HMAC `track_session_<publicId>` dan mengarahkan ke `/track/[publicId]` (UC-04) |
 | Alur alternatif | 3a. Tidak cocok: sistem menampilkan pesan generik "Kode atau nomor tidak cocok", lalu kembali ke langkah 1. 2a. Format bukan 4 digit angka: validasi di sisi klien & server |
 | Pascakondisi | Pengunjung menjadi Pelanggan untuk servis itu |
 | Ref | FR-P05, FR-P06, FR-P13, BR-02 |
@@ -107,16 +106,16 @@ flowchart LR
 | Elemen | Isi |
 |---|---|
 | Aktor | Admin |
-| Alur utama | 1. Admin membuka servis/kanban dan memilih modul. 2. Sistem hanya menampilkan status tujuan yang valid (BR-03). 3. Admin memilih status, opsional menambah catatan/foto. 4. Sistem menyimpan dan menambah entri timeline publik |
-| Alur alternatif | 3a. Pilih `BATAL`: alasan wajib (UC-21). 3b. Pilih `SELESAI` padahal belum lunas: ditolak kecuali dengan alasan override (BR-06). 3c. Pilih `SIAP_DIAMBIL`: sistem meminta masa garansi (UC-19) & menawarkan tombol WA "siap diambil" |
+| Alur utama | 1. Admin membuka halaman Servis (`/admin/services`) lalu membuka tab Pengerjaan pada modul terpilih. 2. Sistem mengunci tombol tahap yang melanggar transisi terurut (BR-03). 3. Admin memilih tahap tujuan yang valid, opsional menambahkan catatan atau foto tahap. 4. Sistem memvalidasi melalui `/api/dataset` dan menyimpan riwayat timeline ke PostgreSQL |
+| Alur alternatif | 3a. Pilih `BATAL`: alasan pembatalan wajib diisi (UC-21 / `FR-S10`). 3b. Pilih `SELESAI` padahal `remaining > 0`: ditolak kecuali admin mengisi alasan override (`BR-06`). 3c. Pilih `SIAP_DIAMBIL` / `SELESAI`: sistem menghitung `warrantyUntil` otomatis dari durasi `warrantyMonths` (UC-19) |
 | Ref | FR-S04, FR-S09, FR-S10, BR-03, BR-06 |
 
-### UC-16 Tambah Catatan & Media
+### UC-16 Tambah Catatan & Foto Bukti
 | Elemen | Isi |
 |---|---|
 | Aktor | Admin |
-| Alur utama | 1. Admin menulis catatan (contoh: "Proses solder ulang jalur IC power"). 2. Admin melampirkan foto/video dari kamera/galeri. 3. Admin mengatur toggle publik untuk catatan & tiap media (default: publik untuk catatan, **privat** untuk media sampai ditinjau). 4. Sistem mengompres foto & menyimpan |
-| Alur alternatif | 2a. File melebihi batas/format tidak didukung: ditolak dengan pesan |
+| Alur utama | 1. Admin menuliskan catatan teknis per tahap. 2. Admin opsional mengunggah foto JPG/PNG/WebP yang dikompres di browser lalu diunggah ke `POST /api/media` (`/api/media/YYYY/MM/<uuid>.<ext>`). 3. Admin mengatur toggle `Tampil ke Pelanggan` (Publik) atau `Internal Saja` (Privat) pada catatan maupun daftar linimasa. 4. Foto berstatus `Internal Saja` diblokir oleh `GET /api/media/[...path]` (`403 Forbidden`) untuk akun non-admin dan tidak tampil di `/track/[publicId]` |
+| Alur alternatif | 2a. Berkas bukan gambar atau ukuran melebihi 2 MB: ditolak dengan pesan galat |
 | Ref | FR-S05, FR-S06, NFR-02, BR-10 |
 
 ### UC-17 & UC-18 Kelola Biaya dan Pembayaran

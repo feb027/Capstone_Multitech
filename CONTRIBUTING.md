@@ -6,7 +6,7 @@ Repositori menggunakan model alur kerja berbasis fitur (*Feature-Branch Workflow
 - `main` / `master`: Cabang produksi yang selalu dalam kondisi stabil (*deployable*).
 - `develop` (opsional): Cabang integrasi mingguan selama sprint berlangsung.
 - `feat/<nama-fitur>`: Cabang pengembangan fitur baru (contoh: `feat/public-board`, `feat/auth-admin`).
-- `fix/<nama-bug>`: Cabang perbaikan bug (contoh: `fix/qr-code-rendering`).
+- `fix/<nama-bug>`: Cabang perbaikan bug (contoh: `fix/warranty-expiry-calculation`).
 - `docs/<nama-dokumen>`: Cabang pembaruan dokumentasi sprint.
 
 ---
@@ -28,7 +28,7 @@ Tipe komit yang diperbolehkan:
 - `chore`: Konfigurasi tooling, dependensi npm, atau skrip Docker/CI.
 
 Contoh yang benar:
-- `docs(sprint-0): complete PRD, SRS, ERD, and architecture diagrams`
+- `docs(capstone): complete technical diagrams, traceability matrix, and comprehensive README`
 - `feat(public): implement anonymous queue board card component`
 - `fix(auth): resolve verification session cookie expiration bug`
 
@@ -37,5 +37,5 @@ Contoh yang benar:
 ## 3. Standar Kualitas Kode
 
 1. Semua kode aplikasi wajib menggunakan **TypeScript** (*no `any` without explicit justification*).
-2. Jalankan `npm run lint` dan pastikan tidak ada peringatan atau galat sebelum membuat Pull Request.
+2. Jalankan `npm test`, `npx tsc --noEmit`, `npm run lint`, dan `npm run build` sebelum membuat Pull Request.
 3. Hindari menyimpan kredensial atau *secret* di dalam kode. Selalu gunakan berkas konfigurasi `.env`.

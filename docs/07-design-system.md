@@ -1,14 +1,14 @@
-# 07 — Design System & Wireframe (Branding Multitech)
+# 07 — Design System & Wireframe (Multitech Clean Glass & Print System)
 
-## 1. Filosofi & Karakter Visual
+## 1. Evolusi Desain: Konsep Awal ke Sistem Visual Aktual
+Pada tahap Sprint 0, konsep warna awal menggabungkan *Navy Gelap* (`#0B2545`) dengan aksen *Merah* (`#E63946`). Pada implementasi akhir, antarmuka web dan tata letak cetak disempurnakan mengacu pada prinsip **Clean Studio / Anti-Card-Slop** ([DESIGN.md](../DESIGN.md)):
 
-Desain sistem Multitech mengadopsi identitas visual yang profesional, terpercaya, dan berkarakter teknologi otomotif modern. Berdasarkan panduan visual resmi Multitech (Tasikmalaya), tema utama memadukan warna **Navy Gelap (Deep Tech Navy)** yang kokoh dengan aksen **Merah Dinamis (Dynamic Red)** yang merepresentasikan presisi dan ketelitian komponen elektronika kendaraan.
-
-Desain dibangun menggunakan **Tailwind CSS murni** dengan komponen terisolasi tanpa dependensi UI eksternal (tanpa shadcn/ui), menghasilkan performa rendering maksimal dan kontrol penuh atas aksesibilitas.
+- **Permukaan Aplikasi Web (Light & Dark Mode via `next-themes`):** Kanvas Apple Cool Grey `#F2F2F7` (Light) dan hitam OLED `#000000` (Dark), panel putih bersih / *Liquid Glass* (`.ios-glass-card`, `.ios-glass-inner`) hanya pada elemen mengambang/overlay, pemisah garis tipis `1px hairline`, judul ber-*negative letter-spacing*, angka `tabular-nums`, dan ikon vektor `lucide-react`.
+- **Dokumen Cetak (Nota Servis & Laporan Keuangan):** Memakai tata letak cetak datar **Minimal Hairline (Opsi A)** di atas kertas putih A4 (`PrintableServiceReceipt.tsx` dan `PrintableReportsDocument.tsx`) tanpa tumpukan kartu (*card soup*), sehingga hasil cetak atau ekspor PDF melalui `window.print()` terbaca tajam baik berwarna maupun hitam-putih.
 
 ---
 
-## 2. Palet Warna (Color Tokens)
+## 2. Palet Warna (Referensi Awal & Token Aktual `globals.css`)
 
 ```mermaid
 flowchart LR
@@ -139,62 +139,52 @@ Status per modul dengan ikon status dan garis alur interaktif:
 +-----------------------------------------------------------------------+
 ```
 
-### 5.2 Modal Input Verifikasi (Saat Kartu Diklik / Scan QR)
+### 5.2 Modal Input Verifikasi (Saat Kartu Diklik atau via `/cek/[code]`)
 ```text
 +-------------------------------------------------------+
-|              VERIFIKASI AKSES PROGRES                 |
-|                                                       |
-|  Masukkan 4 Digit Kode Servis yang tertera pada nota  |
-|  dan 4 Digit Terakhir Nomor Handphone Anda.           |
+|              CEK STATUS PROGRES SERVIS                |
 |                                                       |
 |  Kode Servis (4 Digit)   : [  4  8  2  1  ]           |
-|  4 Digit Terakhir No. HP : [  5  6  7  8  ]           |
+|  4 Digit Terakhir No. HP : [  4  8  0  7  ]           |
 |                                                       |
-|              [  LIHAT STATUS PROGRES  ]               |
+|                 [  BUKA PROGRES ->  ]                 |
 +-------------------------------------------------------+
 ```
 
-### 5.3 Web Pelanggan — Halaman Detail Progres
+### 5.3 Web Pelanggan — Halaman Detail Progres (`/track/[publicId]`)
 ```text
 +-----------------------------------------------------------------------+
-| < Kembali ke Antrean                Unit: Toyota Avanza 2015          |
-| Tanggal Masuk: 03 Okt 2026          Estimasi Selesai: 09 Okt 2026     |
+| <- Antrean                                  #4821 [Salin]  [Perbaikan]|
 +-----------------------------------------------------------------------+
-| MODUL 1: ECU Denso (Status: PERBAIKAN)                                |
-| [v Diterima] -> [v Diagnosa] -> [* Perbaikan] -> [o QC] -> [o Selesai]|
+| Unit: Toyota Avanza 1.3 Veloz (2018)                                  |
+| Mobil Utuh · Datang Langsung · Asep Suryana                           |
++-----------------------------------------------------------------------+
+| MODUL 1: ECU (Engine Control Unit)           [Garansi 3 Bln]          |
+| [v Diterima] -> [v Diagnosa] -> [* Pengerjaan] -> [o QC] -> [o Selesai]|
 |                                                                       |
-| TIMELINE PEKERJAAN & FOTO BUKTI:                                      |
-| - 05 Okt 14:20 : Komponen IC Power baru tiba. Selesai solder jalur.   |
-|   [ Foto PCB Setelah Solder ]                                         |
-| - 04 Okt 10:15 : Ditemukan jalur putus akibat tegangan berlebih.      |
-|   [ Foto Jalur Terbakar ]                                             |
+| LINIMASA PROGRES & FOTO PUBLIK:                                       |
+| - 22 Nov 14:20 : Penggantian IC driver coil & solder ulang jalur PCB.  |
+|   [ Foto Bukti Tahap Pengerjaan ]                                     |
 +-----------------------------------------------------------------------+
 | RINCIAN BIAYA & PEMBAYARAN                                            |
-| 1. Jasa Diagnosa & Analisa Sirkuit ........... Rp 150.000             |
-| 2. IC Power Replacement ....................... Rp 450.000             |
-| 3. Jasa Solder & Pemrograman Ulang ........... Rp 300.000             |
-| -------------------------------------------------------------         |
-| TOTAL BIAYA : Rp 900.000       STATUS: DP (Rp 300.000)                |
-| SISA TAGIHAN: Rp 600.000                                              |
+| Total Biaya : Rp 950.000   |  Terbayar: Rp 300.000 (DP)               |
+| Sisa Tagihan: Rp 650.000                                              |
 |                                                                       |
-| [ Unduh Nota Tanda Terima (PDF) ]   [ Unduh Invoice Sementara ]       |
-+-----------------------------------------------------------------------+
-| MASA GARANSI SERVIS:                                                  |
-| Garansi Modul ECU berlaku selama 3 Bulan setelah unit diambil.        |
+| [ Cetak / Simpan Nota (Minimal Hairline) ]   [ Konfirmasi WhatsApp ]  |
 +-----------------------------------------------------------------------+
 ```
 
-### 5.4 Web Admin — Dashboard Kanban Progres
+### 5.4 Web Admin — Dashboard Operasional & Laporan Keuangan
 ```text
 +-----------------------------------------------------------------------+
-| MULTITECH ADMIN | [Kanban] [Penerimaan] [Pelanggan] [Biaya] [Laporan] |
+| MULTITECH ADMIN | Dashboard | Servis | Pelanggan | Laporan | Keluar   |
 +-----------------------------------------------------------------------+
-| [+ Terima Servis Baru]                       Pencarian: [ Cari unit..]|
-+-------------------+-------------------+-------------------+-----------+
-| DITERIMA (2)      | PERBAIKAN (4)     | UJI / QC (1)      | SIAP (3)  |
-+-------------------+-------------------+-------------------+-----------+
-| #4821 - Avanza    | #7312 - Innova    | #1903 - Civic     | #8821 ... |
-| ECU (Cek IC)      | Speedometer       | BCM Modul         | EPS Motor |
-| [Update Progres]  | [Update Progres]  | [Update Progres]  | [Kirim WA]|
-+-------------------+-------------------+-------------------+-----------+
+| KPI Strip (Antrean Aktif · Siap Diambil · Terlambat · Total Tagihan)  |
++----------------------------------+------------------------------------+
+| Unit Aktif Terbaru (Max 5)       | Top 3 Prioritas Tindak Lanjut      |
+| - #4821 Avanza · Pengerjaan      | - Catatan pengingat & deadline     |
+| - #9102 Jazz   · Diagnosa        |                                    |
++----------------------------------+------------------------------------+
+| Grafik Kepadatan & Realisasi Bulanan (GroupedBarChart)                |
++-----------------------------------------------------------------------+
 ```

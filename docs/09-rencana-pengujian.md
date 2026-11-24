@@ -28,8 +28,17 @@ Pengujian fungsionalitas dilakukan tanpa melihat struktur kode internal, menggun
 | **TC-11** | Pelunasan tagihan | Input pembayaran kedua: Rp 700.000 | Status otomatis menjadi `LUNAS`, sisa tagihan Rp 0 | Positif |
 | **TC-12** | Validasi status selesai sebelum lunas | Modul diubah ke `SELESAI` saat status bayar masih `DP` tanpa override | Sistem mencegah penutupan servis dan meminta pelunasan terlebih dahulu | Negatif |
 | **TC-13** | Pembuatan klaim garansi valid | Klik modul lama yang masih dalam masa garansi (`warranty_until >= hari ini`) | Terbentuk servis baru dengan flag `is_warranty_claim = true` dan tertaut ke ID modul lama | Positif |
-| **TC-14** | Generate PDF Nota Tanda Terima | Klik "Cetak Nota PDF" pada servis baru | Dokumen PDF terunduh, memuat logo Multitech, tabel modul, dan QR code yang mengarah ke link cek | Positif |
-| **TC-15** | Integrasi tautan WhatsApp | Klik "Kirim WA" pada servis | Membuka tab baru `https://wa.me/62...` dengan teks URL-encoded yang memuat nama, mobil, dan link cek | Positif |
+| **TC-14** | Cetak Nota Tanda Terima | Klik "Cetak Nota" pada detail servis / pelacakan | Terbuka pratinjau cetak A4 datar *Minimal Hairline* memuat logo Multitech, kode nota, identitas unit, modul, rincian biaya, dan status bayar | Positif |
+| **TC-15** | Integrasi tautan WhatsApp | Klik "Kirim WA" pada servis | Membuka tab baru `https://wa.me/62...` dengan teks URL-encoded yang memuat nama, unit, kode, dan tautan pelacakan | Positif |
+| **TC-16** | Input & persistensi VIN kendaraan | Tambah pelanggan/kendaraan dengan VIN (`FR-A05`), lalu muat ulang | Data VIN tersimpan persisten di PostgreSQL dan tampil pada detail pelanggan | Positif |
+| **TC-17** | Ekspor CSV Laporan bebas injeksi | Klik "Ekspor CSV" pada `/admin/reports` (`FR-D07`) | File `.csv` terunduh rapi dan sel diawali `=`, `+`, `-`, `@` dinetralkan dengan prefix `'` | Keamanan |
+| **TC-18** | Kunci biaya saat seluruh modul final | Buka tab Biaya pada order berstatus akhir `SELESAI`/`BATAL` (`BR-07`) | Tombol tambah & hapus biaya dikunci UI serta ditolak server (`400`), sedangkan kas masuk tetap dibuka | Negatif |
+| **TC-19** | Tautan langsung prefill `/cek/[code]` | Buka `/cek/4821` | Input kode servis otomatis terisi `4821` dan fokus kursor berpindah ke 4 digit akhir HP | Positif |
+
+### Hasil Verifikasi Terakhir (Build Produksi + PostgreSQL 18)
+- **Pengujian Unit Otomatis (`npm test` — `tests/business-rules.test.ts`):** `8/8` blok uji (`TC-01`, `TC-07`/`BR-03`, `TC-10`/`11`/`BR-05`, `TC-12`/`BR-06`/`FR-S10`, `BR-07`, `TC-13`/`BR-08`/`FR-S09`, `BR-01` & Zod, serta `FR-D07` `escapeCsvCell`) **LULUS**.
+- **Pemeriksaan Statis & Build:** `npx tsc --noEmit`, `npm run lint`, dan `npm run build` seluruhnya **LULUS**.
+- **Uji End-to-End Browser (PostgreSQL 18 Aktif):** Papan publik bebas PII, `/cek/4821`, laporan & ekspor CSV, order ekspedisi + resi + unggah `/api/media`, penguncian `BR-03`, persistensi `VIN`, isolasi log privat/publik (`TC-08` & `TC-09`), dan pembuatan klaim garansi `#3417` (`TC-13`) terverifikasi **LULUS (0 console error)**.
 
 ---
 

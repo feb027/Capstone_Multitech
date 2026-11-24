@@ -1,6 +1,6 @@
-# 04 — Activity Diagram
+# 04 — Activity Diagram & Alur Proses Utama
 
-Diagram ditulis dalam Mermaid agar langsung tampil di GitHub. *Swimlane* digambarkan dengan `subgraph`.
+Diagram alur di bawah merinci tiap skenario aktivitas utama dan aturan transisi status (`BR-03`) menggunakan Mermaid.
 
 ## AD-01 Penerimaan Servis (UC-14)
 
@@ -15,7 +15,7 @@ flowchart TD
         A6["Isi jenis penerimaan, cara masuk,<br/>No. resi, estimasi, kondisi"]
         A7["Tambah modul: jenis, detail, keluhan<br/>(boleh lebih dari satu)"]
         A8["Simpan"]
-        A9["Unduh/cetak Nota PDF"]
+        A9["Cetak Nota Tanda Terima"]
         A10["Klik 'Kirim via WhatsApp'"]
     end
     subgraph SYS["Sistem"]
@@ -23,8 +23,8 @@ flowchart TD
         S2{"Data valid &<br/>≥ 1 modul?"}
         S3["Generate kode 4 digit acak"]
         S4{"Kode sudah<br/>dipakai?"}
-        S5["Simpan servis, modul = DITERIMA,<br/>entri timeline pertama"]
-        S6["Buat PDF nota + QR /cek/kode"]
+        S5["Simpan ke PostgreSQL, modul = DITERIMA,<br/>entri timeline pertama"]
+        S6["Siapkan Nota Datar Minimal Hairline<br/>+ link /cek/kode"]
         S7["Buka wa.me dengan template pesan"]
     end
     A2 --> S1
@@ -45,20 +45,20 @@ flowchart TD
 flowchart TD
     S((Mulai)) --> A1
     subgraph ADM["Admin"]
-        A1["Buka dashboard kanban / detail servis"] --> A2["Pilih modul"]
-        A3["Pilih status baru"]
+        A1["Buka halaman Servis / Edit Order"] --> A2["Pilih modul"]
+        A3["Pilih status baru (sesuai BR-03)"]
         A4["Tulis catatan progres<br/>(opsional)"]
-        A5["Ambil/unggah foto/video<br/>(opsional)"]
-        A6["Atur toggle publik/privat"]
-        A7{"Ada biaya<br/>baru?"}
+        A5["Unggah foto bukti<br/>(JPG/PNG/WebP opsional)"]
+        A6["Atur toggle Publik/Internal"]
+        A7{"Ada biaya<br/>baru & belum final?"}
         A8["Tambah item biaya<br/>(jasa/sparepart/diagnosa)"]
         A9{"Perlu konfirmasi<br/>pelanggan?"}
         A10["Hubungi pelanggan via WA/telepon"]
     end
     subgraph SYS["Sistem"]
-        S1["Tampilkan hanya status<br/>tujuan yang valid"]
-        S2["Kompres & simpan media"]
-        S3["Simpan status + entri timeline publik"]
+        S1["Nonaktifkan tombol tahap<br/>yang melanggar BR-03"]
+        S2["Kompres di browser & simpan<br/>lewat POST /api/media"]
+        S3["Validasi Zod + simpan ke PostgreSQL"]
         S4["Hitung ulang total & status bayar"]
     end
     A2 --> S1 --> A3 --> A4 --> A5 --> S2 --> A6 --> S3 --> A7
@@ -78,22 +78,22 @@ flowchart TD
         P1["Buka papan antrean"]
         P2["Cari/filter merek atau modul"]
         P3["Klik kartu mobilnya"]
-        P4["Scan QR nota / klik link WA"]
+        P4["Buka link /cek/[kode] dari WA"]
         P5["Isi kode servis + 4 digit akhir HP"]
         P6["Lihat status, timeline, foto,<br/>biaya, estimasi, garansi"]
-        P7{"Unduh<br/>dokumen?"}
-        P8["Unduh nota/invoice PDF"]
+        P7{"Cetak / Simpan<br/>Nota?"}
+        P8["Cetak Nota Tanda Terima via browser"]
     end
     subgraph SYS["Sistem"]
         S1["Tampilkan kartu anonim<br/>servis aktif & siap diambil"]
-        S2["Tampilkan form<br/>(kode terisi bila dari link)"]
+        S2["Tampilkan form<br/>(kode terisi bila dari /cek/[kode])"]
         S3{"Kode + HP<br/>cocok?"}
-        S4["Pesan: 'Kode atau nomor tidak cocok'"]
-        S5["Simpan sesi verifikasi (cookie)"]
-        S6["Render detail (hanya data publik)"]
+        S4["Pesan: 'Kode servis atau 4 digit nomor HP tidak cocok'"]
+        S5["Simpan cookie track_session"]
+        S6["Render /track/[publicId] (hanya data & foto publik)"]
     end
     P0 -- Web --> P1 --> S1 --> P2 --> P3 --> S2
-    P0 -- "QR/WA" --> P4 --> S2
+    P0 -- "Link WA" --> P4 --> S2
     S2 --> P5 --> S3
     S3 -- Tidak --> S4 --> P5
     S3 -- Ya --> S5 --> S6 --> P6 --> P7
@@ -117,12 +117,12 @@ flowchart TD
         A9["Unduh/kirim invoice PDF"]
     end
     subgraph SYS["Sistem"]
-        S1["Simpan garansi sementara"]
-        S2["Hitung status bayar"]
+        S1["Simpan warrantyMonths &<br/>hitung warrantyUntil sementara"]
+        S2["Hitung status bayar (BR-05)"]
         S3{"LUNAS?"}
-        S4["Set tanggal serah terima,<br/>warranty_until = serah terima + n bulan"]
+        S4["Set handedOverAt/finishedAt,<br/>warrantyUntil = tanggal selesai + n bulan"]
         S5{"Semua modul<br/>final?"}
-        S6["Kunci item biaya,<br/>hapus dari papan publik"]
+        S6["Kunci tambah/hapus biaya (BR-07),<br/>sembunyikan dari papan publik"]
     end
     A2 --> A3 --> S1 --> A4 --> A5 --> A6 --> S2 --> A7 --> S3
     S3 -- Ya --> S4

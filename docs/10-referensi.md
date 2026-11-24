@@ -68,9 +68,9 @@ Dokumen ini memuat kajian pustaka akademik, standar rekayasa perangkat lunak, re
 
 | Domain | Praktik Terbaik | Sumber / Rujukan |
 |---|---|---|
-| **Arsitektur Web** | Subdomain routing via Next.js Middleware dalam satu monolit | Next.js Official Architecture Guide |
-| **Penyimpanan Berkas** | Konversi citra ke WebP terkompresi sebelum disimpan di disk | Google Web Vitals & sharp image processor |
-| **Infrastruktur Mandiri** | Cloudflare Tunnel untuk expose server lokal tanpa port forwarding | Cloudflare Zero Trust Documentation |
+| **Arsitektur Web** | Monolith Next.js 15 App Router + proteksi Middleware (`admin.*` & `/admin`) | Next.js Official Architecture Guide |
+| **Penyimpanan Berkas** | Kompresi gambar HTML5 Canvas (`WebP`/`JPEG`) di browser + validasi magic-byte `/api/media` | Google Web Vitals & OWASP File Upload Cheat Sheet |
+| **Infrastruktur Mandiri** | PostgreSQL lokal / Docker Compose + Cloudflare Tunnel opsional | PostgreSQL & Cloudflare Zero Trust Docs |
 | **Basis Data** | Skema ternormalisasi 3NF dengan integritas referensial dan UUID | PostgreSQL Best Practices & Prisma Guideline |
 | **Pengujian** | Kombinasi Black Box (EP & BVA) dan evaluasi UAT berskala SUS | IEEE 29119 & John Brooke (1996) |
 | **Privasi Pengguna** | *Data Minimization* pada antarmuka publik | UU No. 27/2022 (PDP) & OWASP Insecure Design |

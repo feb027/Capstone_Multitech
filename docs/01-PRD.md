@@ -3,8 +3,8 @@
 | Atribut | Nilai |
 |---|---|
 | Produk | Multitech Service Tracking System |
-| Versi dokumen | 0.1 (Sprint 0) |
-| Tanggal | 7 Oktober 2026 |
+| Versi dokumen | 1.0 (Final Implementasi Capstone) |
+| Tanggal | 24 November 2026 |
 | Pemangku kepentingan | Pemilik & admin Multitech, pelanggan perorangan, bengkel mitra, dosen pembimbing |
 
 ## 1. Latar Belakang
@@ -44,32 +44,32 @@ Karakteristik servis ini:
 
 ## 6. Ruang Lingkup
 
-### 6.1 Termasuk (In Scope)
+### 6.1 Termasuk (In Scope - Realisasi Final)
 **Web Pelanggan (publik, tanpa login)**
-1. Papan antrean berisi unit aktif & *Siap Diambil*, ditampilkan anonim (merek/tipe/tahun mobil, jenis modul, status, tanggal masuk), dengan pencarian/filter.
-2. Cek progres: klik kartu atau buka link/QR, lalu masukkan **kode servis 4 digit + 4 digit akhir No. HP**.
-3. Halaman detail: status per modul, timeline catatan + foto/video publik, rincian biaya terkini, status bayar, estimasi selesai, garansi, unduh nota/invoice PDF.
+1. Papan antrean berisi unit aktif & *Siap Diambil*, ditampilkan anonim (merek/tipe/tahun mobil atau genset/industri, daftar jenis modul, status, tanggal masuk), dengan pencarian/filter status serta carousel layanan.
+2. Cek progres: klik kartu atau buka tautan `/cek` maupun `/cek/[kode]`, lalu masukkan **kode servis 4 digit + 4 digit akhir No. HP**.
+3. Halaman detail (`/track/[publicId]`): metode masuk (`Datang Langsung`/`Ekspedisi` + nomor resi), status per modul, timeline catatan + foto publik + perbandingan *Before-After*, rincian biaya terkini, status bayar, estimasi selesai, garansi aktif (`warrantyUntil`), tautan WhatsApp CS, serta cetak nota datar *Minimal Hairline* (`window.print()`).
 
 **Web Internal (Admin)**
-1. Login admin.
-2. Master data: pelanggan (perorangan/mitra), kendaraan, jenis modul (bisa ditambah admin).
-3. Penerimaan servis (1 kode = 1 kunjungan, berisi ≥ 1 modul), generate kode acak 4 digit permanen.
-4. Update status per modul, catatan progres, upload foto/video dengan toggle publik/privat.
-5. Item biaya (jasa/sparepart/diagnosa) yang bisa ditambah sepanjang servis.
-6. Pembayaran (DP/pelunasan; tunai/transfer/QRIS) dengan status bayar otomatis.
-7. Garansi per modul & klaim garansi (servis baru yang tertaut ke servis asal).
-8. Pembatalan / tidak bisa diperbaiki, dengan alasan & biaya diagnosa.
-9. Nota tanda terima & invoice **PDF** dengan QR code, tombol **"Kirim via WhatsApp"** (link `wa.me`).
-10. Dashboard (kanban status) & laporan.
+1. Login & logout admin (JWT Cookie `HttpOnly`, tanpa UI manajemen multi-admin).
+2. Master data pelanggan (`Perorangan` / `Bengkel Mitra` dengan dropdown dinamis) & kendaraan (merek, model, tahun, plat nomor privat, nomor rangka/VIN opsional); daftar jenis modul dikelola melalui *seed* basis data.
+3. Penerimaan servis (1 kode = 1 kunjungan, kategori `OTOMOTIF` / `GENSET_INDUSTRI`, `MOBIL_UTUH` / `MODUL_SAJA`, `Datang` / `Ekspedisi` + resi), menghasilkan kode acak 4 digit unik permanen (`BR-01`).
+4. Update status per modul berurutan (`BR-03`), catatan progres, dan upload foto terkompresi via `/api/media` dengan toggle publik/privat (`BR-10`).
+5. Item biaya (`Jasa`/`Sparepart`/`Diagnosa`) yang terkunci otomatis ketika seluruh modul sudah final (`BR-07`).
+6. Pembayaran (`DP`/`Pelunasan`; `Tunai`/`Transfer`/`QRIS`) dengan kalkulasi status bayar otomatis (`BR-05`).
+7. Garansi per modul (`warrantyMonths` & `warrantyUntil`) serta pembuatan **Klaim Garansi** tertaut ke modul asal (`BR-08`).
+8. Pembatalan modul dengan alasan wajib (`FR-S10`) serta override pelunasan beralasan (`BR-06`).
+9. Cetak Nota Tanda Terima A4 datar *Minimal Hairline* dan tombol **"Kirim via WhatsApp"** (`wa.me`).
+10. Dashboard operasional (4 kartu KPI, tabel unit aktif dengan penanda keterlambatan, panel 3 prioritas tindak lanjut, grafik bulanan) serta halaman Laporan Keuangan (filter periode, grafik bulanan, Top Modul & Merek, Top Bengkel Mitra, Ekspor CSV terproteksi injeksi rumus, dan Cetak Laporan PDF).
 
-### 6.2 Tidak Termasuk (Out of Scope v1)
+### 6.2 Tidak Termasuk / Di Luar Lingkup Rilis Final
 - Akun/login pelanggan & bengkel mitra.
-- Persetujuan biaya online (persetujuan via telepon/WA, admin mengubah status).
-- Manajemen stok sparepart.
-- Notifikasi otomatis WhatsApp API / SMS / email.
-- Pembayaran online (payment gateway).
-- Multi-role (teknisi/kasir terpisah).
-- Cetak printer thermal (v1 cukup PDF).
+- UI CRUD Master Jenis Modul (dikelola melalui `prisma/seed.ts`).
+- UI Pengaturan / Manajemen Akun Admin tambahan.
+- QR Code pada nota tanda terima dan pemindai QR.
+- Unggah berkas video (media dibatasi pada foto JPG/PNG/WebP terkompresi).
+- Papan Kanban seret-lepas (*drag-and-drop*) dan polling otomatis antrean publik.
+- Persetujuan biaya online, manajemen stok sparepart, notifikasi WhatsApp API otomatis, payment gateway, multi-role, serta printer thermal.
 
 ## 7. Asumsi & Batasan
 | Jenis | Keterangan |
@@ -78,7 +78,7 @@ Karakteristik servis ini:
 | Asumsi | Pelanggan memberikan No. HP yang valid saat penerimaan |
 | Batasan | Server di rumah (Ubuntu): ketersediaan bergantung listrik & internet rumah |
 | Batasan | Kode servis 4 digit acak & permanen: kapasitas maksimum 10.000 servis. Tanpa batas percobaan (keputusan desain demi kesederhanaan). Lihat [SRS §5 Risiko](02-SRS.md#5-risiko--mitigasi) |
-| Batasan | Media disimpan di disk server, sehingga ukuran video dibatasi |
+| Batasan | Media gambar disimpan pada penyimpanan lokal (`./media`), ukuran unggahan server dibatasi maksimal 2 MB setelah kompresi browser |
 
 ## 8. Rilis
 | Rilis | Isi | Target |
