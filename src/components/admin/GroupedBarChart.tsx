@@ -24,6 +24,7 @@ interface GroupedBarChartProps {
   formatTick?: (val: number) => string;
   heightClass?: string;
   wideBars?: boolean;
+  headerRight?: React.ReactNode;
 }
 
 export function GroupedBarChart({
@@ -36,6 +37,7 @@ export function GroupedBarChart({
   formatTick = (val) => String(val),
   heightClass = 'h-44 sm:h-48',
   wideBars = false,
+  headerRight,
 }: GroupedBarChartProps) {
   const maxTick = ticks.length > 0 ? Math.max(...ticks, 1) : 1;
   const isSingleSeries = series.length <= 1;
@@ -43,10 +45,19 @@ export function GroupedBarChart({
 
   return (
     <div className="w-full min-w-0 select-none overflow-visible">
-      {/* Centered Chart Title */}
-      <h3 className="text-center text-sm font-bold tracking-tight text-slate-900 dark:text-white sm:text-base">
-        {title}
-      </h3>
+      {/* Chart Header */}
+      {headerRight ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white sm:text-base">
+            {title}
+          </h3>
+          {headerRight}
+        </div>
+      ) : (
+        <h3 className="text-center text-sm font-bold tracking-tight text-slate-900 dark:text-white sm:text-base">
+          {title}
+        </h3>
+      )}
 
       {/* Centered Series Legend (only when multiple series) */}
       {!isSingleSeries && (
@@ -61,7 +72,7 @@ export function GroupedBarChart({
       )}
 
       {/* Main Plot Area */}
-      <div className="mt-8 flex min-w-0 items-stretch gap-1.5 sm:gap-2">
+      <div className="mt-4 flex min-w-0 items-stretch gap-1.5 sm:gap-2">
         {/* Vertical Y-Axis Title */}
         <div className="flex w-4 shrink-0 items-center justify-center sm:w-5">
           <span className="-rotate-90 whitespace-nowrap text-[10px] font-semibold text-slate-600 dark:text-slate-400 sm:text-[11px]">

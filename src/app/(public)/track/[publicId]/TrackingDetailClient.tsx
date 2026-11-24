@@ -58,6 +58,7 @@ interface TrackingOrderProp {
     logs: Array<{
       id: string;
       createdAt: string | Date;
+      stage?: string | null;
       note: string | null;
       photoUrl: string | null;
     }>;
@@ -322,7 +323,7 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
 
               {!isCancelled ? (
                 <div className="pt-1">
-                  <div className="grid grid-cols-5 gap-1.5">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-1.5">
                     {PROGRESS_STEPS.map((step, idx) => {
                       const isDone =
                         itemStatus === ItemStatus.SELESAI || idx < currentIndex;
@@ -364,7 +365,8 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
                 </div>
               )}
 
-              {(item.beforePhotoUrl || item.afterPhotoUrl || item.beforeCaption || item.afterCaption) && (
+              {(item.beforePhotoUrl || item.afterPhotoUrl || item.beforeCaption || item.afterCaption) &&
+                !item.logs.some((log) => Boolean(log.photoUrl)) && (
                 <div className="border-t border-slate-100 pt-3 dark:border-white/[0.06]">
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Dokumentasi Before &amp; After Perbaikan
@@ -433,39 +435,51 @@ export function TrackingDetailClient({ order }: { order: TrackingOrderProp }) {
                     Aktivitas Terbaru
                   </p>
                   <div className="space-y-3">
-                    {item.logs.map((log) => (
-                      <div key={log.id} className="flex gap-3 text-xs">
-                        <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-slate-500 dark:bg-slate-400" />
-                        <div className="flex-1 space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400">
-                            <span>{formatDateIndo(log.createdAt)}</span>
-                            <span className="font-mono">{formatTimeIndo(log.createdAt)}</span>
-                          </div>
-                          {log.note && (
-                            <p className="text-slate-800 dark:text-slate-200">{log.note}</p>
-                          )}
-
-                          {log.photoUrl && (
-                            <div className="pt-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPhotoError(false);
-                                  setActivePhoto(log.photoUrl);
-                                }}
-                                className="group relative overflow-hidden rounded-xl border border-black/[0.06] tap-bounce dark:border-white/[0.08]"
-                              >
-                                <img
-                                  src={log.photoUrl}
-                                  alt="Dokumentasi Teknis"
-                                  className="h-24 w-40 object-cover transition-transform duration-300 group-hover:scale-105"
-                                />
-                              </button>
+                    {item.logs.map((log) => {
+                      const logMeta = log.stage ? getStatusMeta(log.stage as ItemStatus) : null;
+                      return (
+                        <div key={log.id} className="flex gap-3 text-xs">
+                          <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-slate-500 dark:bg-slate-400" />
+                          <div className="flex-1 space-y-1.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600 dark:text-slate-400">
+                              <div className="flex items-center gap-1.5">
+                                {logMeta && (
+                                  <span
+                                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold leading-none ${logMeta.badgeClass}`}
+                                  >
+                                    {logMeta.shortLabel}
+                                  </span>
+                                )}
+                                <span>{formatDateIndo(log.createdAt)}</span>
+                              </div>
+                              <span className="font-mono">{formatTimeIndo(log.createdAt)}</span>
                             </div>
-                          )}
+                            {log.note && (
+                              <p className="text-slate-800 dark:text-slate-200">{log.note}</p>
+                            )}
+
+                            {log.photoUrl && (
+                              <div className="pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPhotoError(false);
+                                    setActivePhoto(log.photoUrl);
+                                  }}
+                                  className="group relative overflow-hidden rounded-xl border border-black/[0.06] tap-bounce dark:border-white/[0.08]"
+                                >
+                                  <img
+                                    src={log.photoUrl}
+                                    alt="Dokumentasi Teknis"
+                                    className="h-24 w-40 object-cover transition-transform duration-300 group-hover:scale-105"
+                                  />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

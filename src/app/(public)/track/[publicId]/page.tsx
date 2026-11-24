@@ -1,5 +1,7 @@
-import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
+import { getAdminSession } from '@/lib/auth';
 import { getServerDataset } from '@/lib/dataset-store';
 import { TrackingDetailClient } from './TrackingDetailClient';
 
@@ -46,6 +48,7 @@ export default async function TrackingDetailPage({ params }: TrackPageProps) {
       logs: Array<{
         id: string;
         createdAt: string | Date;
+        stage?: string | null;
         note: string | null;
         photoUrl: string | null;
       }>;
@@ -64,147 +67,157 @@ export default async function TrackingDetailPage({ params }: TrackPageProps) {
     }>;
   } | null = null;
 
-  try {
-    const dbOrder = await prisma.serviceOrder.findUnique({
-      where: { publicId },
-      include: {
-        customer: true,
-        vehicle: true,
-        items: {
-          include: {
-            moduleType: true,
-            progressLogs: {
-              where: { isPublic: true },
-              orderBy: { createdAt: 'desc' },
-              include: { media: true },
-            },
-          },
-        },
-        charges: true,
-        payments: true,
-      },
-    });
+  // Check synchronized server dataset first so admin changes appear immediately
+  const datasetOrders = getServerDataset().orders;
+  const mock = datasetOrders.find((o) => o.publicId === publicId);
 
-    if (dbOrder) {
-      orderData = {
-        id: dbOrder.id,
-        publicId: dbOrder.publicId,
-        code: dbOrder.code,
-        customer: {
-          name: dbOrder.customer.name,
-          phone: dbOrder.customer.phone.replace(/(\d{4})\d+(\d{4})/, '$1****$2'),
-          type: dbOrder.customer.type,
-          workshopName: dbOrder.customer.workshopName,
-        },
-        // plateNumber sengaja tidak dikirim ke tampilan publik demi privasi pelanggan
-        vehicle: dbOrder.vehicle
-          ? {
-              brand: dbOrder.vehicle.brand,
-              model: dbOrder.vehicle.model,
-              year: dbOrder.vehicle.year,
-            }
-          : null,
-        intakeType: dbOrder.intakeType,
-        receivedAt: dbOrder.receivedAt,
-        estimatedDoneAt: dbOrder.estimatedDoneAt,
-        conditionNotes: dbOrder.conditionNotes,
-        items: dbOrder.items.map((it) => ({
-          id: it.id,
-          moduleType: { name: it.moduleType.name },
-          moduleDetail: it.moduleDetail,
-          complaint: it.complaint,
-          status: it.status,
-          warrantyMonths: it.warrantyMonths,
-          logs: it.progressLogs.map((pl) => ({
-            id: pl.id,
-            createdAt: pl.createdAt,
-            note: pl.note,
-            photoUrl: pl.media.find((m) => m.isPublic)?.filePath || null,
+  if (mock) {
+    orderData = {
+      id: mock.id,
+      publicId: mock.publicId,
+      code: mock.code,
+      customer: {
+        name: mock.customerName,
+        phone: mock.customerPhone.replace(/(\d{4})\d+(\d{4})/, '$1****$2'),
+        type: mock.customerType,
+        workshopName: mock.workshopName ?? null,
+      },
+      vehicle: {
+        brand: mock.vehicleBrand,
+        model: mock.vehicleModel,
+        year: mock.vehicleYear,
+      },
+      intakeType: mock.intakeType,
+      unitCategory: mock.unitCategory,
+      receivedAt: mock.receivedAt,
+      estimatedDoneAt: mock.estimatedDoneAt,
+      conditionNotes: mock.conditionNotes ?? null,
+      items: mock.items.map((it) => ({
+        id: it.id,
+        moduleType: { name: it.moduleName },
+        moduleDetail: it.moduleDetail,
+        complaint: it.complaint,
+        status: it.status,
+        warrantyMonths: it.warrantyMonths,
+        beforePhotoUrl: it.beforePhotoUrl ?? null,
+        afterPhotoUrl: it.afterPhotoUrl ?? null,
+        beforeCaption: it.beforeCaption ?? null,
+        afterCaption: it.afterCaption ?? null,
+        logs: it.logs
+          .filter((l) => l.isPublic)
+          .map((l) => ({
+            id: l.id,
+            createdAt: l.createdAt,
+            stage: l.stage ?? null,
+            note: l.note,
+            photoUrl: l.photoUrl ?? null,
           })),
-        })),
-        charges: dbOrder.charges.map((c) => ({
-          id: c.id,
-          description: c.description,
-          qty: c.qty,
-          unitPrice: c.unitPrice,
-        })),
-        payments: dbOrder.payments.map((p) => ({
-          id: p.id,
-          amount: p.amount,
-          method: p.method,
-          paidAt: p.paidAt,
-        })),
-      };
-    }
-  } catch {
-    // Fallback ke preview lokal jika DB belum terhubung
+      })),
+      charges: mock.charges.map((c) => ({
+        id: c.id,
+        description: c.description,
+        qty: c.qty,
+        unitPrice: c.unitPrice,
+      })),
+      payments: mock.payments.map((p) => ({
+        id: p.id,
+        amount: p.amount,
+        method: p.method,
+        paidAt: p.paidAt,
+      })),
+    };
   }
 
   if (!orderData) {
-    const datasetOrders = getServerDataset().orders;
-    const mock =
-      datasetOrders.find((o) => o.publicId === publicId) ??
-      (publicId.includes('4821') || publicId === 'demo' ? datasetOrders[0] : null);
+    try {
+      const dbOrder = await prisma.serviceOrder.findUnique({
+        where: { publicId },
+        include: {
+          customer: true,
+          vehicle: true,
+          items: {
+            include: {
+              moduleType: true,
+              progressLogs: {
+                where: { isPublic: true },
+                orderBy: { createdAt: 'desc' },
+                include: { media: true },
+              },
+            },
+          },
+          charges: true,
+          payments: true,
+        },
+      });
 
-    if (mock) {
-      orderData = {
-        id: mock.id,
-        publicId: mock.publicId,
-        code: mock.code,
-        customer: {
-          name: mock.customerName,
-          phone: mock.customerPhone.replace(/(\d{4})\d+(\d{4})/, '$1****$2'),
-          type: mock.customerType,
-          workshopName: mock.workshopName ?? null,
-        },
-        vehicle: {
-          brand: mock.vehicleBrand,
-          model: mock.vehicleModel,
-          year: mock.vehicleYear,
-        },
-        intakeType: mock.intakeType,
-        unitCategory: mock.unitCategory,
-        receivedAt: mock.receivedAt,
-        estimatedDoneAt: mock.estimatedDoneAt,
-        conditionNotes: mock.conditionNotes ?? null,
-        items: mock.items.map((it) => ({
-          id: it.id,
-          moduleType: { name: it.moduleName },
-          moduleDetail: it.moduleDetail,
-          complaint: it.complaint,
-          status: it.status,
-          warrantyMonths: it.warrantyMonths,
-          beforePhotoUrl: it.beforePhotoUrl ?? null,
-          afterPhotoUrl: it.afterPhotoUrl ?? null,
-          beforeCaption: it.beforeCaption ?? null,
-          afterCaption: it.afterCaption ?? null,
-          logs: it.logs
-            .filter((l) => l.isPublic)
-            .map((l) => ({
-              id: l.id,
-              createdAt: l.createdAt,
-              note: l.note,
-              photoUrl: l.photoUrl ?? null,
+      if (dbOrder) {
+        orderData = {
+          id: dbOrder.id,
+          publicId: dbOrder.publicId,
+          code: dbOrder.code,
+          customer: {
+            name: dbOrder.customer.name,
+            phone: dbOrder.customer.phone.replace(/(\d{4})\d+(\d{4})/, '$1****$2'),
+            type: dbOrder.customer.type,
+            workshopName: dbOrder.customer.workshopName,
+          },
+          // plateNumber sengaja tidak dikirim ke tampilan publik demi privasi pelanggan
+          vehicle: dbOrder.vehicle
+            ? {
+                brand: dbOrder.vehicle.brand,
+                model: dbOrder.vehicle.model,
+                year: dbOrder.vehicle.year,
+              }
+            : null,
+          intakeType: dbOrder.intakeType,
+          receivedAt: dbOrder.receivedAt,
+          estimatedDoneAt: dbOrder.estimatedDoneAt,
+          conditionNotes: dbOrder.conditionNotes,
+          items: dbOrder.items.map((it) => ({
+            id: it.id,
+            moduleType: { name: it.moduleType.name },
+            moduleDetail: it.moduleDetail,
+            complaint: it.complaint,
+            status: it.status,
+            warrantyMonths: it.warrantyMonths,
+            logs: it.progressLogs.map((pl) => ({
+              id: pl.id,
+              createdAt: pl.createdAt,
+              stage: pl.toStatus ?? null,
+              note: pl.note,
+              photoUrl: pl.media.find((m) => m.isPublic)?.filePath || null,
             })),
-        })),
-        charges: mock.charges.map((c) => ({
-          id: c.id,
-          description: c.description,
-          qty: c.qty,
-          unitPrice: c.unitPrice,
-        })),
-        payments: mock.payments.map((p) => ({
-          id: p.id,
-          amount: p.amount,
-          method: p.method,
-          paidAt: p.paidAt,
-        })),
-      };
+          })),
+          charges: dbOrder.charges.map((c) => ({
+            id: c.id,
+            description: c.description,
+            qty: c.qty,
+            unitPrice: c.unitPrice,
+          })),
+          payments: dbOrder.payments.map((p) => ({
+            id: p.id,
+            amount: p.amount,
+            method: p.method,
+            paidAt: p.paidAt,
+          })),
+        };
+      }
+    } catch {
+      // Fallback jika DB belum terhubung
     }
   }
 
   if (!orderData) {
     return notFound();
+  }
+
+  const cookieStore = await cookies();
+  const isVerifiedTrackSession =
+    cookieStore.get(`track_session_${orderData.publicId}`)?.value === 'verified';
+  const adminSession = await getAdminSession();
+
+  if (!isVerifiedTrackSession && !adminSession) {
+    redirect(`/cek?code=${encodeURIComponent(orderData.code)}`);
   }
 
   return <TrackingDetailClient order={orderData} />;

@@ -4,10 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   INITIAL_CUSTOMERS,
   INITIAL_SERVICE_ORDERS,
-  INITIAL_SPAREPARTS,
   MockCustomerRow,
   MockServiceOrder,
-  SparepartItem,
   UpsertCustomerPayload,
   applyAddVehicle,
   applyDeleteOrder,
@@ -19,7 +17,6 @@ import {
 interface DatasetState {
   orders: MockServiceOrder[];
   customers: MockCustomerRow[];
-  spareparts: SparepartItem[];
 }
 
 const SYNC_EVENT = 'multitech-dataset-sync';
@@ -29,18 +26,49 @@ function getInitialState(): DatasetState {
   return {
     orders: synced.orders,
     customers: synced.customers,
-    spareparts: INITIAL_SPAREPARTS,
   };
 }
 
 let memoryStore: DatasetState = getInitialState();
 let hasFetchedFromServer = false;
+let activeFetchPromise: Promise<DatasetState | null> | null = null;
 
 function broadcastDataset(next: DatasetState) {
   memoryStore = next;
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent<DatasetState>(SYNC_EVENT, { detail: next }));
   }
+}
+
+function fetchDatasetOnce(): Promise<DatasetState | null> {
+  if (hasFetchedFromServer) {
+    return Promise.resolve(memoryStore);
+  }
+  if (activeFetchPromise) {
+    return activeFetchPromise;
+  }
+
+  activeFetchPromise = fetch('/api/dataset', { cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data: DatasetState | null) => {
+      if (!data || !Array.isArray(data.orders) || !Array.isArray(data.customers)) {
+        return null;
+      }
+      hasFetchedFromServer = true;
+      const synced = synchronizeDataset(data.orders, data.customers);
+      const next: DatasetState = {
+        orders: synced.orders,
+        customers: synced.customers,
+      };
+      broadcastDataset(next);
+      return next;
+    })
+    .catch(() => null)
+    .finally(() => {
+      activeFetchPromise = null;
+    });
+
+  return activeFetchPromise;
 }
 
 export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?: MockCustomerRow[]) {
@@ -50,10 +78,9 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
         initialOrders || memoryStore.orders,
         initialCustomers || memoryStore.customers
       );
-      return {
+      memoryStore = {
         orders: synced.orders,
         customers: synced.customers,
-        spareparts: memoryStore.spareparts,
       };
     }
     return memoryStore;
@@ -70,26 +97,20 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
 
     window.addEventListener(SYNC_EVENT, handleSync);
 
+    if (hasFetchedFromServer) {
+      return () => {
+        window.removeEventListener(SYNC_EVENT, handleSync);
+      };
+    }
+
     let active = true;
-    fetch('/api/dataset', { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: DatasetState | null) => {
-        if (!active || !data || !Array.isArray(data.orders) || !Array.isArray(data.customers)) {
-          return;
-        }
-        hasFetchedFromServer = true;
-        const synced = synchronizeDataset(data.orders, data.customers);
-        const next: DatasetState = {
-          orders: synced.orders,
-          customers: synced.customers,
-          spareparts: Array.isArray(data.spareparts) ? data.spareparts : memoryStore.spareparts,
-        };
-        broadcastDataset(next);
-        setIsLoaded(true);
-      })
-      .catch(() => {
-        if (active) setIsLoaded(true);
-      });
+    fetchDatasetOnce().then((next) => {
+      if (!active) return;
+      if (next) {
+        setState(next);
+      }
+      setIsLoaded(true);
+    });
 
     return () => {
       active = false;
@@ -111,9 +132,6 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
         broadcastDataset({
           orders: synced.orders,
           customers: synced.customers,
-          spareparts: Array.isArray(serverState.spareparts)
-            ? serverState.spareparts
-            : memoryStore.spareparts,
         });
       }
     } catch {
@@ -125,7 +143,6 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
     async (order: MockServiceOrder) => {
       const synced = applyUpsertOrder(memoryStore.orders, memoryStore.customers, order);
       const next: DatasetState = {
-        ...memoryStore,
         orders: synced.orders,
         customers: synced.customers,
       };
@@ -140,7 +157,6 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
     async (id: string) => {
       const synced = applyDeleteOrder(memoryStore.orders, memoryStore.customers, id);
       const next: DatasetState = {
-        ...memoryStore,
         orders: synced.orders,
         customers: synced.customers,
       };
@@ -155,7 +171,6 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
     async (payload: UpsertCustomerPayload) => {
       const synced = applyUpsertCustomer(memoryStore.orders, memoryStore.customers, payload);
       const next: DatasetState = {
-        ...memoryStore,
         orders: synced.orders,
         customers: synced.customers,
       };
@@ -173,7 +188,6 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
     ) => {
       const synced = applyAddVehicle(memoryStore.orders, memoryStore.customers, customerId, vehicle);
       const next: DatasetState = {
-        ...memoryStore,
         orders: synced.orders,
         customers: synced.customers,
       };
@@ -187,7 +201,6 @@ export function useDataset(initialOrders?: MockServiceOrder[], initialCustomers?
   return {
     orders: state.orders,
     customers: state.customers,
-    spareparts: state.spareparts,
     isLoaded,
     upsertOrder,
     deleteOrder,

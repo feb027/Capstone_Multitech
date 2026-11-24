@@ -37,28 +37,37 @@ export function AdminReportsClient() {
   const { orders } = useDataset();
   const [period, setPeriod] = useState('ALL');
 
+  const currentMonthIdx = useMemo(() => {
+    const nowMonth = new Date().getMonth();
+    return orders.some((o) => new Date(o.receivedAt).getMonth() === nowMonth) ? nowMonth : 10;
+  }, [orders]);
+
+  const lastThreeMonthKeys = useMemo(
+    () =>
+      new Set([
+        String((currentMonthIdx + 10) % 12),
+        String((currentMonthIdx + 11) % 12),
+        String(currentMonthIdx),
+      ]),
+    [currentMonthIdx]
+  );
+
   // Filter order sesuai pilihan tab
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const orderDate = new Date(order.receivedAt);
-      const now = new Date();
 
       if (period === 'THIS_MONTH') {
-        const isCurrentMonth =
-          orderDate.getMonth() === now.getMonth() &&
-          orderDate.getFullYear() === now.getFullYear();
-        return isCurrentMonth;
+        return orderDate.getMonth() === currentMonthIdx;
       }
       if (period === 'LAST_3_MONTHS') {
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(now.getMonth() - 3);
-        return orderDate >= threeMonthsAgo;
+        return lastThreeMonthKeys.has(String(orderDate.getMonth()));
       }
       if (period === 'MITRA_B2B') return order.customerType === 'MITRA';
       if (period === 'PERORANGAN') return order.customerType === 'PERORANGAN';
       return true;
     });
-  }, [orders, period]);
+  }, [orders, period, currentMonthIdx, lastThreeMonthKeys]);
 
   // Kalkulasi agregat keuangan
   const summary = useMemo(() => {
@@ -86,36 +95,52 @@ export function AdminReportsClient() {
   const monthlyData = useMemo(() => {
     const monthsMap: Record<
       string,
-      { label: string; revenue: number; billed: number; count: number; mitraCount: number; peroranganCount: number }
+      {
+        label: string;
+        revenue: number;
+        billed: number;
+        mitraRevenue: number;
+        mitraBilled: number;
+        peroranganRevenue: number;
+        peroranganBilled: number;
+        count: number;
+        mitraCount: number;
+        peroranganCount: number;
+      }
     > = {
-      '0': { label: 'Jan', revenue: 5200000, billed: 5800000, count: 4, mitraCount: 2, peroranganCount: 2 },
-      '1': { label: 'Feb', revenue: 7400000, billed: 8100000, count: 6, mitraCount: 3, peroranganCount: 3 },
-      '2': { label: 'Mar', revenue: 6300000, billed: 6900000, count: 5, mitraCount: 2, peroranganCount: 3 },
-      '3': { label: 'Apr', revenue: 8600000, billed: 9400000, count: 7, mitraCount: 3, peroranganCount: 4 },
-      '4': { label: 'Mei', revenue: 7500000, billed: 8200000, count: 6, mitraCount: 2, peroranganCount: 4 },
-      '5': { label: 'Jun', revenue: 6500000, billed: 7200000, count: 5, mitraCount: 2, peroranganCount: 3 },
-      '6': { label: 'Jul', revenue: 8400000, billed: 9100000, count: 7, mitraCount: 3, peroranganCount: 4 },
-      '7': { label: 'Agu', revenue: 7800000, billed: 8500000, count: 6, mitraCount: 2, peroranganCount: 4 },
-      '8': { label: 'Sep', revenue: 9900000, billed: 11200000, count: 8, mitraCount: 4, peroranganCount: 4 },
-      '9': { label: 'Okt', revenue: 11500000, billed: 12800000, count: 9, mitraCount: 4, peroranganCount: 5 },
-      '10': { label: 'Nov', revenue: 0, billed: 0, count: 0, mitraCount: 0, peroranganCount: 0 },
-      '11': { label: 'Des', revenue: 4900000, billed: 5400000, count: 4, mitraCount: 2, peroranganCount: 2 },
+      '0': { label: 'Jan', revenue: 5200000, billed: 5800000, mitraRevenue: 2600000, mitraBilled: 2900000, peroranganRevenue: 2600000, peroranganBilled: 2900000, count: 4, mitraCount: 2, peroranganCount: 2 },
+      '1': { label: 'Feb', revenue: 7400000, billed: 8100000, mitraRevenue: 3700000, mitraBilled: 4050000, peroranganRevenue: 3700000, peroranganBilled: 4050000, count: 6, mitraCount: 3, peroranganCount: 3 },
+      '2': { label: 'Mar', revenue: 6300000, billed: 6900000, mitraRevenue: 2520000, mitraBilled: 2760000, peroranganRevenue: 3780000, peroranganBilled: 4140000, count: 5, mitraCount: 2, peroranganCount: 3 },
+      '3': { label: 'Apr', revenue: 8600000, billed: 9400000, mitraRevenue: 3685000, mitraBilled: 4029000, peroranganRevenue: 4915000, peroranganBilled: 5371000, count: 7, mitraCount: 3, peroranganCount: 4 },
+      '4': { label: 'Mei', revenue: 7500000, billed: 8200000, mitraRevenue: 2500000, mitraBilled: 2733000, peroranganRevenue: 5000000, peroranganBilled: 5467000, count: 6, mitraCount: 2, peroranganCount: 4 },
+      '5': { label: 'Jun', revenue: 6500000, billed: 7200000, mitraRevenue: 2600000, mitraBilled: 2880000, peroranganRevenue: 3900000, peroranganBilled: 4320000, count: 5, mitraCount: 2, peroranganCount: 3 },
+      '6': { label: 'Jul', revenue: 8400000, billed: 9100000, mitraRevenue: 3600000, mitraBilled: 3900000, peroranganRevenue: 4800000, peroranganBilled: 5200000, count: 7, mitraCount: 3, peroranganCount: 4 },
+      '7': { label: 'Agu', revenue: 7800000, billed: 8500000, mitraRevenue: 2600000, mitraBilled: 2833000, peroranganRevenue: 5200000, peroranganBilled: 5667000, count: 6, mitraCount: 2, peroranganCount: 4 },
+      '8': { label: 'Sep', revenue: 9900000, billed: 11200000, mitraRevenue: 4950000, mitraBilled: 5600000, peroranganRevenue: 4950000, peroranganBilled: 5600000, count: 8, mitraCount: 4, peroranganCount: 4 },
+      '9': { label: 'Okt', revenue: 11500000, billed: 12800000, mitraRevenue: 5111000, mitraBilled: 5689000, peroranganRevenue: 6389000, peroranganBilled: 7111000, count: 9, mitraCount: 4, peroranganCount: 5 },
+      '10': { label: 'Nov', revenue: 0, billed: 0, mitraRevenue: 0, mitraBilled: 0, peroranganRevenue: 0, peroranganBilled: 0, count: 0, mitraCount: 0, peroranganCount: 0 },
+      '11': { label: 'Des', revenue: 4900000, billed: 5400000, mitraRevenue: 2450000, mitraBilled: 2700000, peroranganRevenue: 2450000, peroranganBilled: 2700000, count: 4, mitraCount: 2, peroranganCount: 2 },
     };
 
-    // Tambahkan data dari filteredOrders untuk bulan berjalan (Nov)
-    for (const order of filteredOrders) {
+    // Tambahkan kalkulasi aktual per tipe pelanggan dari seluruh order di dataset
+    for (const order of orders) {
       const d = new Date(order.receivedAt);
       const mKey = String(d.getMonth());
-      if (monthsMap[mKey]) {
+      const bucket = monthsMap[mKey];
+      if (bucket) {
         const paid = calcPaid(order);
         const billed = calcBilling(order);
-        monthsMap[mKey].revenue += paid;
-        monthsMap[mKey].billed += billed;
-        monthsMap[mKey].count += 1;
+        bucket.revenue += paid;
+        bucket.billed += billed;
+        bucket.count += 1;
         if (order.customerType === 'MITRA') {
-          monthsMap[mKey].mitraCount += 1;
+          bucket.mitraCount += 1;
+          bucket.mitraRevenue += paid;
+          bucket.mitraBilled += billed;
         } else {
-          monthsMap[mKey].peroranganCount += 1;
+          bucket.peroranganCount += 1;
+          bucket.peroranganRevenue += paid;
+          bucket.peroranganBilled += billed;
         }
       }
     }
@@ -128,13 +153,13 @@ export function AdminReportsClient() {
       let peroranganVal = m.peroranganCount;
 
       if (period === 'MITRA_B2B') {
-        filteredRevenue = Math.round(m.revenue * 0.58);
-        filteredBilled = Math.round(m.billed * 0.58);
+        filteredRevenue = m.mitraRevenue;
+        filteredBilled = m.mitraBilled;
         filteredCount = m.mitraCount;
         peroranganVal = 0;
       } else if (period === 'PERORANGAN') {
-        filteredRevenue = Math.round(m.revenue * 0.42);
-        filteredBilled = Math.round(m.billed * 0.42);
+        filteredRevenue = m.peroranganRevenue;
+        filteredBilled = m.peroranganBilled;
         filteredCount = m.peroranganCount;
         mitraVal = 0;
       }
@@ -152,13 +177,13 @@ export function AdminReportsClient() {
     });
 
     if (period === 'THIS_MONTH') {
-      return mapped.filter((m) => m.key === '10');
+      return mapped.filter((m) => m.key === String(currentMonthIdx));
     }
     if (period === 'LAST_3_MONTHS') {
-      return mapped.filter((m) => m.key === '8' || m.key === '9' || m.key === '10');
+      return mapped.filter((m) => lastThreeMonthKeys.has(m.key));
     }
     return mapped;
-  }, [filteredOrders, period]);
+  }, [orders, period, currentMonthIdx, lastThreeMonthKeys]);
 
   const financeTicks = useMemo(() => {
     const maxValM = Math.max(

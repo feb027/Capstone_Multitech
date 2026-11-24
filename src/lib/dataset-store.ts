@@ -3,10 +3,8 @@ import path from 'node:path';
 import {
   INITIAL_CUSTOMERS,
   INITIAL_SERVICE_ORDERS,
-  INITIAL_SPAREPARTS,
   MockCustomerRow,
   MockServiceOrder,
-  SparepartItem,
   UpsertCustomerPayload,
   applyAddVehicle,
   applyDeleteOrder,
@@ -18,28 +16,36 @@ import {
 export interface ServerDataset {
   orders: MockServiceOrder[];
   customers: MockCustomerRow[];
-  spareparts: SparepartItem[];
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'multitech-dataset.json');
+
+let cachedDataset: ServerDataset | null = null;
+let cachedMtimeMs = -1;
 
 function getDefaultDataset(): ServerDataset {
   const synced = synchronizeDataset(INITIAL_SERVICE_ORDERS, INITIAL_CUSTOMERS);
   return {
     orders: synced.orders,
     customers: synced.customers,
-    spareparts: INITIAL_SPAREPARTS,
   };
 }
 
 function writeDatasetFile(dataset: ServerDataset): void {
+  const clean: ServerDataset = {
+    orders: dataset.orders,
+    customers: dataset.customers,
+  };
+  cachedDataset = clean;
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(dataset, null, 2), 'utf8');
+    fs.writeFileSync(DATA_FILE, JSON.stringify(clean, null, 2), 'utf8');
+    cachedMtimeMs = fs.statSync(DATA_FILE).mtimeMs;
   } catch (err) {
+    cachedMtimeMs = -1;
     console.warn('Failed writing dataset file:', err);
   }
 }
@@ -52,18 +58,31 @@ export function getServerDataset(): ServerDataset {
       return initial;
     }
 
+    const stat = fs.statSync(DATA_FILE);
+    if (cachedDataset && cachedMtimeMs === stat.mtimeMs) {
+      return cachedDataset;
+    }
+
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
-    const parsed = JSON.parse(raw) as Partial<ServerDataset>;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
     const synced = synchronizeDataset(
-      Array.isArray(parsed.orders) ? parsed.orders : INITIAL_SERVICE_ORDERS,
-      Array.isArray(parsed.customers) ? parsed.customers : INITIAL_CUSTOMERS
+      Array.isArray(parsed.orders) ? (parsed.orders as MockServiceOrder[]) : INITIAL_SERVICE_ORDERS,
+      Array.isArray(parsed.customers) ? (parsed.customers as MockCustomerRow[]) : INITIAL_CUSTOMERS
     );
 
-    return {
+    const dataset: ServerDataset = {
       orders: synced.orders,
       customers: synced.customers,
-      spareparts: Array.isArray(parsed.spareparts) ? parsed.spareparts : INITIAL_SPAREPARTS,
     };
+
+    if ('spareparts' in parsed || 'moduleTypes' in parsed) {
+      writeDatasetFile(dataset);
+    } else {
+      cachedDataset = dataset;
+      cachedMtimeMs = stat.mtimeMs;
+    }
+
+    return dataset;
   } catch {
     return getDefaultDataset();
   }
@@ -75,7 +94,6 @@ export function upsertServerOrder(order: MockServiceOrder): ServerDataset {
   const next: ServerDataset = {
     orders: synced.orders,
     customers: synced.customers,
-    spareparts: current.spareparts,
   };
   writeDatasetFile(next);
   return next;
@@ -87,7 +105,6 @@ export function deleteServerOrder(orderId: string): ServerDataset {
   const next: ServerDataset = {
     orders: synced.orders,
     customers: synced.customers,
-    spareparts: current.spareparts,
   };
   writeDatasetFile(next);
   return next;
@@ -99,7 +116,6 @@ export function upsertServerCustomer(payload: UpsertCustomerPayload): ServerData
   const next: ServerDataset = {
     orders: synced.orders,
     customers: synced.customers,
-    spareparts: current.spareparts,
   };
   writeDatasetFile(next);
   return next;
@@ -114,7 +130,6 @@ export function addServerVehicle(
   const next: ServerDataset = {
     orders: synced.orders,
     customers: synced.customers,
-    spareparts: current.spareparts,
   };
   writeDatasetFile(next);
   return next;

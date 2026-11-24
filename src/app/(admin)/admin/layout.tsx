@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getAdminSession } from '@/lib/auth';
 import { BrandLogo } from '@/components/shared/BrandLogo';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
-import { AdminDesktopNav, AdminMobileNav, AdminHeaderMenu } from '@/components/admin/AdminNav';
+import { AdminSidebar, AdminMobileNav } from '@/components/admin/AdminNav';
 
 export default async function AdminLayout({
   children,
@@ -17,10 +17,12 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#ECEEF2] transition-colors dark:bg-black">
-      <div className="ios-ambient-backdrop relative mx-auto flex min-h-screen max-w-5xl flex-col transition-colors">
-        <header className="no-print sticky top-0 z-40 border-b border-black/[0.06] bg-white/75 backdrop-blur-2xl backdrop-saturate-150 transition-colors dark:border-white/[0.08] dark:bg-black/80">
-          <div className="mx-auto flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6">
+    <div className="ios-ambient-backdrop flex min-h-screen w-full flex-col transition-colors md:flex-row">
+      <AdminSidebar session={session} />
+
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="no-print sticky top-0 z-40 border-b border-black/[0.06] bg-white/80 backdrop-blur-2xl backdrop-saturate-150 transition-colors dark:border-white/[0.08] dark:bg-black/80 md:hidden">
+          <div className="flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6">
             <div className="flex items-center gap-3">
               <Link
                 href="/admin/dashboard"
@@ -37,16 +39,11 @@ export default async function AdminLayout({
               </span>
             </div>
 
-            <AdminDesktopNav />
-
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <AdminHeaderMenu session={session} />
-            </div>
+            <ThemeToggle />
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-5 pb-24 sm:px-6 md:pb-12">
+        <main className="w-full min-w-0 flex-1 px-4 pt-5 pb-24 sm:px-6 md:px-7 md:py-6 lg:px-8 lg:py-7">
           {children}
         </main>
 

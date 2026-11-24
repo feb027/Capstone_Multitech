@@ -99,10 +99,37 @@ export function getStatusMeta(status: ItemStatus): StatusMeta {
 export const PROGRESS_STEPS = [
   { key: ItemStatus.DITERIMA, label: 'Diterima' },
   { key: ItemStatus.DIAGNOSA, label: 'Diagnosa' },
-  { key: ItemStatus.PERBAIKAN, label: 'Perbaikan' },
-  { key: ItemStatus.UJI_QC, label: 'Uji / QC' },
+  { key: ItemStatus.PERBAIKAN, label: 'Pengerjaan' },
+  { key: ItemStatus.UJI_QC, label: 'Uji & QC' },
   { key: ItemStatus.SIAP_DIAMBIL, label: 'Siap Ambil' },
+  { key: ItemStatus.SELESAI, label: 'Selesai' },
 ];
+
+export const SPECIAL_STAGE_STATUSES: Array<{
+  key: ItemStatus;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: ItemStatus.MENUNGGU_PERSETUJUAN,
+    label: 'Konfirmasi Biaya',
+    description: 'Menunggu persetujuan estimasi dari pelanggan',
+  },
+  {
+    key: ItemStatus.MENUNGGU_SPAREPART,
+    label: 'Tunggu Komponen',
+    description: 'Menunggu stok IC / komponen pengganti tiba',
+  },
+  {
+    key: ItemStatus.BATAL,
+    label: 'Dibatalkan',
+    description: 'Pengerjaan unit / modul dibatalkan',
+  },
+];
+
+export function isSpecialStageStatus(status: ItemStatus): boolean {
+  return SPECIAL_STAGE_STATUSES.some((s) => s.key === status);
+}
 
 export function getProgressStepIndex(status: ItemStatus): number {
   switch (status) {
@@ -117,8 +144,9 @@ export function getProgressStepIndex(status: ItemStatus): number {
     case ItemStatus.UJI_QC:
       return 3;
     case ItemStatus.SIAP_DIAMBIL:
-    case ItemStatus.SELESAI:
       return 4;
+    case ItemStatus.SELESAI:
+      return 5;
     default:
       return 0;
   }
@@ -131,7 +159,7 @@ export const WORKSHOP_PROFILE = {
     'Jl. Noenoeng Tisnasaputra, Kahuripan, Kec. Tawang, Kab. Tasikmalaya, Jawa Barat 46115',
   focus:
     'Bengkel Spesialis Perbaikan Elektronik Otomotif (ECU, BCM, EPS, Digital Speedometer) & Modul Genset/Industri',
-  whatsappNumber: '6281234567890',
+  whatsappNumber: process.env.NEXT_PUBLIC_WORKSHOP_WA || '6281234567890',
 };
 
 export function getVehicleHeroImage(

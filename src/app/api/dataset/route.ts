@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
+import { getAdminSession } from '@/lib/auth';
 import { MockServiceOrder, UpsertCustomerPayload } from '@/lib/frontend-mock';
 import {
   addServerVehicle,
@@ -33,11 +34,20 @@ function revalidateAllViews() {
 }
 
 export async function GET() {
+  const session = await getAdminSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const dataset = getServerDataset();
   return NextResponse.json(dataset);
 }
 
 export async function POST(request: Request) {
+  const session = await getAdminSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = (await request.json()) as DatasetMutationRequest;
 

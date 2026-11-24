@@ -11,10 +11,23 @@ export async function middleware(req: NextRequest) {
   // Skip static assets, internal Next.js requests, favicon
   if (
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
     pathname.includes('.') ||
     pathname.startsWith('/favicon.ico')
   ) {
+    return NextResponse.next();
+  }
+
+  // Guard dataset API endpoints with admin session cookie
+  if (pathname.startsWith('/api/dataset')) {
+    const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
+    const session = token ? await verifyAdminSessionToken(token) : null;
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith('/api')) {
     return NextResponse.next();
   }
 

@@ -2,7 +2,19 @@
 
 Sistem manajemen & pelacakan progres servis **modul elektronik mobil** (ECU, BCM, EPS, Speedometer, dll.) untuk **Multitech** (Tasikmalaya). Dibuat untuk mata kuliah **Capstone Project**.
 
-> Status: **Sprint 0 (Analisis & Perancangan)**. Implementasi belum dimulai.
+> Status: **Implementasi Aktif (Next.js App Router + PostgreSQL/Prisma + Sinkronisasi Dataset Lokal)**.
+
+## Menjalankan Proyek Secara Lokal
+```bash
+npm install
+npx prisma generate
+npm run dev
+```
+
+* Portal Publik: `http://localhost:3000`
+* Portal Admin: `http://localhost:3000/admin/login`
+* Verifikasi kode & build: `npx tsc --noEmit`, `npm run lint`, `npm run build`
+* Sinkronisasi & seed PostgreSQL (saat `DATABASE_URL` aktif): `npx prisma migrate dev && npm run db:seed`
 
 ## Latar Belakang Singkat
 Dulu Multitech adalah toko penjualan komputer. Sejak pandemi COVID-19, fokusnya bergeser ke **jasa servis**, dan sekarang ke **servis elektronik mobil**. Servis modul elektronik bisa memakan waktu berhari-hari (diagnosa, menunggu komponen, solder, uji). Akibatnya pelanggan sering menanyakan progres secara manual lewat telepon/WhatsApp.
